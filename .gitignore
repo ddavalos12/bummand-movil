@@ -1,0 +1,39 @@
+# Dependencias de Dart y Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Archivos auto-generados de Android
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/build/
+
+# Archivos auto-generados de iOS
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/.symlinks/
+ios/Runner.xcworkspace/xcuserdata/
+
+# Logs y SO
+*.log
+.DS_Store
+Thumbs.db
+
+# Agentes AI (Reglas locales)
+.agents/
+
+# Prototipos Locales
+_prototipos/
