@@ -6,19 +6,22 @@
 - **Idioma Español Absoluto:** Todo el código (clases, variables, métodos, widgets) y los nombres de archivos (`.dart`) y carpetas DEBEN estar estrictamente en español. (Ej: `lib/pantallas/inicio_sesion_pantalla.dart`).
 - *Excepción:* Dependencias de `pubspec.yaml`, configuraciones raíz y llamadas a la API estándar de Flutter/Dart.
 
-## 2. Estructura Base de Carpetas (Arquitectura por Funcionalidad)
-Se subdividirá la capa móvil (`bumand-movil/lib/`) para evitar un monolito inmanejable:
-- `lib/core/` (o `lib/nucleo/`): Configuración general, constantes, paleta de colores, rutas, y utilidades transversales.
-- `lib/caracteristicas/` (Features): Separado por dominios de la aplicación:
-  - `autenticacion/` (Modelos, UI, repositorios para login)
-  - `pasajes/` (Lógica de declaración de pasajes e ida/vuelta)
-  - `asistencia/` (Gestión de GPS y geocercas)
-- `lib/widgets_comunes/`: Componentes UI reutilizables (botones personalizados, inputs).
+## 2. Estructura Base de Carpetas (Arquitectura por Módulos y Funcionalidad)
+Se subdividirá la capa móvil (`bumand-movil/lib/`) para evitar un monolito inmanejable y mantener absoluta coherencia en español:
+- `lib/nucleo/`: Configuración general, constantes, paleta de colores, rutas, y utilidades transversales.
+- `lib/modulos/`: Separado por dominios de la aplicación:
+  - `autenticacion/` (modelos, pantallas, proveedores, repositorios para inicio de sesión)
+  - `pasajes/` (lógica de declaración de pasajes e ida/vuelta)
+  - `asistencia/` (gestión de GPS y geocercas)
+  - `inicio/` (pantallas principales del contenedor de navegación)
+- `lib/widgets-comunes/`: Componentes UI reutilizables (botones personalizados, inputs).
 
-## 3. Nomenclatura de Archivos y Código
-- **snake_case:** ESTRICTAMENTE OBLIGATORIO para todos los nombres de archivos y carpetas en Flutter (ej. `perfil_becario_pantalla.dart`, `usuario_modelo.dart`).
-- **PascalCase (ESPAÑOL):** Clases, Widgets y Enumeraciones (ej. `class PerfilBecarioPantalla extends StatelessWidget`).
-- **camelCase:** Variables, estados, métodos y callbacks.
+## 3. Estándar de Código y Nombrado
+- **snake_case:** Variables y Atributos (ej. `correo_controlador`, `becario_id`, `estado_actual`).
+- **camelCase:** Métodos y funciones (ej. `iniciarSesion()`, `obtenerPerfil()`).
+- **PascalCase (ESPAÑOL):** Clases, Interfaces, DTOs, Entidades, Widgets (ej. `class PerfilBecarioPantalla extends StatelessWidget`).
+- **UPPER_SNAKE_CASE:** Constantes.
+- **kebab-case:** Nombres de carpetas y archivos (ej. `inicio-sesion-pantalla.dart`, `usuario-modelo.dart`), y rutas de red REST.
 
 ## 4. Manejo de Estado y Rendimiento
 - **Separación de Lógica y UI:** La capa de presentación (UI) nunca debe contener lógica de llamadas HTTP directas. Usar un gestor de estado (Riverpod, Provider o Bloc) de manera consistente.
