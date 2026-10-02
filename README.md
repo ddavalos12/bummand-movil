@@ -107,5 +107,6 @@ flutter run -d windows
 
 ## 📄 Documentación Técnica Completa
 
-Se encuentra disponible la especificación formal en formato PDF:
-- [documentacion_movil.pdf](file:///c:/Users/yang_/Desktop/Bumands-Proyecto/new-bumand/bumand-movil/documentacion_movil.pdf) (Generado con `generador-pdf` / LaTeX).
+Se encuentra disponible la especificación formal del sistema móvil tanto en Markdown como en PDF:
+- [DOCUMENTACION_MOVIL.md](file:///c:/Users/yang_/Desktop/Bumands-Proyecto/new-bumand/bumand-movil/DOCUMENTACION_MOVIL.md) (Especificación integral de arquitectura y componentes).
+- [DOCUMENTACION_MOVIL.pdf](file:///c:/Users/yang_/Desktop/Bumands-Proyecto/new-bumand/bumand-movil/DOCUMENTACION_MOVIL.pdf) (Documento técnico compilado con LaTeX / `generador-pdf`).

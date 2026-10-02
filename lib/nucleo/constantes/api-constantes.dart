@@ -8,6 +8,8 @@ class ApiConstantes {
   static const String PUNTO_ASISTENCIA_HISTORIAL = '/asistencia';
   static const String PUNTO_PASAJES_CONFIRMAR = '/pasajes/confirmar-datos';
   static const String PUNTO_PASAJES = '/pasajes';
+  static const String PUNTO_NOTIFICACIONES = '/notificaciones/mis-notificaciones';
+  static const String PUNTO_NOTIFICACIONES_CONTEO = '/notificaciones/no-leidas/conteo';
 
   // Alias para retrocompatibilidad
   static const String baseUrl = RUTA_BASE;

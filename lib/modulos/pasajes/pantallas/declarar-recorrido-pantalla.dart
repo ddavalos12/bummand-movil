@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../proveedores/pasajes-proveedor.dart';
 import '../utilidades/formato-pasajes.dart';
+import '../../../nucleo/tema/colores.dart';
 
 class DeclararRecorridoPantalla extends ConsumerStatefulWidget {
   const DeclararRecorridoPantalla({super.key});
@@ -154,7 +155,9 @@ class _DeclararRecorridoPantallaState
         return;
       }
 
-      final posicion = await Geolocator.getCurrentPosition();
+      final posicion = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
       if (posicion.isMocked) {
         _mensaje(
           "Se detectó una ubicación simulada; no se guardó.",
@@ -170,7 +173,7 @@ class _DeclararRecorridoPantallaState
         }
       });
       _mensaje(
-        "Ubicación de $punto registrada (±${posicion.accuracy.round()} m)",
+        "📍 PIN GPS de $punto fijado: ${posicion.latitude.toStringAsFixed(5)}, ${posicion.longitude.toStringAsFixed(5)} (±${posicion.accuracy.round()} m)",
       );
     } catch (e) {
       _mensaje(e.toString().replaceFirst("Exception: ", ""), es_error: true);
@@ -326,11 +329,18 @@ class _DeclararRecorridoPantallaState
             const SizedBox(height: 8),
             TextFormField(
               controller: _origen_controlador,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: "Origen",
                 hintText: "Ej. Villa Adela, El Alto",
-                prefixIcon: Icon(Icons.trip_origin),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.trip_origin),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.pin_drop, color: BumandColores.AZUL_DIACONIA),
+                  tooltip: "Capturar PIN GPS de origen",
+                  onPressed: _capturando_gps != null || _guardando
+                      ? null
+                      : () => _capturarGps("origen"),
+                ),
+                border: const OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.sentences,
               validator: _validarTexto,
@@ -346,11 +356,18 @@ class _DeclararRecorridoPantallaState
             ),
             TextFormField(
               controller: _destino_controlador,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: "Destino",
                 hintText: "Ej. Oficina Central Diaconía",
-                prefixIcon: Icon(Icons.place),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.place),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.pin_drop, color: BumandColores.AZUL_DIACONIA),
+                  tooltip: "Capturar PIN GPS de destino",
+                  onPressed: _capturando_gps != null || _guardando
+                      ? null
+                      : () => _capturarGps("destino"),
+                ),
+                border: const OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.sentences,
               validator: _validarTexto,
@@ -453,29 +470,62 @@ class _BotonGps extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerLeft,
         child: posicion == null
-            ? TextButton.icon(
+            ? OutlinedButton.icon(
                 onPressed: onPressed,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BumandColores.AZUL_DIACONIA,
+                  side: const BorderSide(color: BumandColores.AZUL_DIACONIA),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 icon: cargando
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.my_location, size: 18),
+                    : const Text("📍", style: TextStyle(fontSize: 16)),
                 label: Text(
-                  "Estoy en el $etiqueta: marcar mi ubicación (opcional)",
+                  "Fijar PIN GPS de $etiqueta actual",
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 ),
               )
-            : InputChip(
-                avatar: const Icon(
-                  Icons.location_on,
-                  color: Colors.green,
-                  size: 18,
+            : Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF10B981)),
                 ),
-                label: Text(
-                  "Ubicación de $etiqueta guardada (±${posicion!.accuracy.round()} m)",
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text("📍", style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 6),
+                    Text(
+                      "PIN $etiqueta: ${posicion!.latitude.toStringAsFixed(5)}, ${posicion!.longitude.toStringAsFixed(5)} (±${posicion!.accuracy.round()} m)",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF065F46),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: onQuitar,
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF065F46),
+                      ),
+                    ),
+                  ],
                 ),
-                onDeleted: onQuitar,
               ),
       ),
     );

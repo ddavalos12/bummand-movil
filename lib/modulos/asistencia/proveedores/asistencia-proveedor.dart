@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../repositorios/asistencia-repositorio.dart';
 
@@ -31,10 +32,31 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     _repo = ref.read(asistencia_repositorio_proveedor);
   }
 
-  Future<String?> registrarIngreso(String tipo) async {
+  Future<String?> registrarIngreso(
+    String tipo, {
+    Position? posicion,
+    Map<String, dynamic>? lugar,
+  }) async {
     state = const AsyncLoading();
     try {
-      final pos = await _repo.obtenerPosicionActual();
+      final pos = posicion ?? await _repo.obtenerPosicionActual();
+      if (lugar != null && lugar["latitud"] != null && lugar["longitud"] != null) {
+        final latitud = double.tryParse(lugar["latitud"].toString()) ?? 0.0;
+        final longitud = double.tryParse(lugar["longitud"].toString()) ?? 0.0;
+        final radio = double.tryParse(
+          (lugar["radio_tolerancia_m"] ?? lugar["radioToleranciaM"] ?? 100).toString(),
+        ) ?? 100.0;
+        final dentro = _repo.validarGeocerca(
+          posicion: pos,
+          latitud_destino: latitud,
+          longitud_destino: longitud,
+          radio_tolerancia_m: radio,
+        );
+        if (!dentro) {
+          state = const AsyncError("Fuera de rango", StackTrace.empty);
+          return "Estás fuera del radio permitido para marcar ingreso";
+        }
+      }
       final res = await _repo.registrarIngreso(tipo, pos);
       if (res.exito) {
         ref.invalidate(historial_asistencia_proveedor);
@@ -49,10 +71,31 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     }
   }
 
-  Future<String?> registrarSalida(String tipo) async {
+  Future<String?> registrarSalida(
+    String tipo, {
+    Position? posicion,
+    Map<String, dynamic>? lugar,
+  }) async {
     state = const AsyncLoading();
     try {
-      final pos = await _repo.obtenerPosicionActual();
+      final pos = posicion ?? await _repo.obtenerPosicionActual();
+      if (lugar != null && lugar["latitud"] != null && lugar["longitud"] != null) {
+        final latitud = double.tryParse(lugar["latitud"].toString()) ?? 0.0;
+        final longitud = double.tryParse(lugar["longitud"].toString()) ?? 0.0;
+        final radio = double.tryParse(
+          (lugar["radio_tolerancia_m"] ?? lugar["radioToleranciaM"] ?? 100).toString(),
+        ) ?? 100.0;
+        final dentro = _repo.validarGeocerca(
+          posicion: pos,
+          latitud_destino: latitud,
+          longitud_destino: longitud,
+          radio_tolerancia_m: radio,
+        );
+        if (!dentro) {
+          state = const AsyncError("Fuera de rango", StackTrace.empty);
+          return "Estás fuera del radio permitido para marcar salida";
+        }
+      }
       final res = await _repo.registrarSalida(tipo, pos);
       if (res.exito) {
         ref.invalidate(historial_asistencia_proveedor);

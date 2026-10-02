@@ -84,6 +84,36 @@ class AsistenciaRepositorio {
     );
   }
 
+  double calcularDistancia({
+    required Position posicion,
+    required double latitud_destino,
+    required double longitud_destino,
+  }) {
+    return Geolocator.distanceBetween(
+      posicion.latitude,
+      posicion.longitude,
+      latitud_destino,
+      longitud_destino,
+    );
+  }
+
+  bool validarGeocerca({
+    required Position posicion,
+    required double latitud_destino,
+    required double longitud_destino,
+    double radio_tolerancia_m = 100,
+  }) {
+    if (posicion.isMocked) return false;
+    final distancia_m = Geolocator.distanceBetween(
+      posicion.latitude,
+      posicion.longitude,
+      latitud_destino,
+      longitud_destino,
+    );
+    final margen = posicion.accuracy.clamp(0.0, 10.0);
+    return distancia_m <= (radio_tolerancia_m + margen);
+  }
+
   Map<String, dynamic> _cuerpoUbicacion(Position posicion, String tipo) => {
     "latitud": posicion.latitude,
     "longitud": posicion.longitude,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../proveedores/autenticacion-proveedor.dart';
 import '../../inicio/pantallas/pantalla-inicio.dart';
+import 'registro-pantalla.dart';
 
 class InicioSesionPantalla extends ConsumerStatefulWidget {
   const InicioSesionPantalla({super.key});
@@ -17,6 +18,7 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla> {
   final _correo_controlador = TextEditingController();
   final _contrasena_controlador = TextEditingController();
   bool _ocultar_contrasena = true;
+  String? _error_local;
 
   @override
   void dispose() {
@@ -29,15 +31,25 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla> {
     final correo = _correo_controlador.text.trim();
     final contrasena = _contrasena_controlador.text;
 
-    if (correo.isEmpty || contrasena.isEmpty) return;
+    if (correo.isEmpty || contrasena.isEmpty) {
+      setState(() {
+        _error_local = "Por favor ingresa tu correo y contraseña";
+      });
+      return;
+    }
+
+    setState(() {
+      _error_local = null;
+    });
 
     final exito = await ref
         .read(autenticacion_proveedor.notifier)
         .iniciarSesion(correo, contrasena);
 
     if (exito && mounted) {
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const PantallaInicio()),
+        (_) => false,
       );
     }
   }
@@ -95,6 +107,7 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla> {
   @override
   Widget build(BuildContext context) {
     final estado_auth = ref.watch(autenticacion_proveedor);
+    final error_visible = _error_local ?? estado_auth.error;
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
@@ -152,14 +165,37 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla> {
                   es_contrasena: true,
                 ),
                 const SizedBox(height: 16),
-
-                if (estado_auth.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      estado_auth.error!,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
+                if (error_visible != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: Colors.red.shade700,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            error_visible,
+                            style: TextStyle(
+                              color: Colors.red.shade800,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -175,8 +211,13 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla> {
                       ),
                     ),
                     child: estado_auth.cargando
-                        ? const CircularProgressIndicator(
-                            color: BumandColores.BLANCO,
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: BumandColores.BLANCO,
+                            ),
                           )
                         : const Text(
                             "Ingresar",
@@ -187,6 +228,41 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla> {
                             ),
                           ),
                   ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "¿No tienes una cuenta? ",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: estado_auth.cargando
+                          ? null
+                          : () {
+                              ref
+                                  .read(autenticacion_proveedor.notifier)
+                                  .limpiarError();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const RegistroPantalla(),
+                                ),
+                              );
+                            },
+                      child: const Text(
+                        "Regístrate",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

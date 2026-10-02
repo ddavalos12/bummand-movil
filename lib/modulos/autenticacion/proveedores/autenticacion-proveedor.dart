@@ -15,7 +15,7 @@ class AutenticacionEstado {
   final UsuarioModelo? usuario;
   final String? error;
 
-  AutenticacionEstado({this.cargando = false, this.usuario, this.error});
+  const AutenticacionEstado({this.cargando = false, this.usuario, this.error});
 
   AutenticacionEstado copiarCon({
     bool? cargando,
@@ -39,7 +39,7 @@ class AutenticacionNotificador extends Notifier<AutenticacionEstado> {
   @override
   AutenticacionEstado build() {
     _repositorio = ref.watch(autenticacion_repositorio_proveedor);
-    return AutenticacionEstado();
+    return const AutenticacionEstado();
   }
 
   Future<bool> iniciarSesion(String correo, String contrasena) async {
@@ -70,9 +70,20 @@ class AutenticacionNotificador extends Notifier<AutenticacionEstado> {
     }
   }
 
+  Future<void> verificarSesionExistente() async {
+    final usuario_guardado = await _repositorio.obtenerSesionActual();
+    if (usuario_guardado != null) {
+      state = state.copiarCon(usuario: usuario_guardado);
+    }
+  }
+
+  void limpiarError() {
+    state = state.copiarCon(limpiar_error: true);
+  }
+
   Future<void> cerrarSesion() async {
     await _repositorio.cerrarSesion();
-    state = AutenticacionEstado();
+    state = const AutenticacionEstado();
   }
 }
 
@@ -83,3 +94,4 @@ final autenticacion_proveedor = NotifierProvider<AutenticacionNotificador, Auten
 });
 
 final authProveedor = autenticacion_proveedor;
+
