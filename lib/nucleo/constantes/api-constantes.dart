@@ -1,6 +1,16 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 class ApiConstantes {
-  // Ajustar la IP al entorno local, 10.0.2.2 para emulador Android, localhost para Windows Desktop
-  static const String RUTA_BASE = 'http://10.0.2.2:3002';
+  // Detección automática: 10.0.2.2 en emulador Android, localhost en Windows/Desktop/Web
+  static String get RUTA_BASE {
+    if (kIsWeb) return 'http://localhost:3002';
+    try {
+      if (Platform.isAndroid) return 'http://10.0.2.2:3002';
+    } catch (_) {}
+    return 'http://localhost:3002';
+  }
+
   static const String PUNTO_INICIO_SESION = '/autenticacion/inicio-sesion';
   static const String PUNTO_REGISTRO = '/autenticacion/registro';
   static const String PUNTO_ASISTENCIA_INGRESO = '/asistencia/ingreso';
@@ -12,7 +22,7 @@ class ApiConstantes {
   static const String PUNTO_NOTIFICACIONES_CONTEO = '/notificaciones/no-leidas/conteo';
 
   // Alias para retrocompatibilidad
-  static const String baseUrl = RUTA_BASE;
+  static String get baseUrl => RUTA_BASE;
   static const String loginEndpoint = PUNTO_INICIO_SESION;
   static const String registroEndpoint = PUNTO_REGISTRO;
   static const String asistenciaIngresoEndpoint = PUNTO_ASISTENCIA_INGRESO;

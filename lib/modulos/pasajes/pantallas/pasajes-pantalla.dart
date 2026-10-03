@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../modelos/recorrido-modelo.dart';
 import '../modelos/solicitud-pasaje-modelo.dart';
 import '../proveedores/pasajes-proveedor.dart';
@@ -122,7 +123,10 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
-      appBar: AppBar(title: const Text("Mis pasajes")),
+      appBar: const BarraSuperiorBumand(
+        titulo: "Mis pasajes",
+        subtitulo: "Declaración mensual de recorridos",
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _procesando
             ? null

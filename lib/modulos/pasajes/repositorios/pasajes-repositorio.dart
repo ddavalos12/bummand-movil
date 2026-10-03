@@ -45,7 +45,7 @@ class PasajesRepositorio {
   }
 
   Uri _url(String ruta) =>
-      Uri.parse('${ApiConstantes.RUTA_BASE}/api/pasajes$ruta');
+      Uri.parse('${ApiConstantes.RUTA_BASE}/pasajes$ruta');
 
   Future<ResultadoPasaje<List<SolicitudPasajeModelo>>> misSolicitudes() async {
     try {

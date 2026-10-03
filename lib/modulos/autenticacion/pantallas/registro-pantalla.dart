@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../proveedores/autenticacion-proveedor.dart';
 import '../../inicio/pantallas/pantalla-inicio.dart';
@@ -161,9 +162,38 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Center(
+                  child: Column(
+                    children: [
+                      SvgPicture.asset(
+                        'assets/logos/logo-bumand.svg',
+                        height: 52,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0F4F8),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFD9E2EC)),
+                        ),
+                        child: SvgPicture.asset(
+                          'assets/logos/logo-diaconia.svg',
+                          height: 20,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   "Si ya estás en la lista de becarios de BUMAND (tu CI ya fue cargado por el administrador), crea tu cuenta aquí con tu correo real.",
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 20),
                 _construirCampoTexto(

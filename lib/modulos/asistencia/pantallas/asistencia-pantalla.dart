@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../modelos/tipo-asistencia.dart';
 import '../proveedores/asistencia-proveedor.dart';
 
@@ -17,11 +18,6 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
     with SingleTickerProviderStateMixin {
   static const _FONDO = Color(0xFFEFF3F8);
   static const _BORDE = Color(0xFFE3E9F2);
-  static const _DEGRADADO_DIACONIA = LinearGradient(
-    colors: [BumandColores.AZUL_DIACONIA, BumandColores.TURQUESA_DIACONIA],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
 
   String _tipo = TipoAsistencia.practicas.valor;
 
@@ -164,28 +160,9 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
 
     return Scaffold(
       backgroundColor: _FONDO,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 76,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: _DEGRADADO_DIACONIA),
-        ),
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              "Registro de asistencia",
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              "Verificación por geolocalización",
-              style: TextStyle(fontSize: 12, color: Color(0xFFD6F1F7)),
-            ),
-          ],
-        ),
+      appBar: const BarraSuperiorBumand(
+        titulo: "Registro de asistencia",
+        subtitulo: "Verificación por geolocalización",
       ),
       body: RefreshIndicator(
         onRefresh: () async {

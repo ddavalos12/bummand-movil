@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../modelos/notificacion-modelo.dart';
 import '../proveedores/notificaciones-proveedor.dart';
 
@@ -17,11 +18,6 @@ class _NotificacionesPantallaState
     extends ConsumerState<NotificacionesPantalla> {
   static const _FONDO = Color(0xFFEFF3F8);
   static const _BORDE = Color(0xFFE3E9F2);
-  static const _DEGRADADO_DIACONIA = LinearGradient(
-    colors: [BumandColores.AZUL_DIACONIA, BumandColores.TURQUESA_DIACONIA],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
 
   String _filtro_actual = "todas";
 
@@ -32,29 +28,10 @@ class _NotificacionesPantallaState
 
     return Scaffold(
       backgroundColor: _FONDO,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 76,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: _DEGRADADO_DIACONIA),
-        ),
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              "Notificaciones y alertas",
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              "Avisos de salida, pasajes y evaluaciones",
-              style: TextStyle(fontSize: 12, color: Color(0xFFD6F1F7)),
-            ),
-          ],
-        ),
-        actions: [
+      appBar: BarraSuperiorBumand(
+        titulo: "Notificaciones y alertas",
+        subtitulo: "Avisos de salida, pasajes y evaluaciones",
+        acciones_adicionales: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             tooltip: "Actualizar",
