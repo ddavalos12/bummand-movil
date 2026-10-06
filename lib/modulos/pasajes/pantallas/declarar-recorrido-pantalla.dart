@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../proveedores/pasajes-proveedor.dart';
 import '../utilidades/formato-pasajes.dart';
 import '../../../nucleo/tema/colores.dart';
-
+import '../../../compartido/componentes/seleccionador_fecha.dart';
 class DeclararRecorridoPantalla extends ConsumerStatefulWidget {
   const DeclararRecorridoPantalla({super.key});
 
@@ -117,19 +117,7 @@ class _DeclararRecorridoPantallaState
     return null;
   }
 
-  Future<void> _elegirFecha() async {
-    final hoy = DateTime.now();
-    final elegida = await showDatePicker(
-      context: context,
-      initialDate: _fecha,
-      firstDate: DateTime(hoy.year, hoy.month - 2, 1),
-      lastDate: hoy,
-      helpText: "Fecha del recorrido",
-    );
-    if (elegida != null) {
-      setState(() => _fecha = elegida);
-    }
-  }
+
 
   Future<void> _capturarGps(String punto) async {
     setState(() => _capturando_gps = punto);
@@ -315,14 +303,12 @@ class _DeclararRecorridoPantallaState
               },
             ),
             const SizedBox(height: 8),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.event),
-                title: const Text("Fecha"),
-                subtitle: Text(FormatoPasajes.ddmmyyyy(_fecha)),
-                trailing: const Icon(Icons.edit_calendar),
-                onTap: _guardando ? null : _elegirFecha,
-              ),
+            SeleccionadorFecha(
+              fecha: _fecha,
+              onCambiada: _guardando ? (v) {} : (v) => setState(() => _fecha = v),
+              primeraFecha: DateTime(DateTime.now().year, DateTime.now().month - 2, 1),
+              ultimaFecha: DateTime.now(),
+              etiqueta: "Fecha del recorrido",
             ),
             const SizedBox(height: 16),
             Text("1. Ida", style: tema.textTheme.titleMedium),
