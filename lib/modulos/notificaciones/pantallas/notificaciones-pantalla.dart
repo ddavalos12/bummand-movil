@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
+import '../../../widgets-comunes/cargando-skeleton.dart';
+import '../../../widgets-comunes/error-widget-personalizado.dart';
+import '../../../widgets-comunes/estado-vacio-widget.dart';
 import '../modelos/notificacion-modelo.dart';
 import '../proveedores/notificaciones-proveedor.dart';
 
@@ -41,6 +44,8 @@ class _NotificacionesPantallaState
         ],
       ),
       body: RefreshIndicator(
+        color: BumandColores.NARANJA_OSCURO,
+        backgroundColor: BumandColores.AZUL_DIACONIA,
         onRefresh: () =>
             ref.read(notificaciones_notificador_proveedor.notifier).recargar(),
         child: Column(
@@ -67,7 +72,13 @@ class _NotificacionesPantallaState
                 data: (notificaciones) {
                   final filtradas = _aplicarFiltro(notificaciones);
                   if (filtradas.isEmpty) {
-                    return _VistaVacia(filtro: _filtro_actual);
+                    return EstadoVacioWidget(
+                      titulo: "No hay notificaciones pendientes",
+                      mensaje: _filtro_actual == "todas"
+                          ? "Tus alertas sobre salida, pasajes observados y evaluaciones se mostrarán aquí."
+                          : "No se encontraron alertas en esta categoría.",
+                      icono: Icons.notifications_none_outlined,
+                    );
                   }
                   return ListView.builder(
                     padding: const EdgeInsets.all(16),
@@ -89,38 +100,14 @@ class _NotificacionesPantallaState
                     },
                   );
                 },
-                loading: () => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                error: (error, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.redAccent,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "Error al cargar notificaciones:\n$error",
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.black87),
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: () => ref
-                              .read(
-                                notificaciones_notificador_proveedor.notifier,
-                              )
-                              .recargar(),
-                          child: const Text("Reintentar"),
-                        ),
-                      ],
-                    ),
-                  ),
+                loading: () =>
+                    CargandoSkeleton.lista(cantidad: 4, alto_item: 88),
+                error: (error, _) => ErrorWidgetPersonalizado(
+                  mensaje: "Error al cargar notificaciones",
+                  detalles: [error.toString()],
+                  alReintentar: () => ref
+                      .read(notificaciones_notificador_proveedor.notifier)
+                      .recargar(),
                 ),
               ),
             ),
@@ -337,56 +324,4 @@ class _ConfiguracionTipoAlerta {
     required this.color_fondo_icono,
     required this.etiqueta,
   });
-}
-
-class _VistaVacia extends StatelessWidget {
-  final String filtro;
-
-  const _VistaVacia({required this.filtro});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFFE2E8F0),
-              ),
-              child: const Icon(
-                Icons.notifications_none_outlined,
-                size: 48,
-                color: Color(0xFF64748B),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "No hay notificaciones pendientes",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: BumandColores.NEGRO,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              filtro == "todas"
-                  ? "Tus alertas sobre salida, pasajes observados y evaluaciones se mostrarán aquí."
-                  : "No se encontraron alertas en esta categoría.",
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

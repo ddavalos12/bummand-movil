@@ -2,10 +2,14 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../repositorios/asistencia-repositorio.dart';
 
 final asistencia_repositorio_proveedor = Provider(
-  (ref) => AsistenciaRepositorio(),
+  (ref) {
+    final cola = ref.watch(cola_offline_servicio_proveedor);
+    return AsistenciaRepositorio(cola_offline: cola);
+  },
 );
 
 final asistenciaRepositorioProveedor = asistencia_repositorio_proveedor;
@@ -58,8 +62,9 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
         }
       }
       final res = await _repo.registrarIngreso(tipo, pos);
-      if (res.exito) {
+      if (res.exito || res.error_bumand?.fueEncolado == true) {
         ref.invalidate(historial_asistencia_proveedor);
+        ref.invalidate(cola_offline_conteo_proveedor);
         state = const AsyncData(null);
         return null;
       }
@@ -97,8 +102,9 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
         }
       }
       final res = await _repo.registrarSalida(tipo, pos);
-      if (res.exito) {
+      if (res.exito || res.error_bumand?.fueEncolado == true) {
         ref.invalidate(historial_asistencia_proveedor);
+        ref.invalidate(cola_offline_conteo_proveedor);
         state = const AsyncData(null);
         return null;
       }
@@ -132,7 +138,6 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     try {
       final res = await _repo.confirmarDatosPasajes(periodo);
       if (res.exito) {
-        ref.invalidate(perfil_proveedor);
         state = const AsyncData(null);
         return null;
       }

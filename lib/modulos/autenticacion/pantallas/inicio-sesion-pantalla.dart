@@ -139,39 +139,43 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla> {
               ),
               child: Column(
                 children: [
-                  // Logo BUMAND Oficial en versión Blanca para fondo oscuro
-                  SvgPicture.asset(
-                    'assets/logos/logo-bumand-blanco.svg',
-                    height: 58,
-                    fit: BoxFit.contain,
+                  Hero(
+                    tag: 'hero-logo-bumand',
+                    child: SvgPicture.asset(
+                      'assets/logos/logo-bumand-blanco.svg',
+                      height: 58,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  // Logo Diaconía IFD Oficial en cápsula blanca de alta visibilidad
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: SvgPicture.asset(
-                      'assets/logos/logo-diaconia.svg',
-                      height: 20,
-                      fit: BoxFit.contain,
+                  Hero(
+                    tag: 'hero-logo-diaconia',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: SvgPicture.asset(
+                        'assets/logos/logo-diaconia.svg',
+                        height: 20,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
                   const Text(
-                    "PROGRAMA CORPORATIVO DE BECARIOS",
+                    "Sistema de gestión de becarios",
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -292,7 +296,7 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla> {
                                 ),
                               )
                             : const Text(
-                                "Ingresar al Sistema",
+                                "Ingresar",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,

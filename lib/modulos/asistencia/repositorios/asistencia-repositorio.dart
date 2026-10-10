@@ -5,9 +5,19 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../nucleo/constantes/api-constantes.dart';
+import '../../../nucleo/errores/error-bumand.dart';
+import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 
 class AsistenciaRepositorio {
+  final http.Client? cliente;
+  final ColaOfflineServicio? cola_offline;
+
+  AsistenciaRepositorio({
+    this.cliente,
+    this.cola_offline,
+  });
+
   Future<String?> _obtenerToken() async {
     final preferencias = await SharedPreferences.getInstance();
     return preferencias.getString('token');
@@ -17,48 +27,66 @@ class AsistenciaRepositorio {
     final token = await _obtenerToken();
     return {
       "Content-Type": "application/json",
-      "Authorization": "Bearer $token",
+      if (token != null) "Authorization": "Bearer $token",
     };
   }
 
+  http.Client _obtenerCliente() => cliente ?? http.Client();
+
   Future<Resultado<Map<String, dynamic>>> obtenerPerfil() async {
+    final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
-      final respuesta = await http.get(
+      final respuesta = await cliente_http.get(
         Uri.parse('${ApiConstantes.RUTA_BASE}/api/perfil'),
         headers: cabeceras,
       );
 
       if (respuesta.statusCode != 200) {
-        return Resultado.fallido("No se pudo obtener el perfil");
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return Resultado.desdeErrorBumand(error);
       }
       return Resultado.exitoso(
         jsonDecode(respuesta.body) as Map<String, dynamic>,
       );
-    } catch (e) {
-      return Resultado.fallido("Error de conexión: $e");
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: '/api/perfil',
+        metodo: 'GET',
+      );
+      return Resultado.desdeErrorBumand(error);
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
   Future<Resultado<Map<String, dynamic>>> actualizarPerfil(
     Map<String, dynamic> datos,
   ) async {
+    final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
-      final respuesta = await http.put(
+      final respuesta = await cliente_http.put(
         Uri.parse('${ApiConstantes.RUTA_BASE}/api/perfil'),
         headers: cabeceras,
         body: jsonEncode(datos),
       );
 
       if (respuesta.statusCode != 200) {
-        return Resultado.fallido("No se pudo actualizar el perfil");
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return Resultado.desdeErrorBumand(error);
       }
       return Resultado.exitoso(
         jsonDecode(respuesta.body) as Map<String, dynamic>,
       );
-    } catch (e) {
-      return Resultado.fallido("Error de conexión: $e");
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: '/api/perfil',
+        metodo: 'PUT',
+      );
+      return Resultado.desdeErrorBumand(error);
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
@@ -126,23 +154,43 @@ class AsistenciaRepositorio {
     String tipo,
     Position posicion,
   ) async {
+    final cliente_http = _obtenerCliente();
+    final cuerpo = _cuerpoUbicacion(posicion, tipo);
+    final ruta = ApiConstantes.PUNTO_ASISTENCIA_INGRESO;
+
     try {
       final cabeceras = await _cabeceras();
-      final respuesta = await http.post(
-        Uri.parse(
-          '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_ASISTENCIA_INGRESO}',
-        ),
+      final respuesta = await cliente_http.post(
+        Uri.parse('${ApiConstantes.RUTA_BASE}$ruta'),
         headers: cabeceras,
-        body: jsonEncode(_cuerpoUbicacion(posicion, tipo)),
+        body: jsonEncode(cuerpo),
       );
 
-      final datos = jsonDecode(respuesta.body);
-      if (respuesta.statusCode != 201 && respuesta.statusCode != 200) {
-        return Resultado.fallido(datos["error"] ?? datos["message"] ?? "Error");
+      if (respuesta.statusCode == 201 || respuesta.statusCode == 200) {
+        final datos = jsonDecode(respuesta.body);
+        return Resultado.exitoso(
+          datos["mensaje"]?.toString() ?? "Ingreso registrado",
+        );
       }
-      return Resultado.exitoso(datos["mensaje"] ?? "Ingreso registrado");
-    } catch (e) {
-      return Resultado.fallido("Error: $e");
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return Resultado.desdeErrorBumand(error);
+    } catch (_) {
+      if (cola_offline != null) {
+        await cola_offline!.encolar(
+          ruta: ruta,
+          metodo: 'POST',
+          cuerpo: cuerpo,
+          tipo: 'asistencia_ingreso',
+        );
+        return Resultado.desdeErrorBumand(
+          ErrorBumand.encoladoOffline(ruta: ruta, metodo: 'POST'),
+        );
+      }
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(ruta: ruta, metodo: 'POST'),
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
@@ -150,30 +198,51 @@ class AsistenciaRepositorio {
     String tipo,
     Position posicion,
   ) async {
+    final cliente_http = _obtenerCliente();
+    final cuerpo = _cuerpoUbicacion(posicion, tipo);
+    final ruta = ApiConstantes.PUNTO_ASISTENCIA_SALIDA;
+
     try {
       final cabeceras = await _cabeceras();
-      final respuesta = await http.post(
-        Uri.parse(
-          '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_ASISTENCIA_SALIDA}',
-        ),
+      final respuesta = await cliente_http.post(
+        Uri.parse('${ApiConstantes.RUTA_BASE}$ruta'),
         headers: cabeceras,
-        body: jsonEncode(_cuerpoUbicacion(posicion, tipo)),
+        body: jsonEncode(cuerpo),
       );
 
-      final datos = jsonDecode(respuesta.body);
-      if (respuesta.statusCode != 200) {
-        return Resultado.fallido(datos["error"] ?? datos["message"] ?? "Error");
+      if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
+        final datos = jsonDecode(respuesta.body);
+        return Resultado.exitoso(
+          datos["mensaje"]?.toString() ?? "Salida registrada",
+        );
       }
-      return Resultado.exitoso(datos["mensaje"] ?? "Salida registrada");
-    } catch (e) {
-      return Resultado.fallido("Error: $e");
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return Resultado.desdeErrorBumand(error);
+    } catch (_) {
+      if (cola_offline != null) {
+        await cola_offline!.encolar(
+          ruta: ruta,
+          metodo: 'POST',
+          cuerpo: cuerpo,
+          tipo: 'asistencia_salida',
+        );
+        return Resultado.desdeErrorBumand(
+          ErrorBumand.encoladoOffline(ruta: ruta, metodo: 'POST'),
+        );
+      }
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(ruta: ruta, metodo: 'POST'),
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
   Future<Resultado<List<Map<String, dynamic>>>> obtenerHistorial() async {
+    final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
-      final respuesta = await http.get(
+      final respuesta = await cliente_http.get(
         Uri.parse(
           '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_ASISTENCIA_HISTORIAL}',
         ),
@@ -181,20 +250,28 @@ class AsistenciaRepositorio {
       );
 
       if (respuesta.statusCode != 200) {
-        return Resultado.fallido("Error al obtener historial");
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return Resultado.desdeErrorBumand(error);
       }
       final lista = (jsonDecode(respuesta.body) as List)
           .cast<Map<String, dynamic>>();
       return Resultado.exitoso(lista);
-    } catch (e) {
-      return Resultado.fallido("Error: $e");
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: ApiConstantes.PUNTO_ASISTENCIA_HISTORIAL,
+        metodo: 'GET',
+      );
+      return Resultado.desdeErrorBumand(error);
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
   Future<Resultado<String>> confirmarDatosPasajes(String periodo) async {
+    final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
-      final respuesta = await http.post(
+      final respuesta = await cliente_http.post(
         Uri.parse(
           '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_PASAJES_CONFIRMAR}',
         ),
@@ -202,13 +279,20 @@ class AsistenciaRepositorio {
         body: jsonEncode({"periodo": periodo}),
       );
 
-      final datos = jsonDecode(respuesta.body);
       if (respuesta.statusCode != 200) {
-        return Resultado.fallido(datos["error"] ?? datos["message"] ?? "Error");
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return Resultado.desdeErrorBumand(error);
       }
-      return Resultado.exitoso(datos["mensaje"] ?? "Datos confirmados");
-    } catch (e) {
-      return Resultado.fallido("Error: $e");
+      final datos = jsonDecode(respuesta.body);
+      return Resultado.exitoso(datos["mensaje"]?.toString() ?? "Datos confirmados");
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: ApiConstantes.PUNTO_PASAJES_CONFIRMAR,
+        metodo: 'POST',
+      );
+      return Resultado.desdeErrorBumand(error);
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 }

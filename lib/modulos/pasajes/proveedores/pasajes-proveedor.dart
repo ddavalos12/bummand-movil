@@ -1,9 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../modelos/solicitud-pasaje-modelo.dart';
 import '../repositorios/pasajes-repositorio.dart';
 
-final pasajes_repositorio_proveedor = Provider((ref) => PasajesRepositorio());
+final pasajes_repositorio_proveedor = Provider((ref) {
+  final cola = ref.watch(cola_offline_servicio_proveedor);
+  return PasajesRepositorio(cola_offline: cola);
+});
 final pasajesRepositorioProveedor = pasajes_repositorio_proveedor;
 
 final solicitudes_pasajes_proveedor =

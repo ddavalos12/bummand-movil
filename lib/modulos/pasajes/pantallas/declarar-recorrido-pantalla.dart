@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -331,6 +332,14 @@ class _DeclararRecorridoPantallaState
               textCapitalization: TextCapitalization.sentences,
               validator: _validarTexto,
             ),
+            _SelectorParadasRapidas(
+              etiqueta: "Origen",
+              onSeleccionar: (parada) {
+                setState(() {
+                  _origen_controlador.text = parada;
+                });
+              },
+            ),
             _BotonGps(
               etiqueta: "origen",
               posicion: _gps_origen,
@@ -358,6 +367,14 @@ class _DeclararRecorridoPantallaState
               textCapitalization: TextCapitalization.sentences,
               validator: _validarTexto,
             ),
+            _SelectorParadasRapidas(
+              etiqueta: "Destino",
+              onSeleccionar: (parada) {
+                setState(() {
+                  _destino_controlador.text = parada;
+                });
+              },
+            ),
             _BotonGps(
               etiqueta: "destino",
               posicion: _gps_destino,
@@ -379,7 +396,15 @@ class _DeclararRecorridoPantallaState
               ),
               validator: _validarTarifa,
             ),
-            const SizedBox(height: 24),
+            _SelectorTarifaRapida(
+              tarifa_seleccionada: _leerTarifa(_tarifa_ida_controlador.text),
+              onSeleccionar: (monto) {
+                setState(() {
+                  _tarifa_ida_controlador.text = monto.toStringAsFixed(2);
+                });
+              },
+            ),
+            const SizedBox(height: 16),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text("2. Vuelta", style: tema.textTheme.titleMedium),
@@ -393,7 +418,7 @@ class _DeclararRecorridoPantallaState
                   ? null
                   : (v) => setState(() => _incluir_vuelta = v),
             ),
-            if (_incluir_vuelta)
+            if (_incluir_vuelta) ...[
               TextFormField(
                 controller: _tarifa_vuelta_controlador,
                 decoration: const InputDecoration(
@@ -406,6 +431,15 @@ class _DeclararRecorridoPantallaState
                 ),
                 validator: _validarTarifa,
               ),
+              _SelectorTarifaRapida(
+                tarifa_seleccionada: _leerTarifa(_tarifa_vuelta_controlador.text),
+                onSeleccionar: (monto) {
+                  setState(() {
+                    _tarifa_vuelta_controlador.text = monto.toStringAsFixed(2);
+                  });
+                },
+              ),
+            ],
             const SizedBox(height: 16),
             _ResumenDevolucion(
               tarifa_ida: _leerTarifa(_tarifa_ida_controlador.text),
@@ -543,6 +577,152 @@ class _ResumenDevolucion extends StatelessWidget {
           Expanded(
             child: Text(
               "Total del día: Bs ${total.toStringAsFixed(2)}  ·  Devolución 80%: Bs ${devolucion.toStringAsFixed(2)}",
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectorTarifaRapida extends StatelessWidget {
+  final ValueChanged<double> onSeleccionar;
+  final double? tarifa_seleccionada;
+
+  const _SelectorTarifaRapida({
+    required this.onSeleccionar,
+    this.tarifa_seleccionada,
+  });
+
+  static const List<Map<String, dynamic>> TARIFAS_OFICIALES = [
+    {"nombre": "Minibús Directo", "monto": 2.60},
+    {"nombre": "Minibús El Alto", "monto": 3.50},
+    {"nombre": "Micro / Colectivo", "monto": 2.00},
+    {"nombre": "Mi Teleférico", "monto": 3.00},
+    {"nombre": "Trufi", "monto": 4.00},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Tarifas oficiales reguladas:",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: TARIFAS_OFICIALES.map((t) {
+                final monto = t["monto"] as double;
+                final es_activa = (tarifa_seleccionada != null &&
+                    (tarifa_seleccionada! - monto).abs() < 0.01);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: es_activa
+                        ? BumandColores.AZUL_DIACONIA.withValues(alpha: 0.15)
+                        : null,
+                    side: BorderSide(
+                      color: es_activa
+                          ? BumandColores.AZUL_DIACONIA
+                          : Colors.grey.shade300,
+                    ),
+                    label: Text(
+                      "${t["nombre"]} (Bs ${monto.toStringAsFixed(2)})",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight:
+                            es_activa ? FontWeight.bold : FontWeight.normal,
+                        color: es_activa
+                            ? BumandColores.AZUL_DIACONIA
+                            : Colors.black87,
+                      ),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      onSeleccionar(monto);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectorParadasRapidas extends StatelessWidget {
+  final String etiqueta;
+  final ValueChanged<String> onSeleccionar;
+
+  const _SelectorParadasRapidas({
+    required this.etiqueta,
+    required this.onSeleccionar,
+  });
+
+  static const List<String> PARADAS_EMBLEMATICAS = [
+    "Ceja",
+    "Pérez Velasco",
+    "Plaza San Francisco",
+    "San Pedro",
+    "Cruce Viacha",
+    "Miraflores",
+    "Sopocachi",
+    "Teleférico",
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Paradas frecuentes ($etiqueta):",
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: PARADAS_EMBLEMATICAS.map((parada) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: const Icon(
+                      Icons.directions_bus,
+                      size: 14,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                    label: Text(
+                      parada,
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      onSeleccionar(parada);
+                    },
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],

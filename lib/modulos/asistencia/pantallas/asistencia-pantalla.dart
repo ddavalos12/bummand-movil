@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
+import '../../animaciones/animaciones.dart';
 import '../modelos/tipo-asistencia.dart';
 import '../proveedores/asistencia-proveedor.dart';
 
@@ -20,6 +22,99 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
   static const _BORDE = Color(0xFFE3E9F2);
 
   String _tipo = TipoAsistencia.practicas.valor;
+  Map<String, dynamic>? _lugar_seleccionado;
+  bool _mostrar_celebracion = false;
+
+  static const List<Map<String, dynamic>> _AGENCIAS_DIACONIA = [
+    {
+      "id": 1,
+      "nombre": "Oficina Central Diaconía IFD - El Alto",
+      "direccion": "Av. Juan Pablo II esq. Calle Sbtte. Jorge Eulert 125, El Alto",
+      "latitud": -16.500054,
+      "longitud": -68.173455,
+      "radio_tolerancia_m": 60.0,
+    },
+    {
+      "id": 2,
+      "nombre": "Sucursal La Paz - San Pedro",
+      "direccion": "Calle Colombia N° 450, Zona San Pedro, La Paz",
+      "latitud": -16.501500,
+      "longitud": -68.138200,
+      "radio_tolerancia_m": 50.0,
+    },
+    {
+      "id": 3,
+      "nombre": "Agencia Chasquipampa",
+      "direccion": "Calle 53 esq. Av. Principal Chasquipampa, Zona Sur, La Paz",
+      "latitud": -16.541200,
+      "longitud": -68.061100,
+      "radio_tolerancia_m": 50.0,
+    },
+    {
+      "id": 4,
+      "nombre": "Agencia Viacha",
+      "direccion": "Plaza Principal José Ballivián N° 85, Viacha",
+      "latitud": -16.652100,
+      "longitud": -68.301500,
+      "radio_tolerancia_m": 60.0,
+    },
+    {
+      "id": 5,
+      "nombre": "Agencia Laguna San Pedro",
+      "direccion": "Calle Boquerón N° 120 esq. Almirante Grau, La Paz",
+      "latitud": -16.502800,
+      "longitud": -68.136900,
+      "radio_tolerancia_m": 50.0,
+    },
+    {
+      "id": 6,
+      "nombre": "Agencia Puente Seco",
+      "direccion": "Av. Juan Pablo II, Altura Ceja de El Alto",
+      "latitud": -16.512000,
+      "longitud": -68.179500,
+      "radio_tolerancia_m": 50.0,
+    },
+    {
+      "id": 7,
+      "nombre": "Agencia Franz Tamayo",
+      "direccion": "Av. Franz Tamayo N° 230, Villa Adela, El Alto",
+      "latitud": -16.529800,
+      "longitud": -68.192300,
+      "radio_tolerancia_m": 50.0,
+    },
+    {
+      "id": 8,
+      "nombre": "Agencia Villa Dolores",
+      "direccion": "Plaza Juana Azurduy de Padilla N° 40, El Alto",
+      "latitud": -16.516500,
+      "longitud": -68.161000,
+      "radio_tolerancia_m": 50.0,
+    },
+    {
+      "id": 9,
+      "nombre": "Agencia Senkata",
+      "direccion": "Av. 6 de Marzo Km 14, Senkata, El Alto",
+      "latitud": -16.568000,
+      "longitud": -68.175000,
+      "radio_tolerancia_m": 60.0,
+    },
+    {
+      "id": 10,
+      "nombre": "Agencia Río Seco",
+      "direccion": "Av. Juan Pablo II, Ex-Tranca Río Seco, El Alto",
+      "latitud": -16.488000,
+      "longitud": -68.195000,
+      "radio_tolerancia_m": 50.0,
+    },
+    {
+      "id": 11,
+      "nombre": "Agencia Ciudad Satélite",
+      "direccion": "Av. del Policía esq. Calle 14, Ciudad Satélite, El Alto",
+      "latitud": -16.518000,
+      "longitud": -68.148000,
+      "radio_tolerancia_m": 50.0,
+    },
+  ];
 
   late final AnimationController _controlador_pulso;
   Position? _posicion_actual;
@@ -73,7 +168,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
       if (!mounted) return;
 
       final perfil = ref.read(perfil_proveedor).asData?.value.datos;
-      final lugar = lugar_param ?? perfil?["lugarPractica"];
+      final lugar = lugar_param ?? _lugar_seleccionado ?? perfil?["lugarPractica"];
       _evaluarGeocerca(posicion, lugar);
     } catch (e) {
       if (!mounted) return;
@@ -105,6 +200,10 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
       radio_tolerancia_m: radio,
     );
 
+    if (dentro && !_dentro_de_geocerca) {
+      HapticFeedback.lightImpact();
+    }
+
     setState(() {
       _posicion_actual = posicion;
       _escaneando_gps = false;
@@ -119,6 +218,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
     required bool ingreso,
     required Map<String, dynamic>? lugar,
   }) async {
+    HapticFeedback.mediumImpact();
     if (!_dentro_de_geocerca) {
       _mensaje("Fuera de rango de la geocerca asignada", es_error: true);
       return;
@@ -136,11 +236,93 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
             lugar: lugar,
           );
     if (error == null) {
+      setState(() => _mostrar_celebracion = true);
       _mensaje(ingreso ? "Ingreso registrado" : "Salida registrada");
       _escanearUbicacion(lugar_param: lugar);
     } else {
       _mensaje(error, es_error: true);
     }
+  }
+
+  void _mostrarDialogoSeleccionarAgencia() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.swap_horiz, color: BumandColores.AZUL_DIACONIA),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        "Sede / Agencia de Diaconía (Rotación)",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              SizedBox(
+                height: 320,
+                child: ListView.builder(
+                  itemCount: _AGENCIAS_DIACONIA.length,
+                  itemBuilder: (ctx, i) {
+                    final ag = _AGENCIAS_DIACONIA[i];
+                    final es_actual = (_lugar_seleccionado != null &&
+                            _lugar_seleccionado!["nombre"] == ag["nombre"]);
+                    return ListTile(
+                      leading: Icon(
+                        Icons.apartment,
+                        color: es_actual
+                            ? BumandColores.AZUL_DIACONIA
+                            : Colors.grey.shade600,
+                      ),
+                      title: Text(
+                        ag["nombre"].toString(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: es_actual ? FontWeight.bold : FontWeight.w500,
+                          color: es_actual ? BumandColores.AZUL_DIACONIA : Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
+                        ag["direccion"].toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      trailing: es_actual
+                          ? const Icon(Icons.check_circle, color: BumandColores.AZUL_DIACONIA)
+                          : null,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _lugar_seleccionado = ag;
+                        });
+                        _escanearUbicacion(lugar_param: ag);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -149,7 +331,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
     final historial_async = ref.watch(historial_asistencia_proveedor);
     final estado_accion = ref.watch(asistencia_notificador_proveedor);
 
-    final lugar = perfil_async.asData?.value.datos?["lugarPractica"];
+    final lugar = _lugar_seleccionado ?? perfil_async.asData?.value.datos?["lugarPractica"];
     if (_posicion_actual != null && _distancia_actual_m == null && lugar != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _evaluarGeocerca(_posicion_actual!, lugar);
@@ -164,12 +346,14 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
         titulo: "Registro de asistencia",
         subtitulo: "Verificación por geolocalización",
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(perfil_proveedor);
-          ref.invalidate(historial_asistencia_proveedor);
-          await _escanearUbicacion(lugar_param: lugar);
-        },
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(perfil_proveedor);
+              ref.invalidate(historial_asistencia_proveedor);
+              await _escanearUbicacion(lugar_param: lugar);
+            },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -198,9 +382,37 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
 
             const SizedBox(height: 12),
 
+            if (_tipo == TipoAsistencia.escuelaLideres.valor)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF59E0B)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.access_time_filled, color: Color(0xFFB45309), size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Horario oficial: Viernes 14:30. Se audita el turno de formación diaconal.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             perfil_async.when(
               data: (res) {
-                final l = res.datos?["lugarPractica"];
+                final l_perfil = res.datos?["lugarPractica"];
+                final l_activo = _lugar_seleccionado ?? l_perfil;
                 return Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -216,13 +428,33 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          l?["nombre"]?.toString() ?? "Lugar por asignar",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l_activo?["nombre"]?.toString() ?? "Lugar por asignar",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            if (l_activo?["direccion"] != null)
+                              Text(
+                                l_activo!["direccion"].toString(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.swap_horiz, color: BumandColores.AZUL_DIACONIA),
+                        tooltip: "Cambiar agencia por rotación",
+                        onPressed: _mostrarDialogoSeleccionarAgencia,
                       ),
                     ],
                   ),
@@ -382,7 +614,13 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla>
           ],
         ),
       ),
-    );
+      RafagaCelebracion(
+        activo: _mostrar_celebracion,
+        alTerminar: () => setState(() => _mostrar_celebracion = false),
+      ),
+    ],
+  ),
+);
   }
 }
 
@@ -417,7 +655,7 @@ class _RadarGeocercaCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color_radar = _obtenerColorRadar();
 
-    return Container(
+    final tarjeta = Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -576,6 +814,18 @@ class _RadarGeocercaCard extends StatelessWidget {
         ],
       ),
     );
+
+    if (dentro_geocerca) {
+      return BordeLuminoso(
+        radio_esquinas: 20.0,
+        ancho_borde: 2.0,
+        color_haz: const Color(0xFF10B981),
+        color_haz_secundario: const Color(0xFF17B4C4),
+        hijo: tarjeta,
+      );
+    }
+
+    return tarjeta;
   }
 }
 

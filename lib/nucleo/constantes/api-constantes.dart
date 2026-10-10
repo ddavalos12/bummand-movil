@@ -11,13 +11,21 @@ class ApiConstantes {
     return 'http://localhost:3002';
   }
 
+  // Rutas base requeridas por el ecosistema BUMAND
+  static const String PUNTO_ASISTENCIA = '/api/asistencia';
+  static const String PUNTO_PASAJES = '/api/pasajes';
+  static const String PUNTO_DEVOCIONALES = '/api/devocionales';
+  static const String PUNTO_EVENTOS = '/api/eventos';
+  static const String PUNTO_JUSTIFICACIONES = '/api/justificaciones';
+  static const String PUNTO_PASAJES_PARADAS = '/api/pasajes/paradas';
+
+  // Rutas específicas de módulos
   static const String PUNTO_INICIO_SESION = '/autenticacion/inicio-sesion';
   static const String PUNTO_REGISTRO = '/autenticacion/registro';
   static const String PUNTO_ASISTENCIA_INGRESO = '/asistencia/ingreso';
   static const String PUNTO_ASISTENCIA_SALIDA = '/asistencia/salida';
   static const String PUNTO_ASISTENCIA_HISTORIAL = '/asistencia';
   static const String PUNTO_PASAJES_CONFIRMAR = '/pasajes/confirmar-datos';
-  static const String PUNTO_PASAJES = '/pasajes';
   static const String PUNTO_NOTIFICACIONES = '/notificaciones/mis-notificaciones';
   static const String PUNTO_NOTIFICACIONES_CONTEO = '/notificaciones/no-leidas/conteo';
 

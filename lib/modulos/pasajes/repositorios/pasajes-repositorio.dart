@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../nucleo/constantes/api-constantes.dart';
+import '../../../nucleo/errores/codigos-error.dart';
+import '../../../nucleo/errores/error-bumand.dart';
+import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../../autenticacion/repositorios/autenticacion-repositorio.dart';
 import '../modelos/solicitud-pasaje-modelo.dart';
@@ -15,6 +18,7 @@ class ResultadoPasaje<T> extends Resultado<T> {
     required super.exito,
     super.datos,
     super.error,
+    super.error_bumand,
     this.codigo,
     this.periodo,
   });
@@ -25,31 +29,43 @@ class ResultadoPasaje<T> extends Resultado<T> {
     String error, {
     String? codigo,
     String? periodo,
+    ErrorBumand? error_bumand,
   }) => ResultadoPasaje(
     exito: false,
     error: error,
     codigo: codigo,
     periodo: periodo,
+    error_bumand: error_bumand,
   );
 }
 
 class PasajesRepositorio {
+  final http.Client? cliente;
+  final ColaOfflineServicio? cola_offline;
   final AutenticacionRepositorio _autenticacion_repositorio = AutenticacionRepositorio();
+
+  PasajesRepositorio({
+    this.cliente,
+    this.cola_offline,
+  });
 
   Future<Map<String, String>> _cabeceras() async {
     final token = await _autenticacion_repositorio.obtenerToken();
     return {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
+      if (token != null) 'Authorization': 'Bearer $token',
     };
   }
+
+  http.Client _obtenerCliente() => cliente ?? http.Client();
 
   Uri _url(String ruta) =>
       Uri.parse('${ApiConstantes.RUTA_BASE}/pasajes$ruta');
 
   Future<ResultadoPasaje<List<SolicitudPasajeModelo>>> misSolicitudes() async {
+    final cliente_http = _obtenerCliente();
     try {
-      final respuesta = await http.get(
+      final respuesta = await cliente_http.get(
         _url('/mis-solicitudes'),
         headers: await _cabeceras(),
       );
@@ -63,16 +79,32 @@ class PasajesRepositorio {
             .toList();
         return ResultadoPasaje.exitoso(solicitudes);
       } else {
-        return ResultadoPasaje.fallido('Error al obtener solicitudes');
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return ResultadoPasaje.fallido(
+          error.mensaje,
+          codigo: error.codigo_error,
+          error_bumand: error,
+        );
       }
-    } catch (e) {
-      return ResultadoPasaje.fallido('No se pudo conectar: $e');
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: '/pasajes/mis-solicitudes',
+        metodo: 'GET',
+      );
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
   Future<ResultadoPasaje<void>> confirmarDatos(String periodo) async {
+    final cliente_http = _obtenerCliente();
     try {
-      final respuesta = await http.post(
+      final respuesta = await cliente_http.post(
         _url('/confirmar-datos'),
         headers: await _cabeceras(),
         body: jsonEncode({'periodo': periodo}),
@@ -81,10 +113,25 @@ class PasajesRepositorio {
       if (respuesta.statusCode == 200) {
         return ResultadoPasaje.exitoso(null);
       } else {
-        return ResultadoPasaje.fallido('No se pudieron confirmar los datos');
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return ResultadoPasaje.fallido(
+          error.mensaje,
+          codigo: error.codigo_error,
+          error_bumand: error,
+        );
       }
-    } catch (e) {
-      return ResultadoPasaje.fallido('Error: $e');
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: '/pasajes/confirmar-datos',
+        metodo: 'POST',
+      );
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
@@ -100,21 +147,22 @@ class PasajesRepositorio {
     double? lat_destino,
     double? lng_destino,
   }) async {
-    try {
-      final cuerpo = {
-        'fecha': fecha,
-        'tramo': tramo,
-        'origen': origen,
-        'destino': destino,
-        'tarifa': tarifa,
-        'apoyoRealizado': apoyo_realizado,
-      };
-      if (lat_origen != null) cuerpo['latOrigen'] = lat_origen;
-      if (lng_origen != null) cuerpo['lngOrigen'] = lng_origen;
-      if (lat_destino != null) cuerpo['latDestino'] = lat_destino;
-      if (lng_destino != null) cuerpo['lngDestino'] = lng_destino;
+    final cliente_http = _obtenerCliente();
+    final cuerpo = {
+      'fecha': fecha,
+      'tramo': tramo,
+      'origen': origen,
+      'destino': destino,
+      'tarifa': tarifa,
+      'apoyoRealizado': apoyo_realizado,
+    };
+    if (lat_origen != null) cuerpo['latOrigen'] = lat_origen;
+    if (lng_origen != null) cuerpo['lngOrigen'] = lng_origen;
+    if (lat_destino != null) cuerpo['latDestino'] = lat_destino;
+    if (lng_destino != null) cuerpo['lngDestino'] = lng_destino;
 
-      final respuesta = await http.post(
+    try {
+      final respuesta = await cliente_http.post(
         _url('/recorridos'),
         headers: await _cabeceras(),
         body: jsonEncode(cuerpo),
@@ -125,20 +173,50 @@ class PasajesRepositorio {
       if (respuesta.statusCode == 201 || respuesta.statusCode == 200) {
         return ResultadoPasaje.exitoso(null);
       } else {
+        final error = ErrorBumand.desdeRespuesta(respuesta);
         return ResultadoPasaje.fallido(
-          datos?['error'] ?? 'No se pudo registrar el recorrido',
-          codigo: datos?['codigo'] as String?,
+          error.mensaje,
+          codigo: error.codigo_error,
           periodo: datos?['periodo'] as String?,
+          error_bumand: error,
         );
       }
-    } catch (e) {
-      return ResultadoPasaje.fallido('Error: $e');
+    } catch (_) {
+      if (cola_offline != null) {
+        await cola_offline!.encolar(
+          ruta: '/pasajes/recorridos',
+          metodo: 'POST',
+          cuerpo: cuerpo,
+          tipo: 'pasajes_recorrido',
+        );
+        final error_encolado = ErrorBumand.encoladoOffline(
+          ruta: '/pasajes/recorridos',
+          metodo: 'POST',
+        );
+        return ResultadoPasaje.fallido(
+          error_encolado.mensaje,
+          codigo: CodigosError.ERR_5003,
+          error_bumand: error_encolado,
+        );
+      }
+      final error = ErrorBumand.conexionOffline(
+        ruta: '/pasajes/recorridos',
+        metodo: 'POST',
+      );
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: CodigosError.ERR_5001,
+        error_bumand: error,
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
   Future<ResultadoPasaje<void>> eliminarRecorrido(int recorrido_id) async {
+    final cliente_http = _obtenerCliente();
     try {
-      final respuesta = await http.delete(
+      final respuesta = await cliente_http.delete(
         _url('/recorridos/$recorrido_id'),
         headers: await _cabeceras(),
       );
@@ -146,16 +224,32 @@ class PasajesRepositorio {
       if (respuesta.statusCode == 200) {
         return ResultadoPasaje.exitoso(null);
       } else {
-        return ResultadoPasaje.fallido('No se pudo eliminar el recorrido');
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return ResultadoPasaje.fallido(
+          error.mensaje,
+          codigo: error.codigo_error,
+          error_bumand: error,
+        );
       }
-    } catch (e) {
-      return ResultadoPasaje.fallido('Error: $e');
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: '/pasajes/recorridos/$recorrido_id',
+        metodo: 'DELETE',
+      );
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 
   Future<ResultadoPasaje<void>> enviar(int solicitud_id) async {
+    final cliente_http = _obtenerCliente();
     try {
-      final respuesta = await http.post(
+      final respuesta = await cliente_http.post(
         _url('/$solicitud_id/enviar'),
         headers: await _cabeceras(),
       );
@@ -163,10 +257,25 @@ class PasajesRepositorio {
       if (respuesta.statusCode == 200) {
         return ResultadoPasaje.exitoso(null);
       } else {
-        return ResultadoPasaje.fallido('No se pudo enviar la solicitud');
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return ResultadoPasaje.fallido(
+          error.mensaje,
+          codigo: error.codigo_error,
+          error_bumand: error,
+        );
       }
-    } catch (e) {
-      return ResultadoPasaje.fallido('Error: $e');
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: '/pasajes/$solicitud_id/enviar',
+        metodo: 'POST',
+      );
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
   }
 }

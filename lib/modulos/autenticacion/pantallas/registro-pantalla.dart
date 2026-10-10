@@ -165,26 +165,32 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
                 Center(
                   child: Column(
                     children: [
-                      SvgPicture.asset(
-                        'assets/logos/logo-bumand.svg',
-                        height: 52,
-                        fit: BoxFit.contain,
+                      Hero(
+                        tag: 'hero-logo-bumand',
+                        child: SvgPicture.asset(
+                          'assets/logos/logo-bumand.svg',
+                          height: 52,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0F4F8),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFD9E2EC)),
-                        ),
-                        child: SvgPicture.asset(
-                          'assets/logos/logo-diaconia.svg',
-                          height: 20,
-                          fit: BoxFit.contain,
+                      Hero(
+                        tag: 'hero-logo-diaconia',
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F4F8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFD9E2EC)),
+                          ),
+                          child: SvgPicture.asset(
+                            'assets/logos/logo-diaconia.svg',
+                            height: 20,
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
                     ],
