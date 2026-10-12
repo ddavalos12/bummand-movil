@@ -3,15 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/banner-conexion.dart';
+import '../../asistencia/modelos/orden-confirmacion-modelo.dart';
 import '../../asistencia/pantallas/asistencia-pantalla.dart';
+import '../../asistencia/pantallas/confirmar-datos-pantalla.dart';
+import '../../asistencia/proveedores/asistencia-proveedor.dart';
 import '../../eventos/pantallas/eventos-pantalla.dart';
 import '../../pasajes/pantallas/pasajes-pantalla.dart';
 import '../../devocionales/pantallas/devocionales-pantalla.dart';
 import '../../notificaciones/pantallas/notificaciones-pantalla.dart';
 import '../../notificaciones/proveedores/notificaciones-proveedor.dart';
+import '../../devocionales/servicios/cola-descarga-biblia-servicio.dart';
+import '../../devocionales/widgets/dialogo-versiculo-diario.dart';
 
 class InicioPantalla extends ConsumerStatefulWidget {
-  const InicioPantalla({super.key});
+  final bool mostrar_versiculo_inicio;
+  const InicioPantalla({super.key, this.mostrar_versiculo_inicio = false});
 
   @override
   ConsumerState<InicioPantalla> createState() => _InicioPantallaState();
@@ -19,6 +25,24 @@ class InicioPantalla extends ConsumerStatefulWidget {
 
 class _InicioPantallaState extends ConsumerState<InicioPantalla> {
   int _indice = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(cola_descarga_biblia_proveedor).sincronizarColaDescarga();
+      if (widget.mostrar_versiculo_inicio) {
+        DialogoVersiculoDiario.mostrar(
+          context,
+          ref,
+          forzar: true,
+          al_crear_devocional: () {
+            if (mounted) setState(() => _indice = 3);
+          },
+        );
+      }
+    });
+  }
 
   static const _pantallas = [
     AsistenciaPantalla(),
@@ -32,12 +56,15 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
   Widget build(BuildContext context) {
     final conteo_no_leidas =
         ref.watch(notificaciones_conteo_proveedor).value ?? 0;
+    final orden = ref.watch(orden_confirmacion_proveedor);
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
       body: Column(
         children: [
           const BannerConexion(),
+          if (orden.activa && !orden.confirmada_este_mes)
+            _construirBannerOrdenConfirmacion(context, orden),
           Expanded(
             child: IndexedStack(index: _indice, children: _pantallas),
           ),
@@ -101,6 +128,75 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
                     color: BumandColores.AZUL_DIACONIA,
                   ),
             label: "Notificaciones",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirBannerOrdenConfirmacion(
+    BuildContext context,
+    OrdenConfirmacionModelo orden,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFEF3C7),
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFF59E0B)),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.notification_important,
+            color: Color(0xFFB45309),
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Confirmación Mensual de Datos Requerida por Administración",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.5,
+                    color: Color(0xFF92400E),
+                  ),
+                ),
+                Text(
+                  "Período: ${orden.periodo} • Actualización de contacto requerida.",
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ConfirmarDatosPantalla(periodo: orden.periodo),
+                ),
+              );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text(
+              "Confirmar",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

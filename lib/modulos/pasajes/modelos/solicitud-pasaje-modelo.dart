@@ -26,13 +26,20 @@ class SolicitudPasajeModelo {
   double get montoDevolucion => monto_devolucion;
   DateTime? get datosConfirmadosEn => datos_confirmados_en;
 
+  static double _parsearMonto(dynamic valor) {
+    if (valor == null) return 0.0;
+    if (valor is num) return valor.toDouble();
+    if (valor is String) return double.tryParse(valor) ?? 0.0;
+    return 0.0;
+  }
+
   factory SolicitudPasajeModelo.desdeJson(Map<String, dynamic> json) {
     return SolicitudPasajeModelo(
       id: json['id'] as int,
       periodo: json['periodo'] as String,
       estado: json['estado'] as String,
-      monto_total: ((json['monto_total'] ?? json['montoTotal']) as num).toDouble(),
-      monto_devolucion: ((json['monto_devolucion'] ?? json['montoDevolucion']) as num).toDouble(),
+      monto_total: _parsearMonto(json['monto_total'] ?? json['montoTotal']),
+      monto_devolucion: _parsearMonto(json['monto_devolucion'] ?? json['montoDevolucion']),
       observaciones: json['observaciones'] as String?,
       datos_confirmados_en: (json['datos_confirmados_en'] ?? json['datosConfirmadosEn']) != null
           ? DateTime.parse((json['datos_confirmados_en'] ?? json['datosConfirmadosEn']) as String)

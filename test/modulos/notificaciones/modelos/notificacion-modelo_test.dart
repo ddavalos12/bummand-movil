@@ -64,6 +64,54 @@ void main() {
       expect(notificacion.etiquetaTipo, 'Evaluación');
     });
 
+    test('Multa aplicada se identifica correctamente', () {
+      final mapa = {
+        'id': 20,
+        'usuario_id': 12,
+        'tipo': 'multa_aplicada',
+        'mensaje': 'Multa de Bs 30 por retraso de 3 min a Escuela de Líderes',
+        'leido': false,
+        'fecha_envio': '2026-10-10T15:00:00.000Z',
+      };
+
+      final notificacion = NotificacionModelo.desdeJson(mapa);
+
+      expect(notificacion.esMultaAplicada, isTrue);
+      expect(notificacion.etiquetaTipo, 'Multa por retraso');
+    });
+
+    test('Asistencia confirmada por organizador se identifica correctamente', () {
+      final mapa = {
+        'id': 21,
+        'usuario_id': 12,
+        'tipo': 'asistencia_confirmada_organizador',
+        'mensaje': 'Tu asistencia de viernes fue confirmada por el organizador',
+        'leido': true,
+        'fecha_envio': '2026-10-10T16:00:00.000Z',
+      };
+
+      final notificacion = NotificacionModelo.desdeJson(mapa);
+
+      expect(notificacion.esAsistenciaConfirmadaOrganizador, isTrue);
+      expect(notificacion.etiquetaTipo, 'Confirmada por organizador');
+    });
+
+    test('Orden de confirmacion de datos se identifica correctamente', () {
+      final mapa = {
+        'id': 22,
+        'usuario_id': 12,
+        'tipo': 'orden_confirmacion_datos',
+        'mensaje': 'Administración requiere confirmación mensual de datos',
+        'leido': false,
+        'fecha_envio': '2026-10-01T08:00:00.000Z',
+      };
+
+      final notificacion = NotificacionModelo.desdeJson(mapa);
+
+      expect(notificacion.esOrdenConfirmacionDatos, isTrue);
+      expect(notificacion.etiquetaTipo, 'Orden administrativa');
+    });
+
     test('copiarCon actualiza campos específicos manteniendo inmutabilidad', () {
       final original = NotificacionModelo(
         id: 1,

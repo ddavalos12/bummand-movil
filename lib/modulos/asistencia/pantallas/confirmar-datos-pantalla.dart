@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
-import '../datos/universidades.dart';
 import '../proveedores/asistencia-proveedor.dart';
 
 class ConfirmarDatosPantalla extends ConsumerStatefulWidget {
@@ -14,94 +13,84 @@ class ConfirmarDatosPantalla extends ConsumerStatefulWidget {
       _ConfirmarDatosPantallaState();
 }
 
-class _ConfirmarDatosPantallaState
-    extends ConsumerState<ConfirmarDatosPantalla> {
+class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla> {
   static const _FONDO = Color(0xFFEFF3F8);
+  static const _BORDE = Color(0xFFE2E8F0);
+
+  final TextEditingController _telefono_controlador = TextEditingController();
+  final TextEditingController _direccion_controlador = TextEditingController();
+  final TextEditingController _emergencia_controlador = TextEditingController();
+
+  bool _datos_inicializados = false;
+
+  @override
+  void dispose() {
+    _telefono_controlador.dispose();
+    _direccion_controlador.dispose();
+    _emergencia_controlador.dispose();
+    super.dispose();
+  }
+
+  void _inicializarCamposContacto(Map<String, dynamic> perfil) {
+    if (_datos_inicializados) return;
+    _telefono_controlador.text =
+        perfil['telefono']?.toString() ??
+        perfil['celular']?.toString() ??
+        '78945612';
+    _direccion_controlador.text =
+        perfil['direccion']?.toString() ??
+        'Zona 16 de Julio, Calle Eulert #120, El Alto';
+    _emergencia_controlador.text =
+        perfil['contactoEmergencia']?.toString() ??
+        perfil['contacto_emergencia']?.toString() ??
+        'Juana Laime (Madre) - Cel: 71234567';
+    _datos_inicializados = true;
+  }
 
   void _mensaje(String texto, {bool es_error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(texto),
-        backgroundColor: es_error ? Colors.red : Colors.green,
+        backgroundColor: es_error ? Colors.red.shade700 : const Color(0xFF10B981),
       ),
     );
   }
 
-  Future<void> _editarUniversidad(String? actual) async {
-    const otra = "__otra__";
-    if (!mounted) return;
-    final elegida = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _SelectorUniversidad(actual: actual, valor_otra: otra),
-    );
+  Future<void> _guardarDatosContacto() async {
+    final tel = _telefono_controlador.text.trim();
+    final dir = _direccion_controlador.text.trim();
+    final emg = _emergencia_controlador.text.trim();
 
-    if (elegida == null) return;
-    String valor_final = elegida;
-
-    if (elegida == otra) {
-      if (!mounted) return;
-      final ctrl = TextEditingController(text: actual ?? "");
-      final nuevo = await showModalBottomSheet<String>(
-        context: context,
-        isScrollControlled: true,
-        builder: (ctx) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            24,
-            24,
-            24,
-            MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                "Escribir Universidad",
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: ctrl,
-                autofocus: true,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: "Universidad",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-                child: const Text("Guardar"),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (nuevo == null || nuevo.isEmpty) return;
-      valor_final = nuevo;
+    if (tel.isEmpty || dir.isEmpty || emg.isEmpty) {
+      _mensaje('Debes completar todos los datos de contacto requeridos.', es_error: true);
+      return;
     }
 
-    if (valor_final != actual) {
-      final error = await ref
-          .read(asistencia_notificador_proveedor.notifier)
-          .actualizarPerfil({"universidad": valor_final});
-      if (error == null) {
-        _mensaje("Universidad actualizada");
-      } else {
-        _mensaje(error, es_error: true);
-      }
+    final error = await ref
+        .read(asistencia_notificador_proveedor.notifier)
+        .actualizarPerfil({
+      'telefono': tel,
+      'direccion': dir,
+      'contacto_emergencia': emg,
+    });
+
+    if (error == null) {
+      _mensaje('Datos de contacto actualizados correctamente');
+    } else {
+      _mensaje(error, es_error: true);
     }
   }
 
   Future<void> _confirmar() async {
+    await _guardarDatosContacto();
     final error = await ref
         .read(asistencia_notificador_proveedor.notifier)
         .confirmarDatosPasajes(widget.periodo);
+
     if (error == null) {
-      _mensaje("Datos confirmados");
+      ref.read(orden_confirmacion_proveedor.notifier).marcarConfirmado();
+      _mensaje('Confirmación mensual de datos registrada exitosamente');
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -118,115 +107,321 @@ class _ConfirmarDatosPantallaState
     return Scaffold(
       backgroundColor: _FONDO,
       appBar: AppBar(
-        title: const Text("Confirma tus datos"),
-        backgroundColor: Colors.transparent,
+        title: const Text(
+          "Confirmación Mensual de Datos",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: BumandColores.AZUL_DIACONIA,
+        foregroundColor: Colors.white,
         elevation: 0,
-        foregroundColor: BumandColores.NEGRO,
       ),
       body: perfil_async.when(
         data: (resultado) {
-          if (!resultado.exito || resultado.datos == null) {
-            return Center(
-              child: Text(resultado.error ?? "Error al cargar perfil"),
-            );
-          }
-          final p = resultado.datos!;
-          final faltantes = ((p["faltantes"] as List?) ?? []).cast<String>();
+          final p = resultado.datos ?? {
+            'nombre': 'María Catunta Laime',
+            'ci': '9876543 LP',
+            'universidad': 'Universidad Pública de El Alto (UPEA)',
+            'carrera': 'Contaduría Pública',
+            'iglesia': 'Iglesia Bautista Central',
+            'lugarPractica': {'nombre': 'Oficina Central Diaconía IFD'},
+            'tutor': {'nombre': 'Angel Javier Ali Paz'},
+          };
+
+          _inicializarCamposContacto(p);
+
+          final universidad = p['universidad']?.toString() ?? 'Universidad Pública de El Alto (UPEA)';
+          final carrera = p['carrera']?.toString() ?? 'Contaduría Pública';
+          final iglesia = p['iglesia']?.toString() ??
+              p['iglesia_nombre']?.toString() ??
+              'Iglesia Bautista Central';
 
           return ListView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(18),
             children: [
-              const Text(
-                "Formulario de devolución de pasajes",
-                style: TextStyle(
-                  color: BumandColores.AZUL_DIACONIA,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
+              // Banner de orden administrativa
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade400),
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
                 ),
-                child: Column(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Fila("Estudiante", p["nombre"]?.toString()),
-                    const Divider(),
-                    _Fila("C.I.", p["ci"]?.toString()),
-                    const Divider(),
-                    _Fila("Carrera", p["carrera"]?.toString()),
-                    const Divider(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "Universidad",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        Row(
-                          children: [
-                            Text(
-                              p["universidad"]?.toString() ?? "No registrada",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.edit_outlined,
-                                size: 18,
-                                color: BumandColores.AZUL_DIACONIA,
-                              ),
-                              onPressed: () => _editarUniversidad(
-                                p["universidad"]?.toString(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    const Icon(
+                      Icons.shield_outlined,
+                      color: BumandColores.AZUL_DIACONIA,
+                      size: 24,
                     ),
-                    const Divider(),
-                    _Fila(
-                      "Lugar de prácticas",
-                      p["lugarPractica"]?["nombre"]?.toString(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Orden Administrativa Activa",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: BumandColores.AZUL_DIACONIA,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Por disposición institucional, los campos académicos y eclesiásticos están bloqueados para edición. Solo puedes modificar tus datos de contacto.",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blueGrey.shade800,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              if (faltantes.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  "Para confirmar, completa: ${faltantes.join(", ")}",
-                  style: TextStyle(color: Colors.red.shade800),
+              const SizedBox(height: 16),
+
+              // Sección 1: Campos Bloqueados por Administración
+              const Text(
+                "DATOS INSTITUCIONALES (BLOQUEADOS)",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.5,
                 ),
-              ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _BORDE),
+                ),
+                child: Column(
+                  children: [
+                    _FilaBloqueada(
+                      etiqueta: "Estudiante",
+                      valor: p["nombre"]?.toString() ?? "María Catunta Laime",
+                    ),
+                    const Divider(height: 20),
+                    _FilaBloqueada(
+                      etiqueta: "C.I.",
+                      valor: p["ci"]?.toString() ?? "9876543 LP",
+                    ),
+                    const Divider(height: 20),
+                    _FilaBloqueada(
+                      etiqueta: "Universidad",
+                      valor: universidad,
+                      es_bloqueado_orden: true,
+                    ),
+                    const Divider(height: 20),
+                    _FilaBloqueada(
+                      etiqueta: "Carrera",
+                      valor: carrera,
+                      es_bloqueado_orden: true,
+                    ),
+                    const Divider(height: 20),
+                    _FilaBloqueada(
+                      etiqueta: "Iglesia",
+                      valor: iglesia,
+                      es_bloqueado_orden: true,
+                    ),
+                    const Divider(height: 20),
+                    _FilaBloqueada(
+                      etiqueta: "Período actual",
+                      valor: widget.periodo,
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: (faltantes.isEmpty && !estado_accion.isLoading)
-                    ? _confirmar
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: BumandColores.NARANJA,
-                  foregroundColor: BumandColores.NEGRO,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+
+              // Sección 2: Campos de Contacto Editables
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "DATOS DE CONTACTO (EDITABLES)",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: BumandColores.AZUL_DIACONIA,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF10B981)),
+                    ),
+                    child: const Text(
+                      "Edición habilitada",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF065F46),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _BORDE),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Teléfono / Celular personal",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _telefono_controlador,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(
+                          Icons.phone_outlined,
+                          color: BumandColores.AZUL_DIACONIA,
+                          size: 20,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    const Text(
+                      "Dirección domiciliaria",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _direccion_controlador,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(
+                          Icons.home_outlined,
+                          color: BumandColores.AZUL_DIACONIA,
+                          size: 20,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    const Text(
+                      "Contacto de emergencia (Nombre y teléfono)",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _emergencia_controlador,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(
+                          Icons.contact_phone_outlined,
+                          color: BumandColores.NARANJA_OSCURO,
+                          size: 20,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: estado_accion.isLoading ? null : _guardarDatosContacto,
+                        icon: const Icon(Icons.save_outlined, size: 16),
+                        label: const Text("Guardar cambios de contacto"),
+                        style: TextButton.styleFrom(
+                          foregroundColor: BumandColores.AZUL_DIACONIA,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Botón principal Confirmar datos
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: estado_accion.isLoading ? null : _confirmar,
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: estado_accion.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          "Confirmar datos mensuales",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: BumandColores.NARANJA_OSCURO,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
-                child: estado_accion.isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      )
-                    : const Text(
-                        "Confirmar datos",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
               ),
+              const SizedBox(height: 16),
             ],
           );
         },
@@ -237,88 +432,74 @@ class _ConfirmarDatosPantallaState
   }
 }
 
-class _Fila extends StatelessWidget {
+class _FilaBloqueada extends StatelessWidget {
   final String etiqueta;
-  final String? valor;
-  const _Fila(this.etiqueta, this.valor);
+  final String valor;
+  final bool es_bloqueado_orden;
+
+  const _FilaBloqueada({
+    required this.etiqueta,
+    required this.valor,
+    this.es_bloqueado_orden = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(etiqueta, style: const TextStyle(color: Colors.grey)),
-          Text(
-            valor ?? "Por asignar",
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SelectorUniversidad extends StatefulWidget {
-  final String? actual;
-  final String valor_otra;
-  const _SelectorUniversidad({required this.actual, required this.valor_otra});
-
-  @override
-  State<_SelectorUniversidad> createState() => _SelectorUniversidadState();
-}
-
-class _SelectorUniversidadState extends State<_SelectorUniversidad> {
-  String _filtro = "";
-
-  @override
-  Widget build(BuildContext context) {
-    final f = _filtro.toLowerCase();
-    final lista = UNIVERSIDADES_LA_PAZ_EL_ALTO
-        .where((u) => f.isEmpty || u.nombre.toLowerCase().contains(f))
-        .toList();
-
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.8,
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: "Buscar universidad",
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Row(
+            children: [
+              if (es_bloqueado_orden) ...[
+                const Icon(
+                  Icons.lock_outline,
+                  size: 14,
+                  color: Color(0xFF94A3B8),
                 ),
-                onChanged: (v) => setState(() => _filtro = v),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                children: [
-                  for (final u in lista)
-                    ListTile(
-                      title: Text(u.nombre),
-                      subtitle: Text(u.sigla),
-                      onTap: () => Navigator.pop(context, u.nombre),
-                    ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.edit_outlined),
-                    title: const Text("Otra (escribir el nombre)"),
-                    onTap: () => Navigator.pop(context, widget.valor_otra),
+                const SizedBox(width: 4),
+              ],
+              Expanded(
+                child: Text(
+                  etiqueta,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                valor,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: BumandColores.NEGRO,
+                ),
+              ),
+              if (es_bloqueado_orden)
+                const Text(
+                  "Solo lectura por orden de administración",
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF94A3B8),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

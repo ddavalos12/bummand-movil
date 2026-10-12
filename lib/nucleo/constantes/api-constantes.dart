@@ -28,6 +28,9 @@ class ApiConstantes {
   static const String PUNTO_PASAJES_CONFIRMAR = '/pasajes/confirmar-datos';
   static const String PUNTO_NOTIFICACIONES = '/notificaciones/mis-notificaciones';
   static const String PUNTO_NOTIFICACIONES_CONTEO = '/notificaciones/no-leidas/conteo';
+  static const String PUNTO_BIBLIA_VERSICULO = '/biblia/versiculo-diario';
+  static const String PUNTO_BIBLIA_OFFLINE = '/biblia/paquete-offline';
+  static const String PUNTO_BIBLIA_PASAJE = '/biblia/pasaje';
 
   // Alias para retrocompatibilidad
   static String get baseUrl => RUTA_BASE;

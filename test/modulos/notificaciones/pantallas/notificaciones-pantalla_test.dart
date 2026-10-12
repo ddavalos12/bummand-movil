@@ -39,6 +39,13 @@ void main() {
     testWidgets('Renderiza lista de notificaciones con categorias de alertas', (
       WidgetTester probador,
     ) async {
+      probador.view.physicalSize = const Size(1080, 2400);
+      probador.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        probador.view.resetPhysicalSize();
+        probador.view.resetDevicePixelRatio();
+      });
+
       final notificaciones = [
         NotificacionModelo(
           id: 1,
@@ -64,6 +71,22 @@ void main() {
           leido: false,
           fecha_envio: DateTime(2026, 10, 2, 9, 15),
         ),
+        NotificacionModelo(
+          id: 4,
+          usuario_id: 10,
+          tipo: 'multa_aplicada',
+          mensaje: 'Multa de Bs 20 por retraso de viernes',
+          leido: false,
+          fecha_envio: DateTime(2026, 10, 2, 14, 40),
+        ),
+        NotificacionModelo(
+          id: 5,
+          usuario_id: 10,
+          tipo: 'asistencia_confirmada_organizador',
+          mensaje: 'Asistencia validada en lista por supervisor',
+          leido: true,
+          fecha_envio: DateTime(2026, 10, 2, 15, 0),
+        ),
       ];
 
       final repo = NotificacionesRepositorioSimulado(notificaciones);
@@ -85,9 +108,13 @@ void main() {
       expect(find.text('Hora de registrar tu salida de prácticas'), findsOneWidget);
       expect(find.text('El recibo del día martes requiere corrección'), findsOneWidget);
       expect(find.text('Se ha habilitado la evaluación de tu tutor'), findsOneWidget);
+      expect(find.text('Multa de Bs 20 por retraso de viernes'), findsOneWidget);
       expect(find.text('Recordatorio de salida'), findsOneWidget);
       expect(find.text('Pasajes observados'), findsOneWidget);
       expect(find.text('Evaluación'), findsOneWidget);
+      expect(find.text('Multa por retraso'), findsOneWidget);
+      expect(find.text('Confirmada por organizador'), findsOneWidget);
+      expect(find.text('Retención institucional: Bs 10 por minuto'), findsOneWidget);
     });
 
     testWidgets('Muestra estado vacio cuando no hay notificaciones', (

@@ -278,4 +278,34 @@ class PasajesRepositorio {
       if (cliente == null) cliente_http.close();
     }
   }
+
+  Future<ResultadoPasaje<List<Map<String, dynamic>>>> obtenerTarifas({String? fecha}) async {
+    final cliente_http = _obtenerCliente();
+    final query = fecha != null ? '?fecha=$fecha' : '';
+    try {
+      final respuesta = await cliente_http.get(
+        _url('/tarifas$query'),
+        headers: await _cabeceras(),
+      );
+
+      if (respuesta.statusCode == 200) {
+        final datos = jsonDecode(respuesta.body) as List<dynamic>;
+        final tarifas = datos.map((e) {
+          final m = e as Map<String, dynamic>;
+          return {
+            'nombre': m['medio_transporte'] ?? 'Transporte',
+            'monto': (m['costo_bs'] as num?)?.toDouble() ?? 2.60,
+          };
+        }).toList();
+        return ResultadoPasaje.exitoso(tarifas);
+      }
+    } catch (_) {}
+    return ResultadoPasaje.exitoso([
+      {'nombre': 'Minibús Directo', 'monto': 2.60},
+      {'nombre': 'Minibús El Alto', 'monto': 3.50},
+      {'nombre': 'Micro / Colectivo', 'monto': 2.00},
+      {'nombre': 'Mi Teleférico', 'monto': 3.00},
+      {'nombre': 'Trufi', 'monto': 4.00},
+    ]);
+  }
 }

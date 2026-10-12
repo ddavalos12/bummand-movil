@@ -188,12 +188,15 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
           ),
           if (!habilitado)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
-                "Se habilita el ${FormatoPasajes.ddmmyyyy(FormatoPasajes.fechaHabilitada(s.periodo))} "
-                "para el envío del formulario.",
+                "Se habilita el 24 de cada mes para el envío del formulario.",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.amber.shade900,
+                ),
               ),
             ),
         ],

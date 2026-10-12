@@ -58,11 +58,15 @@ class _NotificacionesPantallaState
                   children: [
                     _construirChipFiltro("todas", "Todas"),
                     const SizedBox(width: 8),
+                    _construirChipFiltro("multas", "Multas"),
+                    const SizedBox(width: 8),
                     _construirChipFiltro("salida", "Recordatorios"),
                     const SizedBox(width: 8),
                     _construirChipFiltro("pasajes", "Pasajes"),
                     const SizedBox(width: 8),
                     _construirChipFiltro("evaluacion", "Evaluaciones"),
+                    const SizedBox(width: 8),
+                    _construirChipFiltro("avisos", "Avisos"),
                   ],
                 ),
               ),
@@ -75,7 +79,7 @@ class _NotificacionesPantallaState
                     return EstadoVacioWidget(
                       titulo: "No hay notificaciones pendientes",
                       mensaje: _filtro_actual == "todas"
-                          ? "Tus alertas sobre salida, pasajes observados y evaluaciones se mostrarán aquí."
+                          ? "Tus alertas sobre salida, pasajes observados, multas y evaluaciones se mostrarán aquí."
                           : "No se encontraron alertas en esta categoría.",
                       icono: Icons.notifications_none_outlined,
                     );
@@ -137,6 +141,9 @@ class _NotificacionesPantallaState
   }
 
   List<NotificacionModelo> _aplicarFiltro(List<NotificacionModelo> lista) {
+    if (_filtro_actual == "multas") {
+      return lista.where((n) => n.esMultaAplicada).toList();
+    }
     if (_filtro_actual == "salida") {
       return lista.where((n) => n.esRecordatorioSalida).toList();
     }
@@ -145,6 +152,17 @@ class _NotificacionesPantallaState
     }
     if (_filtro_actual == "evaluacion") {
       return lista.where((n) => n.esEvaluacion).toList();
+    }
+    if (_filtro_actual == "avisos") {
+      return lista
+          .where(
+            (n) =>
+                !n.esMultaAplicada &&
+                !n.esRecordatorioSalida &&
+                !n.esPasajeObservado &&
+                !n.esEvaluacion,
+          )
+          .toList();
     }
     return lista;
   }
@@ -160,6 +178,33 @@ class _TarjetaNotificacion extends StatelessWidget {
   });
 
   _ConfiguracionTipoAlerta _obtenerConfiguracion() {
+    if (notificacion.esMultaAplicada) {
+      return const _ConfiguracionTipoAlerta(
+        icono: Icons.gavel_rounded,
+        color_icono: Color(0xFFDC2626),
+        color_fondo_icono: Color(0xFFFEE2E2),
+        etiqueta: "Multa por retraso",
+        detalle_adicional: "Retención institucional: Bs 10 por minuto",
+      );
+    }
+    if (notificacion.esAsistenciaConfirmadaOrganizador) {
+      return const _ConfiguracionTipoAlerta(
+        icono: Icons.verified_user_rounded,
+        color_icono: Color(0xFF0D9488),
+        color_fondo_icono: Color(0xFFCCFBF1),
+        etiqueta: "Confirmada por organizador",
+        detalle_adicional: "Llamada de lista presencial verificada",
+      );
+    }
+    if (notificacion.esOrdenConfirmacionDatos) {
+      return const _ConfiguracionTipoAlerta(
+        icono: Icons.fact_check_rounded,
+        color_icono: BumandColores.AZUL_DIACONIA,
+        color_fondo_icono: Color(0xFFE0F2FE),
+        etiqueta: "Orden administrativa",
+        detalle_adicional: "Confirmación mensual de datos requerida",
+      );
+    }
     if (notificacion.esRecordatorioSalida) {
       return const _ConfiguracionTipoAlerta(
         icono: Icons.alarm_on_rounded,
@@ -294,6 +339,42 @@ class _TarjetaNotificacion extends StatelessWidget {
                           : BumandColores.NEGRO,
                     ),
                   ),
+                  if (configuracion.detalle_adicional != null) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: configuracion.color_icono.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: configuracion.color_icono.withValues(alpha: 0.3),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 12,
+                            color: configuracion.color_icono,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            configuracion.detalle_adicional!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: configuracion.color_icono,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text(
                     fecha_texto,
@@ -317,11 +398,13 @@ class _ConfiguracionTipoAlerta {
   final Color color_icono;
   final Color color_fondo_icono;
   final String etiqueta;
+  final String? detalle_adicional;
 
   const _ConfiguracionTipoAlerta({
     required this.icono,
     required this.color_icono,
     required this.color_fondo_icono,
     required this.etiqueta,
+    this.detalle_adicional,
   });
 }

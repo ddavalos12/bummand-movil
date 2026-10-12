@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
+import '../modelos/orden-confirmacion-modelo.dart';
 import '../repositorios/asistencia-repositorio.dart';
 
 final asistencia_repositorio_proveedor = Provider(
@@ -156,3 +157,40 @@ final asistencia_notificador_proveedor =
     );
 
 final asistenciaNotificadorProveedor = asistencia_notificador_proveedor;
+
+class OrdenConfirmacionNotificador extends Notifier<OrdenConfirmacionModelo> {
+  @override
+  OrdenConfirmacionModelo build() {
+    return const OrdenConfirmacionModelo(
+      activa: true,
+      confirmada_este_mes: false,
+      periodo: 'Octubre 2026',
+      mensaje_admin:
+          'Administración central requiere la confirmación mensual de tus datos de contacto.',
+    );
+  }
+
+  void marcarConfirmado() {
+    state = state.copiarCon(confirmada_este_mes: true);
+  }
+
+  void desactivarOrden() {
+    state = state.copiarCon(activa: false);
+  }
+
+  void activarOrden(String periodo, String mensaje) {
+    state = OrdenConfirmacionModelo(
+      activa: true,
+      confirmada_este_mes: false,
+      periodo: periodo,
+      mensaje_admin: mensaje,
+    );
+  }
+}
+
+final orden_confirmacion_proveedor =
+    NotifierProvider<OrdenConfirmacionNotificador, OrdenConfirmacionModelo>(
+  () => OrdenConfirmacionNotificador(),
+);
+
+final ordenConfirmacionProveedor = orden_confirmacion_proveedor;

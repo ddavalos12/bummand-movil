@@ -5,6 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../nucleo/tema/colores.dart';
 import '../modulos/autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modulos/autenticacion/pantallas/inicio-sesion-pantalla.dart';
+import '../modulos/evaluaciones/pantallas/evaluaciones-pantalla.dart';
+import '../modulos/asistencia/pantallas/historial-asistencia-pantalla.dart';
 
 class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget {
   final String titulo;
@@ -119,9 +121,80 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             const Divider(),
-            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.assignment_turned_in_outlined,
+                  color: BumandColores.AZUL_DIACONIA,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                "Mis Evaluaciones (360°)",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: BumandColores.NEGRO,
+                ),
+              ),
+              subtitle: const Text(
+                "Calificación ponderada y desglose modular",
+                style: TextStyle(fontSize: 12),
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EvaluacionesPantalla()),
+                );
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  color: BumandColores.AZUL_DIACONIA,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                "Historial de Asistencias",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: BumandColores.NEGRO,
+                ),
+              ),
+              subtitle: const Text(
+                "Marcaciones de ingreso y salida con GPS",
+                style: TextStyle(fontSize: 12),
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const HistorialAsistenciaPantalla(),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            const SizedBox(height: 4),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Container(

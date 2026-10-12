@@ -33,10 +33,12 @@ const UNIVERSIDADES_LA_PAZ_EL_ALTO = <Universidad>[
   Universidad("Universidad de Aquino Bolivia", "UDABOL", "Privada"),
   Universidad("Universidad Tecnológica Boliviana", "UTB", "Privada"),
   Universidad("Universidad La Salle", "ULS", "Privada"),
+  Universidad("Universidad Central", "UNICEN", "Privada"),
   Universidad("Universidad Real", "UREAL", "Privada"),
   Universidad("Universidad Unión Bolivariana", "UUB", "Privada"),
   Universidad("Universidad Boliviana de Informática", "UBI", "Privada"),
   Universidad("Universidad San Francisco de Asís", "USFA", "Privada"),
+  Universidad("Universidad de Los Andes", "UDELOSANDES", "Privada"),
   Universidad("Universidad NUR", "NUR", "Privada"),
 ];
 

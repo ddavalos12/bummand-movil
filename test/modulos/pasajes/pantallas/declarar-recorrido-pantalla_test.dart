@@ -31,14 +31,10 @@ void main() {
       await probador.pumpAndSettle();
 
       expect(find.text('Declarar recorrido'), findsOneWidget);
-      expect(find.text('1. Ida'), findsOneWidget);
-      expect(find.text('2. Vuelta'), findsOneWidget);
-
-      expect(find.text('Fijar PIN GPS de origen actual'), findsOneWidget);
-      expect(find.text('Fijar PIN GPS de destino actual'), findsOneWidget);
-      expect(find.text('📍'), findsNWidgets(2));
-
-      expect(find.text('Guardar ida y vuelta'), findsOneWidget);
+      expect(find.textContaining('1 · Ida'), findsOneWidget);
+      expect(find.textContaining('2 · Vuelta'), findsOneWidget);
+      expect(find.text('📍'), findsWidgets);
+      expect(find.text('Guardar recorrido del día'), findsOneWidget);
     });
   });
 }

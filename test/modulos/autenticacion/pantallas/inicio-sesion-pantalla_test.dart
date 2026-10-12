@@ -6,7 +6,7 @@ import 'package:bumand_movil/modulos/autenticacion/modelos/usuario-modelo.dart';
 import 'package:bumand_movil/modulos/autenticacion/repositorios/autenticacion-repositorio.dart';
 import 'package:bumand_movil/modulos/autenticacion/proveedores/autenticacion-proveedor.dart';
 import 'package:bumand_movil/modulos/autenticacion/pantallas/inicio-sesion-pantalla.dart';
-import 'package:bumand_movil/modulos/inicio/pantallas/pantalla-inicio.dart';
+import 'package:bumand_movil/modulos/autenticacion/verificacion_post_login_vista.dart';
 
 class RepositorioSimulado extends AutenticacionRepositorio {
   Resultado<UsuarioModelo>? resultado_configurado;
@@ -130,8 +130,8 @@ void main() {
       await probador.pump(const Duration(milliseconds: 500));
       await probador.pump(const Duration(milliseconds: 500));
 
-      // Verifica que navego limpiamente a PantallaInicio
-      expect(find.byType(PantallaInicio), findsOneWidget);
+      // Verifica que navego limpiamente a VerificacionPostLoginVista
+      expect(find.byType(VerificacionPostLoginVista), findsOneWidget);
       expect(find.byType(InicioSesionPantalla), findsNothing);
     });
   });

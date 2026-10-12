@@ -6,6 +6,7 @@ import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/estado-vacio-widget.dart';
 import '../../animaciones/animaciones.dart';
+import '../modelos/versiculo-diario-modelo.dart';
 import '../proveedores/devocionales-proveedor.dart';
 import '../repositorios/devocionales-repositorio.dart';
 
@@ -177,9 +178,12 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
     );
   }
 
-  void _abrirFormularioNuevoDevocional() {
-    final cita_ctrl = TextEditingController();
-    final titulo_ctrl = TextEditingController();
+  void _abrirFormularioNuevoDevocional({
+    String? cita_inicial,
+    String? titulo_inicial,
+  }) {
+    final cita_ctrl = TextEditingController(text: cita_inicial ?? '');
+    final titulo_ctrl = TextEditingController(text: titulo_inicial ?? '');
     final reflexion_ctrl = TextEditingController();
     final oracion_ctrl = TextEditingController();
     final form_key = GlobalKey<FormState>();
@@ -312,6 +316,7 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
   @override
   Widget build(BuildContext context) {
     final devocionales_async = ref.watch(devocionales_lista_proveedor);
+    final versiculo_async = ref.watch(versiculo_diario_proveedor);
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
@@ -326,183 +331,240 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
             backgroundColor: BumandColores.AZUL_DIACONIA,
             onRefresh: () async {
               ref.invalidate(devocionales_lista_proveedor);
+              ref.invalidate(versiculo_diario_proveedor);
               await ref.read(devocionales_lista_proveedor.future);
             },
-            child: devocionales_async.when(
-              data: (res) {
-                final devocionales = res.datos ?? [];
-                if (devocionales.isEmpty) {
-                  return EstadoVacioWidget(
-                    titulo: 'No tienes devocionales registrados',
-                    mensaje:
-                        'Presiona el botón + para registrar tu meditación bíblica y crecimiento diaconal.',
-                    icono: Icons.menu_book_outlined,
-                    texto_boton_accion: 'Nuevo devocional',
-                    alPresionarAccion: _abrirFormularioNuevoDevocional,
-                  );
-                }
-                return ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  itemCount: devocionales.length,
-                  itemBuilder: (context, index) {
-                    final d = devocionales[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: ElementoEscalonado(
-                        indice: index,
-                        hijo: Hero(
-                          tag: 'hero-devocional-${d.id}',
-                          child: Material(
-                            type: MaterialType.transparency,
-                            child: TarjetaSpotlight(
-                              color_luz: const Color(0x2817B4C4),
-                              padding: const EdgeInsets.all(16),
-                              alPresionar: () =>
-                                  _mostrarDetalleDevocional(context, d),
-                              hijo: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                _construirTarjetaVersiculoDelDia(versiculo_async),
+                const SizedBox(height: 16),
+                devocionales_async.when(
+                  data: (res) {
+                    final devocionales = res.datos ?? [];
+                    if (devocionales.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 10, bottom: 80),
+                        child: EstadoVacioWidget(
+                          titulo: 'No tienes devocionales registrados',
+                          mensaje:
+                              'Presiona el botón + o "Meditar y Registrar" para registrar tu meditación bíblica y crecimiento diaconal.',
+                          icono: Icons.menu_book_outlined,
+                          texto_boton_accion: 'Nuevo devocional',
+                          alPresionarAccion: _abrirFormularioNuevoDevocional,
+                        ),
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Historial de Devocionales',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: BumandColores.AZUL_DIACONIA,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: BumandColores.AZUL_DIACONIA.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                '${devocionales.length} registrados',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: BumandColores.AZUL_DIACONIA,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ...List.generate(devocionales.length, (index) {
+                          final d = devocionales[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: ElementoEscalonado(
+                              indice: index,
+                              hijo: Hero(
+                                tag: 'hero-devocional-${d.id}',
+                                child: Material(
+                                  type: MaterialType.transparency,
+                                  child: TarjetaSpotlight(
+                                    color_luz: const Color(0x2817B4C4),
+                                    padding: const EdgeInsets.all(16),
+                                    alPresionar: () =>
+                                        _mostrarDetalleDevocional(context, d),
+                                    hijo: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: BumandColores
+                                                    .AZUL_DIACONIA
+                                                    .withValues(alpha: 0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                d.cita_biblica,
+                                                style: const TextStyle(
+                                                  color: BumandColores
+                                                      .AZUL_DIACONIA,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                            Text(
+                                              d.fecha,
+                                              style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        decoration: BoxDecoration(
-                                          color: BumandColores.AZUL_DIACONIA
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          d.cita_biblica,
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          d.titulo,
                                           style: const TextStyle(
-                                            color: BumandColores.AZUL_DIACONIA,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 12,
+                                            color: BumandColores.NEGRO,
                                           ),
                                         ),
-                                      ),
-                                      Text(
-                                        d.fecha,
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    d.titulo,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: BumandColores.NEGRO,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    d.reflexion,
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade800,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(
-                                        Icons.favorite,
-                                        size: 16,
-                                        color: BumandColores.NARANJA,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          'Oración: ${d.oracion_peticion}',
-                                          maxLines: 1,
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          d.reflexion,
+                                          maxLines: 3,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontStyle: FontStyle.italic,
-                                            color: BumandColores.NARANJA_OSCURO,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey.shade800,
+                                            height: 1.3,
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (d.comentario_pastoral != null) ...[
-                                    const SizedBox(height: 12),
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF0FDF4),
-                                        borderRadius:
-                                            BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: const Color(0xFF86EFAC),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(
+                                              Icons.favorite,
+                                              size: 16,
+                                              color: BumandColores.NARANJA,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                'Oración: ${d.oracion_peticion}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontStyle: FontStyle.italic,
+                                                  color: BumandColores
+                                                      .NARANJA_OSCURO,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Icon(
-                                            Icons.church_outlined,
-                                            size: 18,
-                                            color: Color(0xFF15803D),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Column(
+                                        if (d.comentario_pastoral != null) ...[
+                                          const SizedBox(height: 12),
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF0FDF4),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: const Color(0xFF86EFAC),
+                                              ),
+                                            ),
+                                            child: Row(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                const Text(
-                                                  'Respuesta Pastoral:',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 11,
-                                                    color: Color(0xFF15803D),
-                                                  ),
+                                                const Icon(
+                                                  Icons.church_outlined,
+                                                  size: 18,
+                                                  color: Color(0xFF15803D),
                                                 ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  d.comentario_pastoral!,
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Color(0xFF166534),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      const Text(
+                                                        'Respuesta Pastoral:',
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 11,
+                                                          color:
+                                                              Color(0xFF15803D),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      Text(
+                                                        d.comentario_pastoral!,
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color:
+                                                              Color(0xFF166534),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                               ],
                                             ),
                                           ),
                                         ],
-                                      ),
+                                      ],
                                     ),
-                                  ],
-                                ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ),
+                          );
+                        }),
+                        const SizedBox(height: 70),
+                      ],
                     );
                   },
-                );
-              },
-              loading: () => CargandoSkeleton.lista(cantidad: 3, alto_item: 130),
-              error: (err, _) => Center(child: Text('Error: $err')),
+                  loading: () =>
+                      CargandoSkeleton.lista(cantidad: 3, alto_item: 130),
+                  error: (err, _) => Center(child: Text('Error: $err')),
+                ),
+              ],
             ),
           ),
           RafagaCelebracion(
@@ -518,6 +580,207 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Devocional'),
+      ),
+    );
+  }
+
+  Widget _construirTarjetaVersiculoDelDia(
+    AsyncValue<VersiculoDiarioModelo> versiculo_async,
+  ) {
+    final versiculo = versiculo_async.value ??
+        const VersiculoDiarioModelo(
+          cita: 'Filipenses 4:13',
+          libro: 'Filipenses',
+          capitulo: 4,
+          versiculo: 13,
+          texto: 'Todo lo puedo en Cristo que me fortalece.',
+          version: 'Reina-Valera 1960 (RVR60)',
+          tema: 'Fortaleza y Servicio',
+          reflexion_diaconal:
+              'En cada labor y apoyo formativo dentro de Diaconía, Cristo es quien renueva nuestras capacidades para servir con excelencia.',
+        );
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF0F2B48),
+            BumandColores.AZUL_DIACONIA,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F2B48).withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: BumandColores.NARANJA_OSCURO.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: BumandColores.NARANJA.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_stories_rounded,
+                      size: 14,
+                      color: BumandColores.NARANJA,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'VERSÍCULO DEL DÍA',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: BumandColores.NARANJA,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Período Formativo',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white70,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '«${versiculo.texto}»',
+            style: const TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w600,
+              fontStyle: FontStyle.italic,
+              color: Colors.white,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                versiculo.cita,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: BumandColores.TURQUESA_DIACONIA,
+                ),
+              ),
+              Text(
+                ' • ${versiculo.version}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.lightbulb_outline_rounded,
+                  size: 16,
+                  color: BumandColores.NARANJA,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        versiculo.tema,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: BumandColores.NARANJA,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        versiculo.reflexion_diaconal,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _abrirFormularioNuevoDevocional(
+                  cita_inicial: versiculo.cita,
+                  titulo_inicial: '${versiculo.tema} - Meditación',
+                );
+              },
+              icon: const Icon(Icons.edit_note_rounded, size: 18),
+              label: const Text(
+                'Meditar y Registrar',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: BumandColores.TURQUESA_DIACONIA,
+                foregroundColor: BumandColores.NEGRO,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -72,7 +72,27 @@ class NotificacionModelo {
     return t.contains('evalua');
   }
 
+  bool get esMultaAplicada {
+    final t = tipo.toLowerCase();
+    return t.contains('multa');
+  }
+
+  bool get esAsistenciaConfirmadaOrganizador {
+    final t = tipo.toLowerCase();
+    return t.contains('asistencia_confirmada') ||
+        t.contains('confirmada_organizador');
+  }
+
+  bool get esOrdenConfirmacionDatos {
+    final t = tipo.toLowerCase();
+    return t.contains('orden_confirmacion') ||
+        t.contains('confirmacion_datos');
+  }
+
   String get etiquetaTipo {
+    if (esMultaAplicada) return 'Multa por retraso';
+    if (esAsistenciaConfirmadaOrganizador) return 'Confirmada por organizador';
+    if (esOrdenConfirmacionDatos) return 'Orden administrativa';
     if (esRecordatorioSalida) return 'Recordatorio de salida';
     if (esPasajeObservado) return 'Pasaje observado';
     if (esEvaluacion) return 'Evaluación';

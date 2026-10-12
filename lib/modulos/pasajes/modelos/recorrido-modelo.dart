@@ -32,6 +32,20 @@ class RecorridoModelo {
   double? get latDestino => lat_destino;
   double? get lngDestino => lng_destino;
 
+  static double _parsearDouble(dynamic valor, [double porDefecto = 0.0]) {
+    if (valor == null) return porDefecto;
+    if (valor is num) return valor.toDouble();
+    if (valor is String) return double.tryParse(valor) ?? porDefecto;
+    return porDefecto;
+  }
+
+  static double? _parsearDoubleOpcional(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is num) return valor.toDouble();
+    if (valor is String) return double.tryParse(valor);
+    return null;
+  }
+
   factory RecorridoModelo.desdeJson(Map<String, dynamic> json) {
     return RecorridoModelo(
       id: json['id'] as int,
@@ -39,20 +53,12 @@ class RecorridoModelo {
       tramo: json['tramo'] as String,
       origen: json['origen'] as String,
       destino: json['destino'] as String,
-      tarifa: (json['tarifa'] as num).toDouble(),
+      tarifa: _parsearDouble(json['tarifa']),
       apoyo_realizado: (json['apoyo_realizado'] ?? json['apoyoRealizado']) as String?,
-      lat_origen: (json['lat_origen'] ?? json['latOrigen']) != null
-          ? ((json['lat_origen'] ?? json['latOrigen']) as num).toDouble()
-          : null,
-      lng_origen: (json['lng_origen'] ?? json['lngOrigen']) != null
-          ? ((json['lng_origen'] ?? json['lngOrigen']) as num).toDouble()
-          : null,
-      lat_destino: (json['lat_destino'] ?? json['latDestino']) != null
-          ? ((json['lat_destino'] ?? json['latDestino']) as num).toDouble()
-          : null,
-      lng_destino: (json['lng_destino'] ?? json['lngDestino']) != null
-          ? ((json['lng_destino'] ?? json['lngDestino']) as num).toDouble()
-          : null,
+      lat_origen: _parsearDoubleOpcional(json['lat_origen'] ?? json['latOrigen']),
+      lng_origen: _parsearDoubleOpcional(json['lng_origen'] ?? json['lngOrigen']),
+      lat_destino: _parsearDoubleOpcional(json['lat_destino'] ?? json['latDestino']),
+      lng_destino: _parsearDoubleOpcional(json['lng_destino'] ?? json['lngDestino']),
     );
   }
 
