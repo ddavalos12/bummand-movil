@@ -56,7 +56,7 @@ void main() {
       expect(find.textContaining('«Todo lo puedo en Cristo que me fortalece»'), findsOneWidget);
     });
 
-    testWidgets('Abre dialogo de Llamada de Lista Rapida en modo organizador', (
+    testWidgets('Verifica que modo supervisor no aparece en móvil y renderiza los 3 pilares', (
       WidgetTester probador,
     ) async {
       probador.view.physicalSize = const Size(1080, 2400);
@@ -90,14 +90,15 @@ void main() {
 
       await probador.pump();
 
-      // Tocar botón de llamada de lista rápida
-      await probador.tap(find.byIcon(Icons.checklist_rtl_rounded).first);
-      await probador.pump();
-      await probador.pump(const Duration(milliseconds: 300));
+      // No debe existir el modo supervisor ni llamada de lista rápida en móvil
+      expect(find.byIcon(Icons.checklist_rtl_rounded), findsNothing);
+      expect(find.text('Llamada de Lista Rápida'), findsNothing);
+      expect(find.text('Confirmar sala'), findsNothing);
 
-      expect(find.text('Llamada de Lista Rápida'), findsOneWidget);
-      expect(find.text('Confirmar sala'), findsOneWidget);
-      expect(find.text('María Catunta Laime'), findsOneWidget);
+      // Debe mostrar los tres pilares institucionales
+      expect(find.text('Registro de Prácticas'), findsOneWidget);
+      expect(find.text('Escuela de Líderes'), findsOneWidget);
+      expect(find.text('Acciones de Servicio'), findsOneWidget);
     });
   });
 }

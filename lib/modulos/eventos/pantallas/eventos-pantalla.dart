@@ -172,6 +172,40 @@ class _EventosPantallaState extends ConsumerState<EventosPantalla>
                       ),
                     ),
                     const SizedBox(height: 10),
+                    if (evento.mi_asistencia != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF10B981)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.verified_rounded,
+                              color: Color(0xFF10B981),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "Marcado correctamente por el supervisor ${evento.mi_asistencia!.hora_marcacion.isNotEmpty ? '(${evento.mi_asistencia!.hora_marcacion})' : ''}",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Color(0xFF065F46),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     Text(
                       evento.titulo,
                       style: const TextStyle(
@@ -255,9 +289,9 @@ class _EventosPantallaState extends ConsumerState<EventosPantalla>
                 final eventos = resultado.datos ?? [];
                 if (eventos.isEmpty) {
                   return EstadoVacioWidget(
-                    titulo: "No hay eventos programados",
+                    titulo: "No hay acciones de servicio programadas",
                     mensaje:
-                        "Los encuentros y talleres diaconales convocados por tus supervisores aparecerán aquí.",
+                        "Las acciones de servicio diaconal y encuentros convocados por tus supervisores aparecerán aquí.",
                     icono: Icons.event_busy_outlined,
                     texto_boton_accion: "Actualizar lista",
                     alPresionarAccion: () =>
@@ -386,7 +420,7 @@ class _EventosPantallaState extends ConsumerState<EventosPantalla>
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        "Error al cargar eventos: $err",
+                        "Error al cargar acciones de servicio: $err",
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 13),
                       ),
@@ -441,6 +475,7 @@ class _RadarEventoCard extends StatelessWidget {
   });
 
   Color _obtenerColorRadar() {
+    if (evento.mi_asistencia != null) return const Color(0xFF10B981);
     if (escaneando) return BumandColores.AZUL_DIACONIA;
     if (dentro_radio && en_horario) return const Color(0xFF10B981);
     if (!en_horario) return const Color(0xFFF59E0B);
@@ -557,11 +592,13 @@ class _RadarEventoCard extends StatelessWidget {
                         ],
                       ),
                       child: Icon(
-                        escaneando
-                            ? Icons.radar
-                            : (dentro_radio && en_horario)
-                                ? Icons.check_circle_rounded
-                                : Icons.location_on_outlined,
+                        (evento.mi_asistencia != null)
+                            ? Icons.check_circle_rounded
+                            : (escaneando
+                                ? Icons.radar
+                                : (dentro_radio && en_horario)
+                                    ? Icons.check_circle_rounded
+                                    : Icons.location_on_outlined),
                         color: Colors.white,
                         size: 30,
                       ),
@@ -575,7 +612,35 @@ class _RadarEventoCard extends StatelessWidget {
           const SizedBox(height: 14),
 
           // Estado del radar en badges
-          if (escaneando)
+          if (evento.mi_asistencia != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF10B981)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF047857),
+                    size: 16,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    "Marcado correctamente",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF047857),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (escaneando)
             const Text(
               "Escaneando ubicación GPS...",
               style: TextStyle(
@@ -657,8 +722,39 @@ class _RadarEventoCard extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // Botón con micro-rebote si está dentro de radio y horario
-          if (puede_marcar) ...[
+          // Botón o estado de marcado correctamente
+          if (evento.mi_asistencia != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.verified_rounded,
+                    color: Color(0xFF10B981),
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    "Marcado correctamente por el supervisor",
+                    style: TextStyle(
+                      color: Color(0xFF065F46),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (puede_marcar) ...[
             _BotonMarcacionRebote(
               onPresionar: onMarcar,
               cargando: marcando,
@@ -863,24 +959,80 @@ class _ItemEventoCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: es_seleccionado
-                    ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                    : const Color(0xFFE2E8F0),
+                color: (evento.mi_asistencia != null)
+                    ? const Color(0xFFECFDF5)
+                    : (es_seleccionado
+                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                        : const Color(0xFFE2E8F0)),
                 borderRadius: BorderRadius.circular(8),
+                border: (evento.mi_asistencia != null)
+                    ? Border.all(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                      )
+                    : null,
               ),
-              child: Text(
-                evento.tipo_evento.toUpperCase().replaceAll('_', ' '),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: es_seleccionado
-                      ? const Color(0xFF047857)
-                      : const Color(0xFF475569),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    (evento.mi_asistencia != null)
+                        ? Icons.check_circle_rounded
+                        : Icons.event,
+                    size: 13,
+                    color: (evento.mi_asistencia != null)
+                        ? const Color(0xFF047857)
+                        : (es_seleccionado
+                            ? const Color(0xFF047857)
+                            : const Color(0xFF475569)),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    evento.tipo_evento.toUpperCase().replaceAll('_', ' '),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: (evento.mi_asistencia != null)
+                          ? const Color(0xFF047857)
+                          : (es_seleccionado
+                              ? const Color(0xFF047857)
+                              : const Color(0xFF475569)),
+                    ),
+                  ),
+                ],
               ),
             ),
             const Spacer(),
-            if (es_seleccionado)
+            if (evento.mi_asistencia != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 13,
+                      color: Color(0xFF10B981),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      "Marcado correctamente ✓",
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF047857),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (es_seleccionado)
               const Row(
                 children: [
                   Icon(Icons.radar, size: 14, color: Color(0xFF10B981)),

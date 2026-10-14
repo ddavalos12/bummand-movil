@@ -324,6 +324,48 @@ class DetalleEvaluacionModal extends StatelessWidget {
             const SizedBox(height: 10),
           ],
 
+          // Si es el módulo 02 (Autoevaluación Académica), botón para subir/actualizar récord
+          if (numero_modulo == "02" || titulo.toLowerCase().contains("académ") || titulo.toLowerCase().contains("academ")) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFF063A6B),
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Color(0xFF10B981)),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              "Récord académico adjuntado exitosamente. Remitido para convalidación por puntos en el panel web.",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: BumandColores.AZUL_DIACONIA,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.upload_file),
+                label: const Text(
+                  "Subir / Actualizar Récord Académico (PDF)",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
           OutlinedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(

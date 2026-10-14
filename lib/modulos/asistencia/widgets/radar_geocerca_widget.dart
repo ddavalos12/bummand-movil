@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../../../nucleo/tema/colores.dart';
-
-/// Widget interactivo de Radar de Geocerca con círculos concéntricos animados,
-/// badge de GPS con precisión en metros y chip de estado de radio permitido.
+/// Widget interactivo de Radar de Geocerca con gradiente cian-turquesa institucional,
+/// círculos concéntricos animados, ícono de transeúnte y marcas horarias de ingreso/salida.
 class RadarGeocercaWidget extends StatefulWidget {
   final bool escaneando;
   final bool dentro_geocerca;
@@ -13,6 +11,8 @@ class RadarGeocercaWidget extends StatefulWidget {
   final double radio_m;
   final String? error_gps;
   final VoidCallback? alReescanear;
+  final String? hora_ingreso;
+  final String? hora_salida;
 
   const RadarGeocercaWidget({
     super.key,
@@ -23,6 +23,8 @@ class RadarGeocercaWidget extends StatefulWidget {
     this.radio_m = 50.0,
     this.error_gps,
     this.alReescanear,
+    this.hora_ingreso,
+    this.hora_salida,
   });
 
   @override
@@ -48,77 +50,111 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
     super.dispose();
   }
 
-  Color _obtenerColorRadar() {
-    if (widget.escaneando) return BumandColores.AZUL_DIACONIA;
-    if (widget.dentro_geocerca) return const Color(0xFF10B981);
-    return const Color(0xFFEF4444);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final color_radar = _obtenerColorRadar();
-    final precision_m = widget.posicion?.accuracy ?? 6.0;
+    final hora_ingreso_texto = widget.hora_ingreso ?? '--:--';
+    final hora_salida_texto = widget.hora_salida ?? '--:--';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: widget.dentro_geocerca
-              ? const Color(0xFF10B981).withValues(alpha: 0.35)
-              : const Color(0xFFE2E8F0),
-          width: 1.5,
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF0284C7),
+            Color(0xFF009EA8),
+            Color(0xFF06B6D4),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF0284C7).withValues(alpha: 0.30),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Círculos concéntricos animados de Radar
+          // Fila Superior: Estado de Búsqueda y Spinner/Refresco
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                widget.escaneando ? 'Buscando GPS...' : 'Buscando GPS...',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              if (widget.escaneando)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: widget.alReescanear,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Centro: Radar con Ondas Concéntricas y Monigote Central
           Stack(
             alignment: Alignment.center,
             children: [
               SizedBox(
-                height: 150,
-                width: 150,
+                height: 160,
+                width: 160,
                 child: AnimatedBuilder(
                   animation: _controlador_pulso,
                   builder: (ctx, child) {
                     return CustomPaint(
                       painter: _PintorCirculosConcentricos(
                         progreso: _controlador_pulso.value,
-                        color_onda: color_radar,
-                        activo: widget.escaneando || widget.dentro_geocerca,
+                        color_onda: Colors.white,
+                        activo: true,
                       ),
                       child: Center(
                         child: Container(
-                          width: 54,
-                          height: 54,
+                          width: 52,
+                          height: 52,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: color_radar,
+                            color: Colors.white,
                             boxShadow: [
                               BoxShadow(
-                                color: color_radar.withValues(alpha: 0.35),
-                                blurRadius: 12,
-                                spreadRadius: 3,
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
-                          child: Icon(
-                            widget.escaneando
-                                ? Icons.radar
-                                : widget.dentro_geocerca
-                                    ? Icons.location_on
-                                    : Icons.location_off,
-                            color: Colors.white,
+                          child: const Icon(
+                            Icons.directions_walk_rounded,
+                            color: Color(0xFF475569),
                             size: 28,
                           ),
                         ),
@@ -128,34 +164,36 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
                 ),
               ),
 
-              // Badge de precisión GPS
+              // Balizas decorativas orbitales
               Positioned(
-                bottom: 0,
+                top: 30,
+                right: 38,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  width: 18,
+                  height: 18,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(alpha: 0.35),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.2),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.gps_fixed,
-                        color: BumandColores.TURQUESA_DIACONIA,
-                        size: 12,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        'GPS · precisión ${precision_m.round()}m',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  child: const Center(
+                    child: Icon(Icons.circle, size: 6, color: Colors.white),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 34,
+                left: 36,
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.35),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.2),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.circle, size: 5, color: Colors.white),
                   ),
                 ),
               ),
@@ -163,129 +201,87 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
           ),
           const SizedBox(height: 16),
 
-          // Chip de estado de geocerca
-          if (widget.escaneando)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
+          // Fila Inferior: Horas de Ingreso y Salida
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Ingreso
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: BumandColores.AZUL_DIACONIA,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFBAE6FD),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      const Text(
+                        'Ingreso · de dónde partió',
+                        style: TextStyle(
+                          color: Color(0xFFE0F2FE),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(height: 4),
                   Text(
-                    'Escaneando ubicación GPS...',
-                    style: TextStyle(
-                      color: BumandColores.AZUL_DIACONIA,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else if (widget.dentro_geocerca)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF10B981)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF10B981),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Dentro del radio permitido · ${(widget.distancia_m ?? 42).round()} m',
+                    hora_ingreso_texto,
                     style: const TextStyle(
-                      color: Color(0xFF065F46),
-                      fontSize: 13,
+                      color: Colors.white,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
                     ),
                   ),
                 ],
               ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFEF4444)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+
+              // Salida
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFEF4444),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFBAE6FD),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      const Text(
+                        'Salida',
+                        style: TextStyle(
+                          color: Color(0xFFE0F2FE),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(height: 4),
                   Text(
-                    widget.distancia_m != null
-                        ? 'Fuera de radio · ${widget.distancia_m!.round()} m (Tolerancia: ${widget.radio_m.round()}m)'
-                        : 'Fuera de radio',
+                    hora_salida_texto,
                     style: const TextStyle(
-                      color: Color(0xFFB91C1C),
-                      fontSize: 13,
+                      color: Colors.white,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
                     ),
                   ),
                 ],
               ),
-            ),
-
-          if (widget.error_gps != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              widget.error_gps!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFFDC2626),
-                fontSize: 12,
-              ),
-            ),
-          ],
-
-          if (widget.alReescanear != null) ...[
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: widget.escaneando ? null : widget.alReescanear,
-              icon: const Icon(Icons.refresh, size: 14),
-              label: const Text(
-                'Reescanear GPS',
-                style: TextStyle(fontSize: 12),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: BumandColores.AZUL_DIACONIA,
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );
@@ -311,23 +307,23 @@ class _PintorCirculosConcentricos extends CustomPainter {
     for (int i = 0; i < 3; i++) {
       final fase = (progreso + (i * 0.33)) % 1.0;
       final radio = 28.0 + (fase * (radio_maximo - 28.0));
-      final opacidad = activo ? ((1.0 - fase) * 0.40).clamp(0.0, 1.0) : 0.10;
+      final opacidad = activo ? ((1.0 - fase) * 0.35).clamp(0.0, 1.0) : 0.08;
 
       final pintura_relleno = Paint()
-        ..color = color_onda.withValues(alpha: opacidad * 0.25)
+        ..color = color_onda.withValues(alpha: opacidad * 0.20)
         ..style = PaintingStyle.fill;
 
       final pintura_borde = Paint()
         ..color = color_onda.withValues(alpha: opacidad)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
+        ..strokeWidth = 1.5;
 
       lienzo.drawCircle(centro, radio, pintura_relleno);
       lienzo.drawCircle(centro, radio, pintura_borde);
     }
 
     final pintura_fija = Paint()
-      ..color = color_onda.withValues(alpha: 0.15)
+      ..color = color_onda.withValues(alpha: 0.20)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     lienzo.drawCircle(centro, radio_maximo, pintura_fija);

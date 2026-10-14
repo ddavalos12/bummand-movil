@@ -63,5 +63,64 @@ void main() {
       expect(find.text('Reescanear'), findsOneWidget);
       expect(find.text('Justificar'), findsOneWidget);
     });
+
+    testWidgets('Muestra badge e icono de marcado correctamente cuando la asistencia fue registrada', (
+      WidgetTester probador,
+    ) async {
+      probador.view.physicalSize = const Size(1080, 2400);
+      probador.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        probador.view.resetPhysicalSize();
+        probador.view.resetDevicePixelRatio();
+      });
+
+      const asistencia_ejemplo = AsistenciaEvento(
+        id: 10,
+        evento_id: 2,
+        becario_id: 1,
+        hora_marcacion: '09:05',
+        latitud: -16.500054,
+        longitud: -68.173455,
+        distancia_m: 12.0,
+        dentro_de_radio: true,
+        estado: 'presente',
+      );
+
+      const evento_marcado = Evento(
+        id: 2,
+        titulo: 'Escuela de Líderes Diaconales',
+        descripcion: 'Formación institucional de viernes',
+        tipo_evento: 'escuela_lideres',
+        fecha: '2026-10-23',
+        hora_inicio: '14:00',
+        hora_fin: '17:00',
+        latitud: -16.500054,
+        longitud: -68.173455,
+        radio_tolerancia_m: 100,
+        direccion_referencia: 'Oficina Central Diaconía IFD',
+        estado: 'programado',
+        mi_asistencia: asistencia_ejemplo,
+      );
+
+      await probador.pumpWidget(
+        ProviderScope(
+          overrides: [
+            eventos_lista_proveedor.overrideWith(
+              (ref) async => Resultado.exitoso([evento_marcado]),
+            ),
+          ],
+          child: const MaterialApp(
+            home: EventosPantalla(),
+          ),
+        ),
+      );
+
+      await probador.pump();
+      await probador.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Marcado correctamente'), findsOneWidget);
+      expect(find.text('Marcado correctamente ✓'), findsOneWidget);
+      expect(find.text('Marcado correctamente por el supervisor'), findsOneWidget);
+    });
   });
 }

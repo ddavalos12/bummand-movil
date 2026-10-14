@@ -35,7 +35,7 @@ void main() {
       expect(find.text('Sistema de gestión de becarios'), findsOneWidget);
       expect(find.byType(TextField), findsNWidgets(2));
       expect(find.text('Ingresar'), findsOneWidget);
-      expect(find.text('Regístrate'), findsOneWidget);
+      expect(find.text('¿Ya estás en la lista de becarios? Crea tu cuenta'), findsOneWidget);
     });
 
     testWidgets('Valida campos vacios mostrando mensaje de error local', (WidgetTester probador) async {
@@ -75,7 +75,8 @@ void main() {
       await probador.enterText(campos_texto.last, 'contrasena123');
 
       await probador.tap(find.text('Ingresar'));
-      await probador.pumpAndSettle();
+      await probador.pump();
+      await probador.pump(const Duration(milliseconds: 500));
 
       expect(find.text('Correo o contraseña incorrectos'), findsOneWidget);
     });

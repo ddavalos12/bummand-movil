@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:bumand_movil/nucleo/utilidades/resultado.dart';
 import 'package:bumand_movil/modulos/asistencia/proveedores/asistencia-proveedor.dart';
 import 'package:bumand_movil/modulos/asistencia/pantallas/historial-asistencia-pantalla.dart';
+import 'package:bumand_movil/modulos/evaluaciones/modelos/evaluacion-modelo.dart';
+import 'package:bumand_movil/modulos/evaluaciones/proveedores/evaluaciones-proveedor.dart';
 import 'package:bumand_movil/modulos/pasajes/modelos/solicitud-pasaje-modelo.dart';
 import 'package:bumand_movil/modulos/pasajes/proveedores/pasajes-proveedor.dart';
 
@@ -175,6 +177,74 @@ void main() {
           find.text('Retraso a Escuela de Líderes pasadas las 14:35'),
           findsWidgets,
         );
+      },
+    );
+
+    testWidgets(
+      'Cambia a pestana Evaluaciones (360°) y muestra sus subsecciones formativas',
+      (WidgetTester probador) async {
+        probador.view.physicalSize = const Size(1080, 2400);
+        probador.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          probador.view.resetPhysicalSize();
+          probador.view.resetDevicePixelRatio();
+        });
+
+        final evaluacion_ejemplo = EvaluacionConsolidadaModelo.modeloEjemplo();
+
+        await probador.pumpWidget(
+          ProviderScope(
+            overrides: [
+              historial_asistencia_proveedor.overrideWith(
+                (ref) async => Resultado.exitoso(<Map<String, dynamic>>[]),
+              ),
+              evaluacion_consolidada_proveedor.overrideWith(
+                (ref) async => Resultado.exitoso(evaluacion_ejemplo),
+              ),
+            ],
+            child: const MaterialApp(
+              home: HistorialAsistenciaPantalla(),
+            ),
+          ),
+        );
+
+        await probador.pumpAndSettle();
+
+        final pestana_evaluaciones = find.text('Evaluaciones (360°)');
+        expect(pestana_evaluaciones, findsOneWidget);
+        await probador.tap(pestana_evaluaciones);
+        await probador.pumpAndSettle();
+
+        // Verifica chips de subsecciones
+        expect(find.text('Todas las subsecciones'), findsOneWidget);
+        expect(find.text('Nota Global 360°'), findsOneWidget);
+        expect(find.text('Formulario F-03'), findsOneWidget);
+        expect(find.text('Módulos Canónicos'), findsOneWidget);
+        expect(find.text('Criterios Formativos'), findsOneWidget);
+
+        // Verifica contenido de las 4 subsecciones
+        expect(find.text('Nota Global Ponderada (360°)'), findsOneWidget);
+        expect(find.text('17.7 / 20 pts'), findsOneWidget);
+        expect(find.text('88.5%'), findsOneWidget);
+
+        expect(find.text('Formulario F-03 del Pastor'), findsOneWidget);
+        expect(find.text('Abrir F-03'), findsOneWidget);
+
+        expect(find.text('Desglose por Módulos Canónicos'), findsOneWidget);
+        expect(
+          find.text('Liderazgo en la Iglesia (Formulario F-03)'),
+          findsOneWidget,
+        );
+
+        expect(find.text('Criterios y Competencias Formativas'), findsOneWidget);
+        expect(find.text('Criterios de Excelencia Diaconal'), findsOneWidget);
+
+        // Prueba filtro de subsección específico (Formulario F-03)
+        await probador.tap(find.text('Formulario F-03'));
+        await probador.pumpAndSettle();
+
+        expect(find.text('Formulario F-03 del Pastor'), findsOneWidget);
+        expect(find.text('Nota Global Ponderada (360°)'), findsNothing);
       },
     );
   });

@@ -8,12 +8,10 @@ import '../../asistencia/pantallas/asistencia-pantalla.dart';
 import '../../asistencia/pantallas/confirmar-datos-pantalla.dart';
 import '../../asistencia/proveedores/asistencia-proveedor.dart';
 import '../../eventos/pantallas/eventos-pantalla.dart';
+import '../../eventos/servicios/eventos-servicio.dart';
 import '../../pasajes/pantallas/pasajes-pantalla.dart';
-import '../../devocionales/pantallas/devocionales-pantalla.dart';
 import '../../notificaciones/pantallas/notificaciones-pantalla.dart';
 import '../../notificaciones/proveedores/notificaciones-proveedor.dart';
-import '../../devocionales/servicios/cola-descarga-biblia-servicio.dart';
-import '../../devocionales/widgets/dialogo-versiculo-diario.dart';
 
 class InicioPantalla extends ConsumerStatefulWidget {
   final bool mostrar_versiculo_inicio;
@@ -26,29 +24,10 @@ class InicioPantalla extends ConsumerStatefulWidget {
 class _InicioPantallaState extends ConsumerState<InicioPantalla> {
   int _indice = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(cola_descarga_biblia_proveedor).sincronizarColaDescarga();
-      if (widget.mostrar_versiculo_inicio) {
-        DialogoVersiculoDiario.mostrar(
-          context,
-          ref,
-          forzar: true,
-          al_crear_devocional: () {
-            if (mounted) setState(() => _indice = 3);
-          },
-        );
-      }
-    });
-  }
-
   static const _pantallas = [
     AsistenciaPantalla(),
     EventosPantalla(),
     PasajesPantalla(),
-    DevocionalesPantalla(),
     NotificacionesPantalla(),
   ];
 
@@ -57,6 +36,10 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
     final conteo_no_leidas =
         ref.watch(notificaciones_conteo_proveedor).value ?? 0;
     final orden = ref.watch(orden_confirmacion_proveedor);
+    final eventos_async = ref.watch(eventos_lista_proveedor);
+    final bool tiene_evento_marcado =
+        eventos_async.asData?.value.datos?.any((e) => e.mi_asistencia != null) ??
+            false;
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
@@ -84,12 +67,27 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
             ),
             label: "Asistencia",
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.event_available_outlined),
-            selectedIcon: Icon(
-              Icons.event_available,
-              color: BumandColores.AZUL_DIACONIA,
-            ),
+          NavigationDestination(
+            icon: tiene_evento_marcado
+                ? const Badge(
+                    backgroundColor: Color(0xFF10B981),
+                    smallSize: 8,
+                    child: Icon(Icons.event_available_outlined),
+                  )
+                : const Icon(Icons.event_available_outlined),
+            selectedIcon: tiene_evento_marcado
+                ? const Badge(
+                    backgroundColor: Color(0xFF10B981),
+                    smallSize: 8,
+                    child: Icon(
+                      Icons.event_available,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  )
+                : const Icon(
+                    Icons.event_available,
+                    color: BumandColores.AZUL_DIACONIA,
+                  ),
             label: "Eventos",
           ),
           const NavigationDestination(
@@ -99,14 +97,6 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
               color: BumandColores.AZUL_DIACONIA,
             ),
             label: "Pasajes",
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(
-              Icons.menu_book,
-              color: BumandColores.AZUL_DIACONIA,
-            ),
-            label: "Devocional",
           ),
           NavigationDestination(
             icon: conteo_no_leidas > 0

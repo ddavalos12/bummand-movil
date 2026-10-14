@@ -15,7 +15,7 @@ void main() {
   });
 
   group('InicioPantalla Navegación Pruebas de Widget', () {
-    testWidgets('Renderiza los 5 destinos de navegación incluyendo Eventos', (
+    testWidgets('Renderiza los 4 destinos de navegación y no incluye Devocional', (
       WidgetTester probador,
     ) async {
       probador.view.physicalSize = const Size(1080, 2400);
@@ -57,8 +57,8 @@ void main() {
       expect(find.text('Asistencia'), findsOneWidget);
       expect(find.text('Eventos'), findsOneWidget);
       expect(find.text('Pasajes'), findsOneWidget);
-      expect(find.text('Devocional'), findsOneWidget);
       expect(find.text('Notificaciones'), findsOneWidget);
+      expect(find.text('Devocional'), findsNothing);
 
       // Conmutar a la pestaña Eventos
       await probador.tap(find.text('Eventos'));

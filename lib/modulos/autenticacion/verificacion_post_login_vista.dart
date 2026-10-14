@@ -5,7 +5,7 @@ import '../../nucleo/tema/colores.dart';
 import 'proveedores/autenticacion-proveedor.dart';
 import '../inicio/pantallas/inicio-pantalla.dart';
 
-/// Vista de Verificación Post-Login para confirmar correo institucional y datos precargados.
+/// Vista de Verificación Post-Login para confirmar datos institucionales y de contacto del becario.
 class VerificacionPostLoginVista extends ConsumerStatefulWidget {
   const VerificacionPostLoginVista({super.key});
 
@@ -16,80 +16,30 @@ class VerificacionPostLoginVista extends ConsumerStatefulWidget {
 
 class _VerificacionPostLoginVistaState
     extends ConsumerState<VerificacionPostLoginVista> {
-  int _paso_actual = 1;
-
-  final TextEditingController _correo_controlador = TextEditingController();
-  final TextEditingController _confirmar_correo_controlador =
-      TextEditingController();
-
-  String? _mensaje_error_correo;
+  final TextEditingController _telefono_controlador = TextEditingController();
+  final TextEditingController _direccion_controlador = TextEditingController();
+  final TextEditingController _emergencia_controlador = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    final usuario = ref.read(autenticacion_proveedor).usuario;
-    if (usuario != null && usuario.correo.isNotEmpty) {
-      _correo_controlador.text = usuario.correo;
-    }
+    _telefono_controlador.text = '78945612';
+    _direccion_controlador.text = 'Zona 16 de Julio, Calle Eulert #120, El Alto';
+    _emergencia_controlador.text = 'Juana Laime (Madre) - Cel: 71234567';
   }
 
   @override
   void dispose() {
-    _correo_controlador.dispose();
-    _confirmar_correo_controlador.dispose();
+    _telefono_controlador.dispose();
+    _direccion_controlador.dispose();
+    _emergencia_controlador.dispose();
     super.dispose();
-  }
-
-  bool _validarFormatoCorreo(String correo) {
-    final regex = RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$');
-    return regex.hasMatch(correo);
-  }
-
-  void _guardarCorreo() {
-    final correo1 = _correo_controlador.text.trim();
-    final correo2 = _confirmar_correo_controlador.text.trim();
-
-    if (correo1.isEmpty || correo2.isEmpty) {
-      setState(() {
-        _mensaje_error_correo = 'Debes completar ambos campos de correo.';
-      });
-      return;
-    }
-
-    if (!_validarFormatoCorreo(correo1)) {
-      setState(() {
-        _mensaje_error_correo =
-            'Ingresa un formato de correo válido (ej. usuario@bumand.bo).';
-      });
-      return;
-    }
-
-    if (correo1.toLowerCase() != correo2.toLowerCase()) {
-      setState(() {
-        _mensaje_error_correo =
-            'Los correos no coinciden. Verifica e intenta de nuevo.';
-      });
-      return;
-    }
-
-    setState(() {
-      _mensaje_error_correo = null;
-      _paso_actual = 2;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✓ Correo institucional verificado correctamente'),
-        backgroundColor: BumandColores.TURQUESA_DIACONIA,
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 
   void _confirmarDatosFinales() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('✓ Datos institucionales confirmados'),
+        content: Text('✓ Datos institucionales y de contacto confirmados'),
         backgroundColor: BumandColores.AZUL_DIACONIA,
         duration: Duration(seconds: 2),
       ),
@@ -97,58 +47,9 @@ class _VerificacionPostLoginVistaState
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => const InicioPantalla(mostrar_versiculo_inicio: true),
+        builder: (_) => const InicioPantalla(),
       ),
       (_) => false,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final usuario = ref.watch(autenticacion_proveedor).usuario;
-    final nombre_estudiante =
-        (usuario != null && usuario.nombre.isNotEmpty)
-            ? usuario.nombre
-            : 'María Catunta Laime';
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Banner superior Diaconía IFD
-            _construirBannerDiaconia(),
-
-            // Cuerpo interactivo con los pasos
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 24,
-                ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  transitionBuilder: (child, animacion) {
-                    return FadeTransition(
-                      opacity: animacion,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0.05, 0.0),
-                          end: Offset.zero,
-                        ).animate(animacion),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: _paso_actual == 1
-                      ? _construirPasoUnoCorreo()
-                      : _construirPasoDosDatos(nombre_estudiante),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -171,13 +72,7 @@ class _VerificacionPostLoginVistaState
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             tooltip: 'Volver',
-            onPressed: () {
-              if (_paso_actual == 2) {
-                setState(() => _paso_actual = 1);
-              } else {
-                Navigator.of(context).maybePop();
-              }
-            },
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
           const SizedBox(width: 8),
           Container(
@@ -225,129 +120,50 @@ class _VerificacionPostLoginVistaState
     );
   }
 
-  Widget _construirPasoUnoCorreo() {
-    return KeyedSubtree(
-      key: const ValueKey('paso_1_correo'),
-      child: Column(
+  Widget _construirFilaDatoSoloLectura(
+    String etiqueta,
+    String valor, {
+    bool destacado = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Indicador de pasos
-          Row(
-            children: [
-              _construirPuntoPaso(1, activo: true),
-              _construirLineaPaso(activa: false),
-              _construirPuntoPaso(2, activo: false),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          const Text(
-            'CONFIRMA TU CORREO',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: BumandColores.NEGRO,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Por seguridad, verifica tu correo institucional antes de continuar.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade700,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Campo 1: Correo electrónico
-          const Text(
-            'Correo electrónico',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF334155),
-            ),
-          ),
-          const SizedBox(height: 6),
-          _construirInputCorreo(
-            controlador: _correo_controlador,
-            texto_marcador: 'nombre.apellido@bumand.bo',
-            icono: Icons.email_outlined,
-          ),
-          const SizedBox(height: 16),
-
-          // Campo 2: Confirmar correo electrónico
-          const Text(
-            'Confirmar correo electrónico',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF334155),
-            ),
-          ),
-          const SizedBox(height: 6),
-          _construirInputCorreo(
-            controlador: _confirmar_correo_controlador,
-            texto_marcador: 'Vuelve a escribir tu correo',
-            icono: Icons.mark_email_read_outlined,
-          ),
-          const SizedBox(height: 12),
-
-          // Mensaje de error
-          if (_mensaje_error_correo != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFECACA)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    color: Color(0xFFDC2626),
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _mensaje_error_correo!,
-                      style: const TextStyle(
-                        color: Color(0xFFDC2626),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+          SizedBox(
+            width: 130,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.lock_outline,
+                  size: 13,
+                  color: Color(0xFF94A3B8),
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    etiqueta,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-
-          const SizedBox(height: 24),
-
-          // Botón Guardar
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _guardarCorreo,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.TURQUESA_DIACONIA,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Text(
-                'Guardar',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              valor,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: destacado
+                    ? BumandColores.AZUL_DIACONIA
+                    : const Color(0xFF0F172A),
               ),
             ),
           ),
@@ -356,7 +172,82 @@ class _VerificacionPostLoginVistaState
     );
   }
 
-  Widget _construirPasoDosDatos(String nombre_estudiante) {
+  Widget _construirCampoContactoEditable({
+    required String etiqueta,
+    required TextEditingController controlador,
+    required IconData icono,
+    TextInputType tipo_teclado = TextInputType.text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icono, size: 14, color: BumandColores.AZUL_DIACONIA),
+              const SizedBox(width: 6),
+              Text(
+                etiqueta,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              const Spacer(),
+              const Text(
+                'Editable',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: TextField(
+              controller: controlador,
+              keyboardType: tipo_teclado,
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFF0F172A),
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 11,
+                ),
+                isDense: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final usuario = ref.watch(autenticacion_proveedor).usuario;
+    final nombre_estudiante =
+        (usuario != null && usuario.nombre.isNotEmpty)
+            ? usuario.nombre
+            : 'María Catunta Laime';
+    final correo_estudiante =
+        (usuario != null && usuario.correo.isNotEmpty)
+            ? usuario.correo
+            : 'nilda.churata@bumand.bo';
+
     final hoy = DateTime.now();
     final meses = [
       'Enero',
@@ -373,269 +264,283 @@ class _VerificacionPostLoginVistaState
       'Diciembre'
     ];
     final mes_actual = meses[hoy.month - 1];
-    final fecha_presentacion = '24/${hoy.month.toString().padLeft(2, '0')}/${hoy.year}';
+    final fecha_presentacion =
+        '24/${hoy.month.toString().padLeft(2, '0')}/${hoy.year}';
 
-    return KeyedSubtree(
-      key: const ValueKey('paso_2_datos'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Indicador de pasos
-          Row(
-            children: [
-              _construirPuntoPaso(1, activo: false, completado: true),
-              _construirLineaPaso(activa: true),
-              _construirPuntoPaso(2, activo: true),
-            ],
-          ),
-          const SizedBox(height: 20),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Banner superior Diaconía IFD
+            _construirBannerDiaconia(),
 
-          const Text(
-            'CONFIRMA ESTOS DATOS',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: BumandColores.NEGRO,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Verificado con tu correo institucional. Revisa que todo esté correcto.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade700,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 20),
+            // Cuerpo desplazable
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Título de la pantalla
+                    const Text(
+                      'CONFIRMA ESTOS DATOS',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: BumandColores.NEGRO,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Verifica tus datos institucionales y mantén actualizado tu contacto.',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: Colors.grey.shade700,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-          // Chip de correo confirmado
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECFDF5),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF10B981)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF10B981),
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _correo_controlador.text.trim().isNotEmpty
-                      ? _correo_controlador.text.trim()
-                      : 'Correo confirmado',
-                  style: const TextStyle(
-                    color: Color(0xFF065F46),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+                    // Badge de Correo Institucional Confirmado
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF10B981)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle,
+                            color: Color(0xFF10B981),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Correo institucional verificado: $correo_estudiante',
+                              style: const TextStyle(
+                                color: Color(0xFF065F46),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
 
-          // Tarjeta informativa de solo lectura
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _construirFilaDato('Estudiante', nombre_estudiante),
-                const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                _construirFilaDato('Carrera', 'Economía'),
-                const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                _construirFilaDato(
-                  'Universidad',
-                  'Universidad Pública de El Alto',
-                ),
-                const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                _construirFilaDato('Mes de prácticas', mes_actual),
-                const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                _construirFilaDato(
-                  'Fecha de presentación',
-                  '$fecha_presentacion (Día 24)',
-                  destacado: true,
-                ),
-                const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                _construirFilaDato('Lugar de prácticas', 'Oficina Central'),
-                const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                _construirFilaDato('Unidad', 'Créditos'),
-                const Divider(height: 20, color: Color(0xFFF1F5F9)),
-                _construirFilaDato('Responsable / mentor', 'Carlos Alanoca'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+                    // Tarjeta 1: Información Académica e Institucional (Solo lectura)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: BumandColores.AZUL_DIACONIA
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.school_outlined,
+                                  color: BumandColores.AZUL_DIACONIA,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Ficha Institucional y Beca',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              const Spacer(),
+                              const Tooltip(
+                                message:
+                                    'Datos protegidos por convenio institucional',
+                                child: Icon(
+                                  Icons.lock,
+                                  size: 15,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                          const SizedBox(height: 6),
+                          _construirFilaDatoSoloLectura(
+                            'Estudiante',
+                            nombre_estudiante,
+                          ),
+                          _construirFilaDatoSoloLectura(
+                            'Universidad',
+                            'Universidad Pública de El Alto',
+                          ),
+                          _construirFilaDatoSoloLectura(
+                            'Carrera',
+                            'Economía',
+                          ),
+                          _construirFilaDatoSoloLectura(
+                            'Lugar de prácticas',
+                            'Oficina Central Diaconía IFD',
+                          ),
+                          _construirFilaDatoSoloLectura(
+                            'Unidad',
+                            'Créditos',
+                          ),
+                          _construirFilaDatoSoloLectura(
+                            'Responsable',
+                            'Carlos Alanoca',
+                          ),
+                          _construirFilaDatoSoloLectura(
+                            'Mes de prácticas',
+                            mes_actual,
+                          ),
+                          _construirFilaDatoSoloLectura(
+                            'Presentación',
+                            '$fecha_presentacion (Día 24)',
+                            destacado: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
 
-          // Botón Confirmar datos
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _confirmarDatosFinales,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.NARANJA,
-                foregroundColor: BumandColores.NEGRO,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                    // Tarjeta 2: Datos de Contacto (Editables por el becario)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: BumandColores.TURQUESA_DIACONIA
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.contact_phone_outlined,
+                                  color: BumandColores.TURQUESA_DIACONIA,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Datos de Contacto Directo',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          _construirCampoContactoEditable(
+                            etiqueta: 'Celular / WhatsApp',
+                            controlador: _telefono_controlador,
+                            icono: Icons.phone_android_outlined,
+                            tipo_teclado: TextInputType.phone,
+                          ),
+                          _construirCampoContactoEditable(
+                            etiqueta: 'Dirección de residencia',
+                            controlador: _direccion_controlador,
+                            icono: Icons.home_outlined,
+                          ),
+                          _construirCampoContactoEditable(
+                            etiqueta: 'Contacto de emergencia',
+                            controlador: _emergencia_controlador,
+                            icono: Icons.emergency_outlined,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Botón Principal Confirmar Datos
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _confirmarDatosFinales,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: BumandColores.NARANJA,
+                          foregroundColor: BumandColores.NEGRO,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Confirmar datos e ingresar',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward_rounded, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
-              child: const Text(
-                'Confirmar datos',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
             ),
-          ),
-          const SizedBox(height: 12),
-
-          Center(
-            child: TextButton.icon(
-              onPressed: () => setState(() => _paso_actual = 1),
-              icon: const Icon(Icons.edit, size: 14),
-              label: const Text('Corregir correo institucional'),
-              style: TextButton.styleFrom(
-                foregroundColor: BumandColores.AZUL_DIACONIA,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _construirFilaDato(
-    String etiqueta,
-    String valor, {
-    bool destacado = false,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 130,
-          child: Text(
-            etiqueta,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            valor,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: destacado
-                  ? BumandColores.AZUL_DIACONIA
-                  : const Color(0xFF0F172A),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _construirInputCorreo({
-    required TextEditingController controlador,
-    required String texto_marcador,
-    required IconData icono,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
-      ),
-      child: TextField(
-        controller: controlador,
-        keyboardType: TextInputType.emailAddress,
-        style: const TextStyle(fontSize: 15),
-        decoration: InputDecoration(
-          hintText: texto_marcador,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-          prefixIcon: Icon(
-            icono,
-            color: BumandColores.AZUL_DIACONIA,
-            size: 20,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _construirPuntoPaso(
-    int numero, {
-    required bool activo,
-    bool completado = false,
-  }) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: completado
-            ? BumandColores.TURQUESA_DIACONIA
-            : activo
-                ? BumandColores.AZUL_DIACONIA
-                : const Color(0xFFE2E8F0),
-      ),
-      child: Center(
-        child: completado
-            ? const Icon(Icons.check, size: 16, color: Colors.white)
-            : Text(
-                '$numero',
-                style: TextStyle(
-                  color: activo ? Colors.white : const Color(0xFF64748B),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-      ),
-    );
-  }
-
-  Widget _construirLineaPaso({required bool activa}) {
-    return Expanded(
-      child: Container(
-        height: 2.5,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        color: activa
-            ? BumandColores.TURQUESA_DIACONIA
-            : const Color(0xFFE2E8F0),
       ),
     );
   }
