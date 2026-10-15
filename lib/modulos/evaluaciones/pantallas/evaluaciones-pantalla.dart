@@ -101,7 +101,7 @@ class EvaluacionesPantalla extends ConsumerWidget {
                               ),
                               const SizedBox(height: 2),
                               const Text(
-                                "Nota Global Ponderada",
+                                "Calificación Global",
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 18,
@@ -141,7 +141,7 @@ class EvaluacionesPantalla extends ConsumerWidget {
                               alignment: Alignment.center,
                               children: [
                                 CircularProgressIndicator(
-                                  value: (datos.total_porcentual / 100).clamp(0.0, 1.0),
+                                  value: (datos.total_vigesimal / 20).clamp(0.0, 1.0),
                                   strokeWidth: 8,
                                   backgroundColor: Colors.white.withValues(alpha: 0.15),
                                   valueColor: const AlwaysStoppedAnimation<Color>(
@@ -149,10 +149,10 @@ class EvaluacionesPantalla extends ConsumerWidget {
                                   ),
                                 ),
                                 Text(
-                                  "${datos.total_porcentual.toStringAsFixed(1)}%",
+                                  datos.total_vigesimal.toStringAsFixed(1),
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 15,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -326,49 +326,23 @@ class EvaluacionesPantalla extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    mod.nombre,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: BumandColores.NEGRO,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    "Evaluador: ${mod.evaluador_rol}",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
+                            Text(
+                              mod.nombre,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: BumandColores.NEGRO,
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                "Peso ${mod.peso_porcentaje.toInt()}%",
-                                style: const TextStyle(
-                                  color: BumandColores.AZUL_DIACONIA,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "Evaluador: ${mod.evaluador_rol}",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
                               ),
                             ),
                           ],
@@ -403,36 +377,23 @@ class EvaluacionesPantalla extends ConsumerWidget {
                         ),
                         const SizedBox(height: 10),
 
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _obtenerColorEstado(mod.estado).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                mod.estado.toUpperCase(),
-                                style: TextStyle(
-                                  color: _obtenerColorEstado(mod.estado),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10,
-                                ),
-                              ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _obtenerColorEstado(mod.estado).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            mod.estado.toUpperCase(),
+                            style: TextStyle(
+                              color: _obtenerColorEstado(mod.estado),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
                             ),
-                            Text(
-                              "Aporte: +${mod.contribucion_ponderada.toStringAsFixed(1)} pts",
-                              style: TextStyle(
-                                color: Colors.grey.shade700,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
 
                         if (mod.observaciones != null && mod.observaciones!.isNotEmpty) ...[

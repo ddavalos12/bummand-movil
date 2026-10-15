@@ -176,21 +176,10 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
                       const SizedBox(height: 8),
                       Hero(
                         tag: 'hero-logo-diaconia',
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F4F8),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFD9E2EC)),
-                          ),
-                          child: SvgPicture.asset(
-                            'assets/logos/logo-diaconia.svg',
-                            height: 20,
-                            fit: BoxFit.contain,
-                          ),
+                        child: SvgPicture.asset(
+                          'assets/logos/logo-diaconia.svg',
+                          height: 44,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ],

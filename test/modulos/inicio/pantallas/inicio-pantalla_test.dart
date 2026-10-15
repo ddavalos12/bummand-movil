@@ -15,7 +15,7 @@ void main() {
   });
 
   group('InicioPantalla Navegación Pruebas de Widget', () {
-    testWidgets('Renderiza los 4 destinos de navegación y no incluye Devocional', (
+    testWidgets('Renderiza los 3 destinos de navegación y no incluye Eventos ni Devocional en la barra inferior', (
       WidgetTester probador,
     ) async {
       probador.view.physicalSize = const Size(1080, 2400);
@@ -55,17 +55,17 @@ void main() {
       await probador.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Asistencia'), findsOneWidget);
-      expect(find.text('Eventos'), findsOneWidget);
       expect(find.text('Pasajes'), findsOneWidget);
       expect(find.text('Notificaciones'), findsOneWidget);
+      expect(find.text('Eventos'), findsNothing);
       expect(find.text('Devocional'), findsNothing);
 
-      // Conmutar a la pestaña Eventos
-      await probador.tap(find.text('Eventos'));
+      // Conmutar a la pestaña Pasajes
+      await probador.tap(find.text('Pasajes'));
       await probador.pump();
       await probador.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Eventos y Convocatorias'), findsOneWidget);
+      expect(find.text('Pasajes'), findsWidgets);
     });
   });
 }

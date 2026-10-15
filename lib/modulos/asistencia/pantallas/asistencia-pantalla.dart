@@ -195,13 +195,13 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
   }
 
   void _calcularPuntualidad(DateTime ahora, String tipo_activo) {
-    final es_viernes = ahora.weekday == DateTime.friday ||
+    final es_escuela_lideres_viernes = ahora.weekday == DateTime.friday &&
         tipo_activo == TipoAsistencia.escuelaLideres.valor;
     final hora_texto =
         '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}';
     _hora_marcada_ingreso = hora_texto;
 
-    if (es_viernes) {
+    if (es_escuela_lideres_viernes) {
       final limite_viernes = DateTime(
         ahora.year,
         ahora.month,
@@ -215,7 +215,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         setState(() {
           _es_retraso = true;
           _banner_alerta_puntualidad =
-              '⚠️ Retraso de $retraso_min min pasadas las 14:35. Multa calculada: Bs $multa.00 (Tarifa: Bs 10/minuto de retención institucional).\nMarcación GPS registrada correctamente.';
+              '⚠️ Retraso en Escuela de Líderes (Viernes) - Multa calculada: Bs $multa.00\nMarcación GPS registrada correctamente.';
         });
       } else {
         setState(() {
@@ -235,10 +235,14 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       hora_limite = 8;
       minuto_limite = 0;
       hora_etiqueta = '08:00';
-    } else {
+    } else if (tipo_activo == TipoAsistencia.accionesServicio.valor) {
       hora_limite = 9;
       minuto_limite = 0;
       hora_etiqueta = '09:00';
+    } else {
+      hora_limite = 14;
+      minuto_limite = 35;
+      hora_etiqueta = '14:35';
     }
 
     final limite = DateTime(
@@ -276,7 +280,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     }
 
     final ahora = DateTime.now();
-    final es_viernes = ahora.weekday == DateTime.friday ||
+    final es_escuela_lideres_viernes = ahora.weekday == DateTime.friday &&
         _tipo == TipoAsistencia.escuelaLideres.valor;
 
     if (ingreso) {
@@ -305,7 +309,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
           _hora_marcada_salida = hora_str;
         }
       });
-      if (es_viernes) {
+      if (es_escuela_lideres_viernes) {
         _mensaje(
           ingreso
               ? "✓ Ingreso registrado correctamente"
@@ -423,12 +427,12 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         lugar_defecto;
 
     final ahora = DateTime.now();
-    final es_viernes = ahora.weekday == DateTime.friday ||
+    final es_escuela_lideres_viernes = ahora.weekday == DateTime.friday &&
         _tipo == TipoAsistencia.escuelaLideres.valor;
     final limite_viernes =
         DateTime(ahora.year, ahora.month, ahora.day, 14, 35);
     final minutos_retraso_actual =
-        (es_viernes && ahora.isAfter(limite_viernes))
+        (es_escuela_lideres_viernes && ahora.isAfter(limite_viernes))
             ? ahora.difference(limite_viernes).inMinutes
             : 0;
     final multa_estimada_real = minutos_retraso_actual * 10;
@@ -510,7 +514,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                 ),
 
                 // 7. Advertencia en tiempo real para Escuela de Líderes (Viernes pasadas las 14:35)
-                if (es_viernes && minutos_retraso_actual > 0) ...[
+                if (es_escuela_lideres_viernes && minutos_retraso_actual > 0) ...[
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -532,9 +536,9 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                "Retraso en Escuela de Líderes (Viernes)",
-                                style: TextStyle(
+                              Text(
+                                "Retraso en Escuela de Líderes (Viernes) - Multa calculada: Bs $multa_estimada_real.00",
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
                                   color: Color(0xFF991B1B),
@@ -542,7 +546,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "Límite: 14:35 • Retraso: $minutos_retraso_actual min.\nMulta calculada en tiempo real: Bs $multa_estimada_real.00 (Tarifa: Bs 10 por minuto de retención institucional).",
+                                "Límite: 14:35 • Retraso: $minutos_retraso_actual min.\nTarifa: Bs 10 por minuto de retención institucional.",
                                 style: const TextStyle(
                                   fontSize: 11.5,
                                   color: Color(0xFFB91C1C),

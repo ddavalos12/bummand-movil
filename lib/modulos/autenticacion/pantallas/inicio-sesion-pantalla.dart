@@ -225,83 +225,48 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
                       Center(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
+                            horizontal: 20,
+                            vertical: 12,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: const Color(0xFFE2E8F0),
-                              width: 1,
+                              width: 1.5,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF063A6B).withValues(alpha: 0.04),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              SvgPicture.asset(
-                                'assets/logos/logo-bumand.svg',
-                                height: 32,
-                                fit: BoxFit.contain,
+                              Hero(
+                                tag: 'hero-logo-bumand',
+                                child: SvgPicture.asset(
+                                  'assets/logos/logo-bumand.svg',
+                                  height: 56,
+                                  fit: BoxFit.contain,
+                                ),
                               ),
                               Container(
-                                height: 24,
-                                width: 1,
-                                margin: const EdgeInsets.symmetric(horizontal: 12),
+                                height: 44,
+                                width: 1.5,
+                                margin: const EdgeInsets.symmetric(horizontal: 16),
                                 color: const Color(0xFFE2E8F0),
                               ),
-                              // Badge de Diaconía institucional
-                              Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF0284C7), Color(0xFF0097A7)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF0284C7)
-                                          .withValues(alpha: 0.25),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Stack(
-                                  children: [
-                                    Positioned(
-                                      top: -2,
-                                      left: -2,
-                                      child: Container(
-                                        width: 12,
-                                        height: 12,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFFDBC58),
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                    ),
-                                    Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                        ),
-                                        child: SvgPicture.asset(
-                                          'assets/logos/logo-diaconia.svg',
-                                          height: 16,
-                                          fit: BoxFit.contain,
-                                          colorFilter: const ColorFilter.mode(
-                                            Colors.white,
-                                            BlendMode.srcIn,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                              Hero(
+                                tag: 'hero-logo-diaconia',
+                                child: SvgPicture.asset(
+                                  'assets/logos/logo-diaconia.svg',
+                                  height: 50,
+                                  fit: BoxFit.contain,
                                 ),
                               ),
                             ],

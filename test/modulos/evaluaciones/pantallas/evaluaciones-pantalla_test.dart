@@ -35,9 +35,9 @@ void main() {
       await probador.pumpAndSettle();
 
       expect(find.text('Mis Evaluaciones'), findsOneWidget);
-      expect(find.text('Nota Global Ponderada'), findsOneWidget);
-      expect(find.text('88.5%'), findsOneWidget);
+      expect(find.text('Calificación Global'), findsOneWidget);
       expect(find.text('17.7 / 20 pts'), findsOneWidget);
+      expect(find.text('88.5%'), findsNothing);
       expect(find.text('Liderazgo en la Iglesia (Formulario F-03)'), findsOneWidget);
       expect(find.text('Autoevaluación Académica'), findsOneWidget);
       expect(find.text('Evaluación del Mentor / Prácticas'), findsOneWidget);

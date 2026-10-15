@@ -7,8 +7,6 @@ import '../../asistencia/modelos/orden-confirmacion-modelo.dart';
 import '../../asistencia/pantallas/asistencia-pantalla.dart';
 import '../../asistencia/pantallas/confirmar-datos-pantalla.dart';
 import '../../asistencia/proveedores/asistencia-proveedor.dart';
-import '../../eventos/pantallas/eventos-pantalla.dart';
-import '../../eventos/servicios/eventos-servicio.dart';
 import '../../pasajes/pantallas/pasajes-pantalla.dart';
 import '../../notificaciones/pantallas/notificaciones-pantalla.dart';
 import '../../notificaciones/proveedores/notificaciones-proveedor.dart';
@@ -26,7 +24,6 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
 
   static const _pantallas = [
     AsistenciaPantalla(),
-    EventosPantalla(),
     PasajesPantalla(),
     NotificacionesPantalla(),
   ];
@@ -36,10 +33,6 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
     final conteo_no_leidas =
         ref.watch(notificaciones_conteo_proveedor).value ?? 0;
     final orden = ref.watch(orden_confirmacion_proveedor);
-    final eventos_async = ref.watch(eventos_lista_proveedor);
-    final bool tiene_evento_marcado =
-        eventos_async.asData?.value.datos?.any((e) => e.mi_asistencia != null) ??
-            false;
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
@@ -66,29 +59,6 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
               color: BumandColores.AZUL_DIACONIA,
             ),
             label: "Asistencia",
-          ),
-          NavigationDestination(
-            icon: tiene_evento_marcado
-                ? const Badge(
-                    backgroundColor: Color(0xFF10B981),
-                    smallSize: 8,
-                    child: Icon(Icons.event_available_outlined),
-                  )
-                : const Icon(Icons.event_available_outlined),
-            selectedIcon: tiene_evento_marcado
-                ? const Badge(
-                    backgroundColor: Color(0xFF10B981),
-                    smallSize: 8,
-                    child: Icon(
-                      Icons.event_available,
-                      color: BumandColores.AZUL_DIACONIA,
-                    ),
-                  )
-                : const Icon(
-                    Icons.event_available,
-                    color: BumandColores.AZUL_DIACONIA,
-                  ),
-            label: "Eventos",
           ),
           const NavigationDestination(
             icon: Icon(Icons.directions_bus_outlined),
