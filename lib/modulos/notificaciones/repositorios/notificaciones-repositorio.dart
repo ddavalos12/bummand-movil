@@ -33,6 +33,7 @@ class NotificacionesRepositorio {
         final datos = jsonDecode(respuesta.body) as List<dynamic>;
         final lista = datos
             .map((e) => NotificacionModelo.desdeJson(e as Map<String, dynamic>))
+            .where((n) => !n.tipo.toLowerCase().contains('codigo_tutor'))
             .toList();
         return Resultado.exitoso(lista);
       }

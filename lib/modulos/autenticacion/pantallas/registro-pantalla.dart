@@ -1,10 +1,13 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../nucleo/tema/colores.dart';
+
+import '../../../widgets-comunes/tarjeta-spotlight.dart';
+import '../../../widgets-comunes/boton-juicy.dart';
 import '../proveedores/autenticacion-proveedor.dart';
 import '../../inicio/pantallas/pantalla-inicio.dart';
+import 'inicio-sesion-pantalla.dart';
 
 class RegistroPantalla extends ConsumerStatefulWidget {
   const RegistroPantalla({super.key});
@@ -13,7 +16,8 @@ class RegistroPantalla extends ConsumerStatefulWidget {
   ConsumerState<RegistroPantalla> createState() => _RegistroPantallaState();
 }
 
-class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
+class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
+    with SingleTickerProviderStateMixin {
   final _ci_controlador = TextEditingController();
   final _correo_controlador = TextEditingController();
   final _confirmar_correo_controlador = TextEditingController();
@@ -22,9 +26,20 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
 
   bool _ocultar_contrasena = true;
   String? _error_validacion;
+  late final AnimationController _animacion_controlador;
+
+  @override
+  void initState() {
+    super.initState();
+    _animacion_controlador = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
+  }
 
   @override
   void dispose() {
+    _animacion_controlador.dispose();
     _ci_controlador.dispose();
     _correo_controlador.dispose();
     _confirmar_correo_controlador.dispose();
@@ -89,9 +104,12 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: BumandColores.BLANCO,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFFE3E9F2)),
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
       ),
       child: TextField(
         controller: controlador,
@@ -99,18 +117,31 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
         keyboardType: tipo_teclado,
         enableInteractiveSelection: !deshabilitar_pegar,
         autocorrect: false,
-        style: const TextStyle(fontSize: 15),
+        style: const TextStyle(
+          fontSize: 14.5,
+          color: Color(0xFF1E293B),
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
           hintText: texto_marcador,
-          hintStyle: TextStyle(color: Colors.grey.shade500),
+          hintStyle: const TextStyle(
+            color: Color(0xFF94A3B8),
+            fontSize: 14.5,
+            fontWeight: FontWeight.w400,
+          ),
           prefixIcon: Container(
-            margin: const EdgeInsets.all(10),
-            padding: const EdgeInsets.all(8),
+            margin: const EdgeInsets.only(left: 8, top: 7, bottom: 7, right: 12),
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFFE0F2FE),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icono, color: BumandColores.AZUL_DIACONIA, size: 18),
+            child: Icon(
+              icono,
+              color: const Color(0xFF0284C7),
+              size: 19,
+            ),
           ),
           suffixIcon: es_contrasena
               ? IconButton(
@@ -118,14 +149,15 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
                     _ocultar_contrasena
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
-                    color: Colors.grey.shade500,
+                    color: const Color(0xFF94A3B8),
+                    size: 20,
                   ),
                   onPressed: () =>
                       setState(() => _ocultar_contrasena = !_ocultar_contrasena),
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(vertical: 13),
         ),
       ),
     );
@@ -134,146 +166,347 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla> {
   @override
   Widget build(BuildContext context) {
     final estado_auth = ref.watch(autenticacion_proveedor);
+    final error_visible = _error_validacion ?? estado_auth.error;
 
     return Scaffold(
-      backgroundColor: BumandColores.FONDO,
-      appBar: AppBar(
-        title: const Text("Crear mi cuenta"),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: BumandColores.NEGRO,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: BumandColores.BLANCO,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Column(
-                    children: [
-                      Hero(
-                        tag: 'hero-logo-bumand',
-                        child: SvgPicture.asset(
-                          'assets/logos/logo-bumand.svg',
-                          height: 52,
-                          fit: BoxFit.contain,
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // Capas decorativas celestes en movimiento continuo (idénticas a Login)
+          AnimatedBuilder(
+            animation: _animacion_controlador,
+            builder: (context, _) {
+              final progreso = _animacion_controlador.value;
+              final fase = progreso * 2 * math.pi;
+
+              return Stack(
+                children: [
+                  Positioned(
+                    top: -50 + 12 * math.sin(fase),
+                    left: -50 + 12 * math.cos(fase),
+                    child: Container(
+                      width: 220,
+                      height: 220,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            const Color(0xFF38BDF8).withValues(alpha: 0.65),
+                            const Color(0xFF0284C7).withValues(alpha: 0.35),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.7, 1.0],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Hero(
-                        tag: 'hero-logo-diaconia',
-                        child: SvgPicture.asset(
-                          'assets/logos/logo-diaconia.svg',
-                          height: 44,
-                          fit: BoxFit.contain,
+                    ),
+                  ),
+                  Positioned(
+                    top: 25 + 8 * math.sin(fase),
+                    right: 10 + 5 * math.cos(fase),
+                    child: Transform.rotate(
+                      angle: 0.04 * math.sin(fase),
+                      child: CustomPaint(
+                        size: const Size(120, 120),
+                        painter: PintorCuboIsometrico(
+                          color: const Color(0xFF7DD3FC).withValues(alpha: 0.85),
+                          progreso: progreso,
                         ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 190,
+                    child: CustomPaint(
+                      size: Size(MediaQuery.of(context).size.width, 190),
+                      painter: PintorOndasCelestes(progreso: progreso),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+
+          // Tarjeta flotante central unificada con InicioSesionPantalla
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: TarjetaSpotlight(
+                  radio_borde: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+                  color_fondo: Colors.white,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Fila superior con botón atrás y logos institucionales
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              onPressed: () => Navigator.of(context).maybePop(),
+                              icon: const Icon(
+                                Icons.arrow_back_rounded,
+                                color: Color(0xFF0F172A),
+                              ),
+                              tooltip: "Volver",
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF063A6B)
+                                      .withValues(alpha: 0.04),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Hero(
+                                  tag: 'hero-logo-bumand',
+                                  child: SvgPicture.asset(
+                                    'assets/logos/logo-bumand.svg',
+                                    height: 44,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                Container(
+                                  height: 36,
+                                  width: 1.5,
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 12),
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                                Hero(
+                                  tag: 'hero-logo-diaconia',
+                                  child: SvgPicture.asset(
+                                    'assets/logos/logo-diaconia.svg',
+                                    height: 40,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Título bicolor idéntico en estilo a "Bienvenido"
+                      Center(
+                        child: RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: 'Crear mi ',
+                                style: TextStyle(color: Color(0xFF0F172A)),
+                              ),
+                              TextSpan(
+                                text: 'cuenta',
+                                style: TextStyle(color: Color(0xFF0284C7)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "Activación de cuenta para becarios en nómina oficial",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 3.5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0284C7),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      _construirCampoTexto(
+                        controlador: _ci_controlador,
+                        texto_marcador: "Tu C.I. (sin extensión)",
+                        icono: Icons.badge_outlined,
+                        tipo_teclado: TextInputType.number,
+                      ),
+                      const SizedBox(height: 11),
+                      _construirCampoTexto(
+                        controlador: _correo_controlador,
+                        texto_marcador: "Tu correo electrónico real",
+                        icono: Icons.email_outlined,
+                        tipo_teclado: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 11),
+                      _construirCampoTexto(
+                        controlador: _confirmar_correo_controlador,
+                        texto_marcador: "Confirma tu correo electrónico",
+                        icono: Icons.mark_email_read_outlined,
+                        tipo_teclado: TextInputType.emailAddress,
+                        deshabilitar_pegar: true,
+                      ),
+                      const SizedBox(height: 11),
+                      _construirCampoTexto(
+                        controlador: _contrasena_controlador,
+                        texto_marcador: "Elige una contraseña",
+                        icono: Icons.lock_outline,
+                        es_contrasena: true,
+                      ),
+                      const SizedBox(height: 11),
+                      _construirCampoTexto(
+                        controlador: _confirmar_controlador,
+                        texto_marcador: "Confirma tu contraseña",
+                        icono: Icons.lock_outline,
+                        es_contrasena: true,
+                      ),
+                      const SizedBox(height: 14),
+
+                      if (error_visible != null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Colors.red.shade700,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  error_visible,
+                                  style: TextStyle(
+                                    color: Colors.red.shade800,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      BotonJuicy(
+                        al_presionar: estado_auth.cargando ? null : _registrar,
+                        cargando: estado_auth.cargando,
+                        color_fondo: const Color(0xFFF59E0B),
+                        color_texto: Colors.white,
+                        radio_borde: 26,
+                        alto: 48,
+                        icono: Icons.check_circle_outline_rounded,
+                        texto_o_hijo: const Text(
+                          "Crear cuenta",
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => Navigator.of(context).maybePop(),
+                          child: const Text(
+                            "¿Ya tienes cuenta activa? Inicia sesión",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0284C7),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Divider(
+                              color: Color(0xFFE2E8F0),
+                              thickness: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: CustomPaint(
+                              size: const Size(26, 13),
+                              painter: PintorPezCristiano(
+                                color: const Color(0xFFFDBC58),
+                                grosor: 1.8,
+                              ),
+                            ),
+                          ),
+                          const Expanded(
+                            child: Divider(
+                              color: Color(0xFFE2E8F0),
+                              thickness: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "AMOR, LEALTAD Y SACRIFICIO · BUMAND AL SERVICIO",
+                        style: TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  "Si ya estás en la lista de becarios de BUMAND (tu CI ya fue cargado por el administrador), crea tu cuenta aquí con tu correo real.",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                ),
-                const SizedBox(height: 20),
-                _construirCampoTexto(
-                  controlador: _ci_controlador,
-                  texto_marcador: "Tu C.I. (sin extensión)",
-                  icono: Icons.badge_outlined,
-                  tipo_teclado: TextInputType.number,
-                ),
-                const SizedBox(height: 14),
-                _construirCampoTexto(
-                  controlador: _correo_controlador,
-                  texto_marcador: "Tu correo real",
-                  icono: Icons.email_outlined,
-                  tipo_teclado: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 14),
-                _construirCampoTexto(
-                  controlador: _confirmar_correo_controlador,
-                  texto_marcador: "Confirma tu correo",
-                  icono: Icons.mark_email_read_outlined,
-                  tipo_teclado: TextInputType.emailAddress,
-                  deshabilitar_pegar: true,
-                ),
-                const SizedBox(height: 14),
-                _construirCampoTexto(
-                  controlador: _contrasena_controlador,
-                  texto_marcador: "Elige una contraseña",
-                  icono: Icons.lock_outline,
-                  es_contrasena: true,
-                ),
-                const SizedBox(height: 14),
-                _construirCampoTexto(
-                  controlador: _confirmar_controlador,
-                  texto_marcador: "Confirma tu contraseña",
-                  icono: Icons.lock_outline,
-                  es_contrasena: true,
-                ),
-                const SizedBox(height: 16),
-                if (_error_validacion != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _error_validacion!,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                if (estado_auth.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      estado_auth.error!,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: estado_auth.cargando ? null : _registrar,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: BumandColores.NARANJA_OSCURO,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: estado_auth.cargando
-                        ? const CircularProgressIndicator(
-                            color: BumandColores.BLANCO,
-                          )
-                        : const Text(
-                            "Crear cuenta",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: BumandColores.BLANCO,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

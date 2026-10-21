@@ -10,7 +10,7 @@ void main() {
   });
 
   group('SolicitarJustificacionDialogo Pruebas de Widget', () {
-    testWidgets('Renderiza motivos, campo de descripción y botón de envío', (
+    testWidgets('Renderiza motivos, prueba justificable, campo de descripción y botón de envío', (
       WidgetTester probador,
     ) async {
       probador.view.physicalSize = const Size(1080, 2400);
@@ -35,16 +35,27 @@ void main() {
 
       await probador.pumpAndSettle();
 
-      expect(find.text('Solicitud de Justificación'), findsOneWidget);
+      expect(find.text('Permisos y Justificaciones'), findsOneWidget);
+      expect(find.text('Reporte con prueba médica o comprobante justificable'), findsOneWidget);
       expect(find.text('Taller de Liderazgo'), findsOneWidget);
-      expect(find.text('Motivo de la incidencia:'), findsOneWidget);
+      expect(find.text('Motivo del permiso o incidencia:'), findsOneWidget);
 
-      expect(find.text('Corte de ruta/Paro'), findsOneWidget);
-      expect(find.text('Emergencia médica'), findsOneWidget);
-      expect(find.text('Trámite académico'), findsOneWidget);
+      expect(find.text('Emergencia médica / Receta'), findsOneWidget);
+      expect(find.text('Corte de ruta / Transporte'), findsOneWidget);
+      expect(find.text('Trámite académico / Examen'), findsOneWidget);
       expect(find.text('Otro'), findsOneWidget);
 
-      expect(find.text('Enviar Justificación'), findsOneWidget);
+      // Verificación de prueba justificable obligatoria (no carta)
+      expect(find.text('Prueba Justificable (Obligatoria)'), findsOneWidget);
+      expect(find.text('Receta médica prescrita'), findsOneWidget);
+      expect(find.text('Certificado médico SSU'), findsOneWidget);
+
+      // Seleccionar prueba justificable
+      await probador.tap(find.text('Receta médica prescrita'));
+      await probador.pumpAndSettle();
+      expect(find.text('Receta_Medica_Prescrita.pdf'), findsOneWidget);
+
+      expect(find.text('Enviar Permiso / Justificación'), findsOneWidget);
     });
   });
 }

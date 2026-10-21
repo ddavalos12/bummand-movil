@@ -295,6 +295,7 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
                   title: Text("${r.origen} → ${r.destino}"),
                   subtitle: Text(
                     "${FormatoPasajes.diaMes(r.fecha)} · ${r.tramo == "ida" ? "Ida" : "Vuelta"}"
+                    "${r.apoyo_realizado != null && r.apoyo_realizado!.isNotEmpty ? " · ${r.apoyo_realizado}" : ""}"
                     "${r.lat_origen != null || r.lat_destino != null ? " · 📍 con ubicación" : ""}",
                   ),
                   trailing: Row(

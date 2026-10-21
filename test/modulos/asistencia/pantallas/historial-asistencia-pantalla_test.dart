@@ -46,6 +46,13 @@ void main() {
           },
         ];
 
+        probador.view.physicalSize = const Size(1080, 2400);
+        probador.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          probador.view.resetPhysicalSize();
+          probador.view.resetDevicePixelRatio();
+        });
+
         await probador.pumpWidget(
           ProviderScope(
             overrides: [
@@ -61,7 +68,8 @@ void main() {
 
         await probador.pumpAndSettle();
 
-        expect(find.text('Historial de Asistencias'), findsOneWidget);
+        expect(find.text('Mi historial'), findsOneWidget);
+        expect(find.text('Horas acumuladas este mes'), findsOneWidget);
         expect(find.text('2026-10-09'), findsOneWidget);
         expect(
           find.text('Bloque detectado: Bloque Norte (Auditorio)'),
@@ -75,7 +83,7 @@ void main() {
       },
     );
 
-    testWidgets('Muestra estado vacio cuando no hay registros', (
+    testWidgets('Muestra métricas y estado sin registros previos', (
       WidgetTester probador,
     ) async {
       await probador.pumpWidget(
@@ -93,7 +101,10 @@ void main() {
 
       await probador.pumpAndSettle();
 
-      expect(find.text('No hay registros de asistencia'), findsOneWidget);
+      expect(find.text('Mi historial'), findsOneWidget);
+      expect(find.text('Horas acumuladas este mes'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+      expect(find.text('Marcaciones'), findsOneWidget);
     });
 
     testWidgets(
@@ -167,21 +178,21 @@ void main() {
         await probador.pumpAndSettle();
 
         expect(
-          find.text('Aviso Institucional de Retención por Retraso'),
+          find.text('Escala Oficial de Retenciones por Retraso'),
           findsOneWidget,
         );
+        expect(find.text('10 Bs.'), findsOneWidget);
+        expect(find.text('20 Bs.'), findsOneWidget);
+        expect(find.text('30 Bs.'), findsOneWidget);
+        expect(find.text('50 Bs.'), findsOneWidget);
         expect(find.text('Total Retención'), findsOneWidget);
         expect(find.text('Minutos Retraso'), findsOneWidget);
         expect(find.text('Viernes 09/10/2026'), findsOneWidget);
-        expect(
-          find.text('Retraso a Escuela de Líderes pasadas las 14:35'),
-          findsWidgets,
-        );
       },
     );
 
     testWidgets(
-      'Cambia a pestana Evaluaciones (360°) y muestra sus subsecciones formativas',
+      'Cambia a pestana Evaluaciones y muestra sus módulos formativos sin porcentajes ni puntos',
       (WidgetTester probador) async {
         probador.view.physicalSize = const Size(1080, 2400);
         probador.view.devicePixelRatio = 1.0;
@@ -210,41 +221,104 @@ void main() {
 
         await probador.pumpAndSettle();
 
-        final pestana_evaluaciones = find.text('Evaluaciones (360°)');
+        final pestana_evaluaciones = find.text('Evaluaciones');
         expect(pestana_evaluaciones, findsOneWidget);
         await probador.tap(pestana_evaluaciones);
         await probador.pumpAndSettle();
 
         // Verifica chips de subsecciones
-        expect(find.text('Todas las subsecciones'), findsOneWidget);
-        expect(find.text('Nota Global 360°'), findsOneWidget);
-        expect(find.text('Formulario F-03'), findsOneWidget);
-        expect(find.text('Módulos Canónicos'), findsOneWidget);
+        expect(find.text('Todas las secciones'), findsOneWidget);
+        expect(find.text('Módulos Canónicos (5)'), findsOneWidget);
         expect(find.text('Criterios Formativos'), findsOneWidget);
 
-        // Verifica contenido de las 4 subsecciones
-        expect(find.text('Nota Global Ponderada (360°)'), findsOneWidget);
-        expect(find.text('17.7 / 20 pts'), findsOneWidget);
-        expect(find.text('88.5%'), findsOneWidget);
-
-        expect(find.text('Formulario F-03 del Pastor'), findsOneWidget);
-        expect(find.text('Abrir F-03'), findsOneWidget);
-
-        expect(find.text('Desglose por Módulos Canónicos'), findsOneWidget);
+        // Verifica contenido formativo
+        expect(find.text('Módulos Formativos de Evaluación'), findsOneWidget);
         expect(
           find.text('Liderazgo en la Iglesia (Formulario F-03)'),
           findsOneWidget,
         );
+        expect(find.text('Autoevaluación Académica'), findsOneWidget);
+        expect(find.text('Evaluación del Mentor / Supervisor'), findsOneWidget);
+        expect(find.text('Evaluación Escuela de Líderes'), findsOneWidget);
+        expect(find.text('Evaluación Socioeconómica'), findsOneWidget);
 
         expect(find.text('Criterios y Competencias Formativas'), findsOneWidget);
         expect(find.text('Criterios de Excelencia Diaconal'), findsOneWidget);
 
-        // Prueba filtro de subsección específico (Formulario F-03)
-        await probador.tap(find.text('Formulario F-03'));
+        // Valida que NO aparezcan notas globales, porcentajes ni puntos numéricos
+        expect(find.text('Nota Global Ponderada (360°)'), findsNothing);
+        expect(find.text('17.7 / 20 pts'), findsNothing);
+        expect(find.text('88.5%'), findsNothing);
+
+        // Prueba filtro de subsección específico (Criterios Formativos)
+        await probador.tap(find.text('Criterios Formativos'));
         await probador.pumpAndSettle();
 
-        expect(find.text('Formulario F-03 del Pastor'), findsOneWidget);
-        expect(find.text('Nota Global Ponderada (360°)'), findsNothing);
+        expect(find.text('Criterios y Competencias Formativas'), findsOneWidget);
+        expect(find.text('Módulos Formativos de Evaluación'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Muestra badge Registrado por Administración cuando es_registro_manual es true y filtra escuela_lideres / acciones_servicio',
+      (WidgetTester probador) async {
+        final registros_con_manual = [
+          {
+            "id": 1,
+            "fecha": "2026-10-15",
+            "tipo": "escuela_lideres",
+            "bloque": "Bloque Norte",
+            "es_registro_manual": true,
+            "horaIngreso": "18:00",
+            "horaSalida": "20:00",
+          },
+          {
+            "id": 2,
+            "fecha": "2026-10-16",
+            "tipo": "acciones_servicio",
+            "bloque": "Comunidad El Alto",
+            "es_registro_manual": false,
+            "horaIngreso": "09:00",
+            "horaSalida": "13:00",
+          },
+        ];
+
+        probador.view.physicalSize = const Size(1080, 2400);
+        probador.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          probador.view.resetPhysicalSize();
+          probador.view.resetDevicePixelRatio();
+        });
+
+        await probador.pumpWidget(
+          ProviderScope(
+            overrides: [
+              historial_asistencia_proveedor.overrideWith(
+                (ref) async => Resultado.exitoso(registros_con_manual),
+              ),
+            ],
+            child: const MaterialApp(
+              home: HistorialAsistenciaPantalla(),
+            ),
+          ),
+        );
+
+        await probador.pumpAndSettle();
+
+        // Verificar presencia del badge Registrado por Administración
+        expect(find.text('Registrado por Administración'), findsOneWidget);
+
+        // Probar filtro de Escuela de Líderes (acepta escuela_lideres)
+        await probador.tap(find.widgetWithText(ChoiceChip, 'Escuela de Líderes'));
+        await probador.pumpAndSettle();
+        expect(find.text('2026-10-15'), findsOneWidget);
+        expect(find.text('2026-10-16'), findsNothing);
+
+        // Probar filtro de Acciones de Servicio (acepta acciones_servicio)
+        await probador.tap(find.widgetWithText(ChoiceChip, 'Acciones de Servicio'));
+        await probador.pumpAndSettle();
+        expect(find.text('2026-10-16'), findsOneWidget);
+        expect(find.text('2026-10-15'), findsNothing);
       },
     );
   });

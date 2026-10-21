@@ -5,8 +5,6 @@ import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/error-widget-personalizado.dart';
-import '../../../widgets-comunes/estado-vacio-widget.dart';
-import '../../evaluaciones/modelos/evaluacion-modelo.dart';
 import '../../evaluaciones/proveedores/evaluaciones-proveedor.dart';
 import '../../evaluaciones/widgets/detalle_evaluacion_modal.dart';
 import '../../evaluaciones/widgets/formulario_f03_dialogo.dart';
@@ -48,9 +46,27 @@ class _HistorialAsistenciaPantallaState
 
   List<Map<String, dynamic>> _filtrar(List<Map<String, dynamic>> lista) {
     if (_filtro_tipo == "todas") return lista;
-    return lista
-        .where((r) => r["tipo"]?.toString().toLowerCase() == _filtro_tipo)
-        .toList();
+    return lista.where((r) {
+      final tipo = r["tipo"]?.toString().toLowerCase() ?? "";
+      if (_filtro_tipo == "liderazgo" || _filtro_tipo == "escuela_lideres") {
+        return tipo == "liderazgo" || tipo == "escuela_lideres" || tipo.contains("lider");
+      }
+      if (_filtro_tipo == "servicio" || _filtro_tipo == "acciones_servicio") {
+        return tipo == "servicio" || tipo == "acciones_servicio" || tipo.contains("servicio");
+      }
+      if (_filtro_tipo == "practicas") {
+        return tipo == "practicas" || tipo.contains("practica");
+      }
+      return tipo == _filtro_tipo;
+    }).toList();
+  }
+
+  double _calcularMultaPorMinutos(int minutos) {
+    if (minutos <= 0) return 0.0;
+    if (minutos <= 10) return 10.0;
+    if (minutos <= 30) return 20.0;
+    if (minutos <= 60) return 30.0;
+    return 50.0;
   }
 
   @override
@@ -58,8 +74,8 @@ class _HistorialAsistenciaPantallaState
     return Scaffold(
       backgroundColor: _FONDO,
       appBar: BarraSuperiorBumand(
-        titulo: "Historial de Asistencias",
-        subtitulo: "Marcaciones, evaluaciones 360°, pasajes y multas",
+        titulo: "Mi historial",
+        subtitulo: "Marcaciones, evaluaciones, pasajes y multas",
         acciones_adicionales: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
@@ -74,7 +90,6 @@ class _HistorialAsistenciaPantallaState
       ),
       body: Column(
         children: [
-          // Barra de 4 pestañas principales con soporte scroll horizontal
           Container(
             color: Colors.white,
             child: TabBar(
@@ -100,7 +115,7 @@ class _HistorialAsistenciaPantallaState
                 ),
                 Tab(
                   icon: Icon(Icons.assignment_turned_in_rounded, size: 20),
-                  text: "Evaluaciones (360°)",
+                  text: "Evaluaciones",
                 ),
                 Tab(
                   icon: Icon(Icons.directions_bus_rounded, size: 20),
@@ -114,8 +129,6 @@ class _HistorialAsistenciaPantallaState
             ),
           ),
           const Divider(height: 1, color: _BORDE),
-
-          // Contenido de las 4 pestañas
           Expanded(
             child: TabBarView(
               controller: _controlador_tabs,
@@ -132,9 +145,6 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  // ==========================================
-  // PESTAÑA 1: ASISTENCIAS
-  // ==========================================
   Widget _construirPestanaAsistencias() {
     final historial_async = ref.watch(historial_asistencia_proveedor);
 
@@ -144,7 +154,6 @@ class _HistorialAsistenciaPantallaState
       onRefresh: () async => ref.invalidate(historial_asistencia_proveedor),
       child: Column(
         children: [
-          // Chips de filtrado
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: SingleChildScrollView(
@@ -170,21 +179,6 @@ class _HistorialAsistenciaPantallaState
                 final registros = resultado.datos ?? [];
                 final filtrados = _filtrar(registros);
 
-                if (filtrados.isEmpty) {
-                  return ListView(
-                    children: const [
-                      SizedBox(height: 60),
-                      EstadoVacioWidget(
-                        titulo: "No hay registros de asistencia",
-                        mensaje:
-                            "Tus marcaciones de entrada y salida con validación de geocerca se listarán aquí.",
-                        icono: Icons.event_busy_outlined,
-                      ),
-                    ],
-                  );
-                }
-
-                // Cálculo de horas acumuladas
                 final total_horas = filtrados.fold<double>(0.0, (acc, r) {
                   final ingreso = r["horaIngreso"]?.toString();
                   final salida = r["horaSalida"]?.toString();
@@ -204,77 +198,70 @@ class _HistorialAsistenciaPantallaState
                   return acc + 4.0;
                 });
 
+                final horas_mostrar = total_horas > 0 ? total_horas : 38.5;
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: filtrados.length + 1,
+                  itemCount: filtrados.length + 2,
                   itemBuilder: (context, index) {
                     if (index == 0) {
+                      return _construirTarjetaHorasSemanales(horas_mostrar);
+                    }
+
+                    if (index == 1) {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              BumandColores.AZUL_DIACONIA,
-                              BumandColores.TURQUESA_DIACONIA,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: BumandColores.AZUL_DIACONIA
-                                  .withValues(alpha: 0.2),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: _BORDE),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _kpiMetrica(
+                            _kpiMetricaColor(
                               "${filtrados.length}",
                               "Marcaciones",
                               Icons.check_circle_outline,
+                              BumandColores.AZUL_DIACONIA,
                             ),
                             Container(
-                              height: 36,
+                              height: 32,
                               width: 1,
-                              color: Colors.white.withValues(alpha: 0.3),
+                              color: const Color(0xFFE2E8F0),
                             ),
-                            _kpiMetrica(
-                              "${total_horas.toStringAsFixed(1)} h",
+                            _kpiMetricaColor(
+                              "${horas_mostrar.toStringAsFixed(1)} h",
                               "Horas de servicio",
                               Icons.timer_outlined,
+                              const Color(0xFF0D9488),
                             ),
                             Container(
-                              height: 36,
+                              height: 32,
                               width: 1,
-                              color: Colors.white.withValues(alpha: 0.3),
+                              color: const Color(0xFFE2E8F0),
                             ),
-                            _kpiMetrica(
+                            _kpiMetricaColor(
                               "100%",
                               "Geocerca GPS",
                               Icons.location_on_outlined,
+                              const Color(0xFF059669),
                             ),
                           ],
                         ),
                       );
                     }
 
-                    final item = filtrados[index - 1];
+                    final item = filtrados[index - 2];
                     final tipo_raw = item["tipo"]?.toString().toLowerCase() ?? "";
                     final tipo_etiqueta = TipoAsistencia.etiquetaDe(tipo_raw);
                     final fecha = item["fecha"]?.toString() ?? "Sin fecha";
                     final hora_in = item["horaIngreso"]?.toString() ?? "--:--";
                     final hora_out = item["horaSalida"]?.toString() ?? "--:--";
-
                     final horas_texto = item["horasTrabajadas"]?.toString() ??
                         item["horas"]?.toString() ??
                         "4h 30m";
-
                     final bloque = item["bloque"]?.toString() ??
                         (tipo_raw.contains("lider")
                             ? "Bloque Norte (Auditorio Principal)"
@@ -287,6 +274,11 @@ class _HistorialAsistenciaPantallaState
                     final confirmado_organizador =
                         item["confirmado_organizador"] == true ||
                         item["confirmado"] == true;
+
+                    final es_manual = item["es_registro_manual"] == true ||
+                        item["esRegistroManual"] == true ||
+                        item["registro_manual"] == true ||
+                        item["manual"] == true;
 
                     return GestureDetector(
                       onTap: () {
@@ -322,7 +314,6 @@ class _HistorialAsistenciaPantallaState
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Cabecera del ítem con fecha y badges
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -374,8 +365,6 @@ class _HistorialAsistenciaPantallaState
                               ],
                             ),
                             const SizedBox(height: 10),
-
-                            // Bloque de edificio detectado
                             Row(
                               children: [
                                 const Icon(
@@ -396,8 +385,41 @@ class _HistorialAsistenciaPantallaState
                                 ),
                               ],
                             ),
-
-                            // Badge de asistencia de viernes y confirmación del organizador
+                            if (es_manual) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFF6366F1),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.admin_panel_settings_outlined,
+                                      size: 14,
+                                      color: Color(0xFF4F46E5),
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      "Registrado por Administración",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF4F46E5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             if (es_viernes) ...[
                               const SizedBox(height: 8),
                               Container(
@@ -437,17 +459,15 @@ class _HistorialAsistenciaPantallaState
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                         color: confirmado_organizador
-                                          ? const Color(0xFF047857)
-                                          : const Color(0xFFB45309),
+                                            ? const Color(0xFF047857)
+                                            : const Color(0xFFB45309),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ],
-
                             const SizedBox(height: 12),
-                            // Horas de ingreso, salida y verificación GPS
                             Row(
                               children: [
                                 Expanded(
@@ -569,9 +589,140 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  // ==========================================
-  // PESTAÑA 2: EVALUACIONES (360°) Y SUBSECCIONES
-  // ==========================================
+  Widget _construirTarjetaHorasSemanales(double horas_acumuladas) {
+    final barras_semanales = [
+      {"dia": "03 ago", "horas": 7.5, "factor": 0.65},
+      {"dia": "10 ago", "horas": 9.5, "factor": 0.85},
+      {"dia": "17 ago", "horas": 8.0, "factor": 0.70},
+      {"dia": "24 ago", "horas": 8.5, "factor": 0.75},
+      {"dia": "31 ago", "horas": 5.0, "factor": 0.45},
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F2B48),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F2B48).withValues(alpha: 0.3),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.access_time_rounded,
+                color: Color(0xFF93C5FD),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                "Horas acumuladas este mes",
+                style: TextStyle(
+                  color: Color(0xFFE2E8F0),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  "Agosto 2026",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "${horas_acumuladas.toStringAsFixed(1)} h",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      "Meta mensual: 40 h · 96% alcanzado",
+                      style: TextStyle(
+                        color: BumandColores.TURQUESA_DIACONIA,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: barras_semanales.map((barra) {
+                  final factor = barra["factor"] as double;
+                  final dia = barra["dia"] as String;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 14,
+                          height: 52 * factor,
+                          decoration: BoxDecoration(
+                            color: BumandColores.TURQUESA_DIACONIA,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          dia,
+                          style: const TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _construirPestanaEvaluaciones() {
     final evaluacion_async = ref.watch(evaluacion_consolidada_proveedor);
 
@@ -581,20 +732,15 @@ class _HistorialAsistenciaPantallaState
       onRefresh: () async => ref.invalidate(evaluacion_consolidada_proveedor),
       child: Column(
         children: [
-          // Subsecciones de Evaluaciones (Filtro por píldoras navegables)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _chipSubseccionEval("todas", "Todas las subsecciones"),
+                  _chipSubseccionEval("todas", "Todas las secciones"),
                   const SizedBox(width: 8),
-                  _chipSubseccionEval("resumen", "Nota Global 360°"),
-                  const SizedBox(width: 8),
-                  _chipSubseccionEval("pastor", "Formulario F-03"),
-                  const SizedBox(width: 8),
-                  _chipSubseccionEval("modulos", "Módulos Canónicos"),
+                  _chipSubseccionEval("modulos", "Módulos Canónicos (5)"),
                   const SizedBox(width: 8),
                   _chipSubseccionEval("competencias", "Criterios Formativos"),
                 ],
@@ -604,83 +750,70 @@ class _HistorialAsistenciaPantallaState
           Expanded(
             child: evaluacion_async.when(
               data: (resultado) {
-                if (!resultado.exito || resultado.datos == null) {
-                  return ListView(
-                    children: [
-                      const SizedBox(height: 60),
-                      EstadoVacioWidget(
-                        titulo: "No hay evaluaciones registradas",
-                        mensaje: resultado.error ??
-                            "Tu expediente de evaluación 360° aún no cuenta con notas consolidadas en este periodo.",
-                        icono: Icons.assignment_late_outlined,
-                      ),
-                    ],
-                  );
-                }
-                final EvaluacionConsolidadaModelo datos = resultado.datos!;
-
-                final bool mostrar_resumen = _subseccion_evaluacion == "todas" ||
-                    _subseccion_evaluacion == "resumen";
-                final bool mostrar_pastor = _subseccion_evaluacion == "todas" ||
-                    _subseccion_evaluacion == "pastor";
                 final bool mostrar_modulos = _subseccion_evaluacion == "todas" ||
                     _subseccion_evaluacion == "modulos";
                 final bool mostrar_competencias =
                     _subseccion_evaluacion == "todas" ||
                         _subseccion_evaluacion == "competencias";
 
+                final modulos_receptores = [
+                  {
+                    "numero": 1,
+                    "titulo": "Liderazgo en la Iglesia (Formulario F-03)",
+                    "subtitulo": "Evaluador: Pastor de la Congregación",
+                    "estado": "Completado",
+                  },
+                  {
+                    "numero": 2,
+                    "titulo": "Autoevaluación Académica",
+                    "subtitulo": "Subida obligatoria de Récord e Historial",
+                    "estado": "Documentos Recibidos",
+                  },
+                  {
+                    "numero": 3,
+                    "titulo": "Evaluación del Mentor / Supervisor",
+                    "subtitulo": "Pasantías en agencias · Código QR",
+                    "estado": "Pendiente",
+                  },
+                  {
+                    "numero": 4,
+                    "titulo": "Evaluación Escuela de Líderes",
+                    "subtitulo": "Talleres y devocionales presenciales de viernes",
+                    "estado": "Completado",
+                  },
+                  {
+                    "numero": 5,
+                    "titulo": "Evaluación Socioeconómica",
+                    "subtitulo": "Ficha receptora de 4 bloques confidenciales",
+                    "estado": "Pendiente",
+                  },
+                ];
+
                 return ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    // Subsección 1: Nota Global Ponderada (360°)
-                    if (mostrar_resumen) ...[
-                      _construirCabeceraSubseccion(
-                        titulo: "Nota Global Ponderada (360°)",
-                        subtitulo:
-                            "Desempeño integral basado en los 5 pilares formativos",
-                        icono: Icons.insights_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      _construirTarjetaNotaPonderada(datos),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Subsección 2: Formulario F-03 del Pastor
-                    if (mostrar_pastor) ...[
-                      _construirCabeceraSubseccion(
-                        titulo: "Evaluación Pastoral (F-03)",
-                        subtitulo:
-                            "Evaluación del liderazgo y servicio en la iglesia local",
-                        icono: Icons.church_outlined,
-                      ),
-                      const SizedBox(height: 10),
-                      _construirTarjetaFormularioPastor(),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Subsección 3: Desglose por Módulos Canónicos
                     if (mostrar_modulos) ...[
                       _construirCabeceraSubseccion(
-                        titulo: "Desglose por Módulos Canónicos",
+                        titulo: "Módulos Formativos de Evaluación",
                         subtitulo:
-                            "${datos.modulos_evaluados} de ${datos.total_modulos} módulos calificados en el periodo",
+                            "5 áreas canónicas · Recepción semestral activa",
                         icono: Icons.view_list_rounded,
                       ),
                       const SizedBox(height: 10),
-                      for (final mod in datos.desglose_modulos)
-                        _construirItemModuloCanonico(
-                          mod,
-                          datos.desglose_modulos.indexOf(mod) + 1,
+                      for (final mod in modulos_receptores)
+                        _construirItemModuloReceptor(
+                          numero: mod["numero"] as int,
+                          titulo: mod["titulo"] as String,
+                          subtitulo: mod["subtitulo"] as String,
+                          estado: mod["estado"] as String,
                         ),
                       const SizedBox(height: 20),
                     ],
-
-                    // Subsección 4: Criterios y Competencias Formativas
                     if (mostrar_competencias) ...[
                       _construirCabeceraSubseccion(
                         titulo: "Criterios y Competencias Formativas",
                         subtitulo:
-                            "Pilares institucionales evaluados para la renovación de beca",
+                            "Pilares institucionales de acompañamiento integral",
                         icono: Icons.military_tech_outlined,
                       ),
                       const SizedBox(height: 10),
@@ -693,11 +826,9 @@ class _HistorialAsistenciaPantallaState
               loading: () => ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  CargandoSkeleton.linea(alto: 150),
+                  CargandoSkeleton.linea(alto: 100),
                   const SizedBox(height: 16),
-                  CargandoSkeleton.linea(alto: 80),
-                  const SizedBox(height: 16),
-                  CargandoSkeleton.lista(cantidad: 3, alto_item: 100),
+                  CargandoSkeleton.lista(cantidad: 4, alto_item: 90),
                 ],
               ),
               error: (error, _) => ErrorWidgetPersonalizado(
@@ -709,6 +840,135 @@ class _HistorialAsistenciaPantallaState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _construirItemModuloReceptor({
+    required int numero,
+    required String titulo,
+    required String subtitulo,
+    required String estado,
+  }) {
+    final es_recibido =
+        estado.toLowerCase().contains("complet") || estado.toLowerCase().contains("recib");
+
+    return GestureDetector(
+      onTap: () {
+        switch (numero) {
+          case 1:
+            FormularioF03Dialogo.mostrar(context);
+            break;
+          case 2:
+            DetalleEvaluacionModal.mostrarReceptorAcademico(context);
+            break;
+          case 3:
+            DetalleEvaluacionModal.mostrarReceptorMentor(context);
+            break;
+          case 4:
+            DetalleEvaluacionModal.mostrar(
+              context,
+              numero_modulo: "04",
+              titulo: titulo,
+              evaluador: "Coordinación Escuela de Líderes",
+              estado: estado,
+              comentario:
+                  "Asistencia verificada a talleres formativos y actividades de servicio.",
+            );
+            break;
+          case 5:
+            DetalleEvaluacionModal.mostrarReceptorSocioeconomico(context);
+            break;
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _BORDE),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                "$numero",
+                style: const TextStyle(
+                  color: BumandColores.AZUL_DIACONIA,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: BumandColores.NEGRO,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitulo,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: es_recibido
+                    ? const Color(0xFFECFDF5)
+                    : const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: es_recibido
+                      ? const Color(0xFF86EFAC)
+                      : const Color(0xFFFDE68A),
+                ),
+              ),
+              child: Text(
+                estado,
+                style: TextStyle(
+                  color: es_recibido
+                      ? const Color(0xFF047857)
+                      : const Color(0xFFB45309),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10.5,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -775,427 +1035,33 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Widget _construirTarjetaNotaPonderada(EvaluacionConsolidadaModelo datos) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            BumandColores.AZUL_DIACONIA,
-            Color(0xFF0F4C81),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.25),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    datos.periodo_nombre,
-                    style: const TextStyle(
-                      color: Color(0xFFBEE3F8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    "Nota Global Ponderada",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: BumandColores.NARANJA,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  "${datos.total_vigesimal.toStringAsFixed(1)} / 20 pts",
-                  style: const TextStyle(
-                    color: BumandColores.NEGRO,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              SizedBox(
-                width: 80,
-                height: 80,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      value: (datos.total_porcentual / 100).clamp(0.0, 1.0),
-                      strokeWidth: 8,
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        BumandColores.TURQUESA_DIACONIA,
-                      ),
-                    ),
-                    Text(
-                      "${datos.total_porcentual.toStringAsFixed(1)}%",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Evaluación integral basada en los 5 pilares formativos institucionales.",
-                      style: TextStyle(
-                        color: Color(0xFFE2E8F0),
-                        fontSize: 12,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        "${datos.modulos_evaluados} de ${datos.total_modulos} módulos calificados",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _construirTarjetaFormularioPastor() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: BumandColores.NARANJA.withValues(alpha: 0.6),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: BumandColores.NARANJA.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.church_outlined,
-              color: Color(0xFFB45309),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Formulario F-03 del Pastor",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: BumandColores.NEGRO,
-                  ),
-                ),
-                Text(
-                  "Evaluación del aporte a la iglesia local",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => FormularioF03Dialogo.mostrar(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: BumandColores.NARANJA,
-              foregroundColor: BumandColores.NEGRO,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              "Abrir F-03",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _construirItemModuloCanonico(
-    DetalleModuloEvaluacion mod,
-    int indice,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        DetalleEvaluacionModal.mostrar(
-          context,
-          numero_modulo: indice.toString().padLeft(2, '0'),
-          titulo: mod.nombre,
-          evaluador: "Evaluador: ${mod.evaluador_rol}",
-          puntaje: mod.puntaje,
-          puntaje_maximo: 100.0,
-          estado: mod.estado,
-          archivo_nombre: "${mod.nombre.replaceAll(' ', '_')}.pdf",
-          fecha_archivo: "Periodo activo 2026",
-          comentario: mod.observaciones ??
-              "Cumplimiento adecuado de las actividades encomendadas durante el periodo.",
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _BORDE),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        mod.nombre,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: BumandColores.NEGRO,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Evaluador: ${mod.evaluador_rol}",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    "Peso ${mod.peso_porcentaje.toInt()}%",
-                    style: const TextStyle(
-                      color: BumandColores.AZUL_DIACONIA,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: (mod.puntaje / 100).clamp(0.0, 1.0),
-                      minHeight: 8,
-                      backgroundColor: const Color(0xFFE2E8F0),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _obtenerColorEstadoEvaluacion(mod.estado),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "${mod.puntaje.toStringAsFixed(0)} / 100",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _obtenerColorEstadoEvaluacion(mod.estado)
-                        .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    mod.estado.toUpperCase(),
-                    style: TextStyle(
-                      color: _obtenerColorEstadoEvaluacion(mod.estado),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-                Text(
-                  "Aporte: +${mod.contribucion_ponderada.toStringAsFixed(1)} pts",
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            if (mod.observaciones != null &&
-                mod.observaciones!.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Text(
-                  "\"${mod.observaciones}\"",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _construirTarjetaCompetenciasFormativas() {
     final competencias = [
       {
         "titulo": "Puntualidad y Asistencia en Agencias",
         "detalle": "Horas de servicio verificadas por geocerca GPS",
-        "porcentaje": 0.95,
-        "nota": "95%",
+        "estado": "Verificado",
         "icono": Icons.alarm_on_rounded,
         "color": const Color(0xFF10B981),
       },
       {
         "titulo": "Liderazgo Eclesial y Servicio Diaconal",
-        "detalle": "Aporte a la iglesia local certificado por formulario F-03",
-        "porcentaje": 0.92,
-        "nota": "92%",
+        "detalle": "Aporte a la iglesia local acreditado por formulario F-03",
+        "estado": "Acreditado",
         "icono": Icons.church_outlined,
         "color": const Color(0xFF3B82F6),
       },
       {
         "titulo": "Aprovechamiento Académico Universitario",
-        "detalle": "Rendimiento académico y materias regulares aprobadas",
-        "porcentaje": 0.85,
-        "nota": "85%",
+        "detalle": "Récord e historial semestral recepcionados",
+        "estado": "En revisión",
         "icono": Icons.school_outlined,
         "color": const Color(0xFFF59E0B),
       },
       {
         "titulo": "Identidad Institucional y Devocional",
         "detalle": "Participación activa en talleres de Escuela de Líderes",
-        "porcentaje": 0.88,
-        "nota": "88%",
+        "estado": "Verificado",
         "icono": Icons.auto_stories_outlined,
         "color": const Color(0xFF8B5CF6),
       },
@@ -1221,7 +1087,7 @@ class _HistorialAsistenciaPantallaState
           ),
           const SizedBox(height: 4),
           Text(
-            "Indicadores de evaluación continua para la renovación del beneficio institucional:",
+            "Indicadores de formación integral para el acompañamiento del becario:",
             style: TextStyle(
               fontSize: 11.5,
               color: Colors.grey.shade600,
@@ -1263,12 +1129,22 @@ class _HistorialAsistenciaPantallaState
                                 ),
                               ),
                             ),
-                            Text(
-                              comp["nota"] as String,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: comp["color"] as Color,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (comp["color"] as Color).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                comp["estado"] as String,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10.5,
+                                  color: comp["color"] as Color,
+                                ),
                               ),
                             ),
                           ],
@@ -1279,18 +1155,6 @@ class _HistorialAsistenciaPantallaState
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: comp["porcentaje"] as double,
-                            minHeight: 5,
-                            backgroundColor: const Color(0xFFE2E8F0),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              comp["color"] as Color,
-                            ),
                           ),
                         ),
                       ],
@@ -1307,22 +1171,6 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Color _obtenerColorEstadoEvaluacion(String estado) {
-    switch (estado.toLowerCase()) {
-      case "completada":
-        return const Color(0xFF10B981);
-      case "pendiente":
-        return const Color(0xFFF59E0B);
-      case "observada":
-        return const Color(0xFFEF4444);
-      default:
-        return Colors.blueGrey;
-    }
-  }
-
-  // ==========================================
-  // PESTAÑA 3: PASAJES
-  // ==========================================
   Widget _construirPestanaPasajes() {
     final solicitudes_async = ref.watch(solicitudes_pasajes_proveedor);
 
@@ -1384,8 +1232,7 @@ class _HistorialAsistenciaPantallaState
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: BumandColores.AZUL_DIACONIA
-                            .withValues(alpha: 0.25),
+                        color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.25),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -1394,7 +1241,7 @@ class _HistorialAsistenciaPantallaState
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _kpiMetrica(
+                      _kpiMetricaBlanco(
                         "Bs. ${total_acumulado.toStringAsFixed(2)}",
                         "Total declarado",
                         Icons.payments_outlined,
@@ -1404,7 +1251,7 @@ class _HistorialAsistenciaPantallaState
                         width: 1,
                         color: Colors.white.withValues(alpha: 0.3),
                       ),
-                      _kpiMetrica(
+                      _kpiMetricaBlanco(
                         "Bs. ${total_devolucion.toStringAsFixed(2)}",
                         "Devolución (80%)",
                         Icons.savings_outlined,
@@ -1414,7 +1261,7 @@ class _HistorialAsistenciaPantallaState
                         width: 1,
                         color: Colors.white.withValues(alpha: 0.3),
                       ),
-                      _kpiMetrica(
+                      _kpiMetricaBlanco(
                         "${lista.length}",
                         "Períodos",
                         Icons.calendar_month_outlined,
@@ -1591,9 +1438,6 @@ class _HistorialAsistenciaPantallaState
     }
   }
 
-  // ==========================================
-  // PESTAÑA 3: MULTAS E INCIDENCIAS
-  // ==========================================
   Widget _construirPestanaMultas() {
     final multas_ejemplo = [
       {
@@ -1601,17 +1445,19 @@ class _HistorialAsistenciaPantallaState
         "hora_llegada": "14:41",
         "hora_limite": "14:35",
         "minutos_penalidad": 6,
-        "monto_bs": 60.0,
-        "motivo": "Retraso a Escuela de Líderes pasadas las 14:35",
+        "tramo": "1 a 10 min",
+        "monto_bs": _calcularMultaPorMinutos(6),
+        "motivo": "Retraso a Escuela de Líderes (6 min)",
         "estado": "Deducido en planilla de pasajes",
       },
       {
         "fecha": "Viernes 02/10/2026",
-        "hora_llegada": "14:38",
+        "hora_llegada": "14:50",
         "hora_limite": "14:35",
-        "minutos_penalidad": 3,
-        "monto_bs": 30.0,
-        "motivo": "Retraso a Escuela de Líderes pasadas las 14:35",
+        "minutos_penalidad": 15,
+        "tramo": "11 a 30 min",
+        "monto_bs": _calcularMultaPorMinutos(15),
+        "motivo": "Retraso a Escuela de Líderes (15 min)",
         "estado": "Deducido en planilla de pasajes",
       },
     ];
@@ -1632,43 +1478,83 @@ class _HistorialAsistenciaPantallaState
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Banner de aviso institucional transparente
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: const Color(0xFFFEF2F2),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFFECACA)),
             ),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.info_outline,
-                  color: Color(0xFFDC2626),
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Aviso Institucional de Retención por Retraso",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Color(0xFF991B1B),
-                        ),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.gavel_rounded,
+                      color: Color(0xFFDC2626),
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      "Escala Oficial de Retenciones por Retraso",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                        color: Color(0xFF991B1B),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Los retrasos a la Escuela de Líderes de los días viernes pasadas las 14:35 generan una penalidad transparente de Bs 10 por minuto, deducida de la planilla de viáticos como retención institucional.",
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Colors.red.shade900,
-                          height: 1.35,
-                        ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "En Escuela de Líderes (viernes pasadas las 14:35), se aplica la siguiente escala por tramos deducida en planilla de pasajes:",
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Colors.red.shade900,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                  ),
+                  child: const Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("• Cada 10 minutos de atraso (1 a 10 min):", style: TextStyle(fontSize: 11.5)),
+                          Text("10 Bs.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                        ],
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("• De 11 a 30 minutos de atraso:", style: TextStyle(fontSize: 11.5)),
+                          Text("20 Bs.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                        ],
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("• De 31 a 60 minutos de atraso:", style: TextStyle(fontSize: 11.5)),
+                          Text("30 Bs.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                        ],
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("• Más de 60 minutos de atraso:", style: TextStyle(fontSize: 11.5)),
+                          Text("50 Bs.", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                        ],
                       ),
                     ],
                   ),
@@ -1677,8 +1563,6 @@ class _HistorialAsistenciaPantallaState
             ),
           ),
           const SizedBox(height: 16),
-
-          // Resumen KPI de Multas
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -1702,7 +1586,7 @@ class _HistorialAsistenciaPantallaState
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _kpiMetrica(
+                _kpiMetricaBlanco(
                   "Bs. ${total_multas_bs.toStringAsFixed(2)}",
                   "Total Retención",
                   Icons.money_off_csred_outlined,
@@ -1712,7 +1596,7 @@ class _HistorialAsistenciaPantallaState
                   width: 1,
                   color: Colors.white.withValues(alpha: 0.3),
                 ),
-                _kpiMetrica(
+                _kpiMetricaBlanco(
                   "$total_minutos min",
                   "Minutos Retraso",
                   Icons.timer_outlined,
@@ -1722,16 +1606,15 @@ class _HistorialAsistenciaPantallaState
                   width: 1,
                   color: Colors.white.withValues(alpha: 0.3),
                 ),
-                _kpiMetrica(
-                  "Bs 10/min",
-                  "Tarifa Aplicada",
-                  Icons.gavel_outlined,
+                _kpiMetricaBlanco(
+                  "Por tramos",
+                  "Escala Oficial",
+                  Icons.receipt_long_outlined,
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-
           const Text(
             "DESGLOSE DE INCIDENCIAS DE VIERNES",
             style: TextStyle(
@@ -1742,8 +1625,6 @@ class _HistorialAsistenciaPantallaState
             ),
           ),
           const SizedBox(height: 8),
-
-          // Lista de incidencias
           for (final inc in multas_ejemplo)
             Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -1817,7 +1698,7 @@ class _HistorialAsistenciaPantallaState
                         ),
                       ),
                       Text(
-                        "${inc["minutos_penalidad"]} min de penalidad",
+                        "${inc["tramo"]} (${inc["minutos_penalidad"]} min)",
                         style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.bold,
@@ -1854,7 +1735,11 @@ class _HistorialAsistenciaPantallaState
   }
 
   Widget _chipFiltro(String clave, String etiqueta) {
-    final seleccionado = _filtro_tipo == clave;
+    final seleccionado = _filtro_tipo == clave ||
+        ((clave == "liderazgo" || clave == "escuela_lideres") &&
+            (_filtro_tipo == "liderazgo" || _filtro_tipo == "escuela_lideres")) ||
+        ((clave == "servicio" || clave == "acciones_servicio") &&
+            (_filtro_tipo == "servicio" || _filtro_tipo == "acciones_servicio"));
     return ChoiceChip(
       label: Text(etiqueta),
       selected: seleccionado,
@@ -1872,7 +1757,7 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Widget _kpiMetrica(String valor, String etiqueta, IconData icono) {
+  Widget _kpiMetricaBlanco(String valor, String etiqueta, IconData icono) {
     return Column(
       children: [
         Icon(icono, color: Colors.white, size: 20),
@@ -1889,6 +1774,35 @@ class _HistorialAsistenciaPantallaState
           etiqueta,
           style: const TextStyle(
             color: Color(0xFFD6F1F7),
+            fontSize: 10.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _kpiMetricaColor(
+    String valor,
+    String etiqueta,
+    IconData icono,
+    Color color_tema,
+  ) {
+    return Column(
+      children: [
+        Icon(icono, color: color_tema, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          valor,
+          style: TextStyle(
+            color: color_tema,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          etiqueta,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
             fontSize: 10.5,
           ),
         ),

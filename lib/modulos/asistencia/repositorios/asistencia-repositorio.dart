@@ -242,6 +242,22 @@ class AsistenciaRepositorio {
     final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
+      // 1. Intentar endpoint específico de asistencias del becario (/asistencia/mis-asistencias)
+      final url_mis_asistencias = Uri.parse(
+        '${ApiConstantes.RUTA_BASE}/api/asistencia/mis-asistencias',
+      );
+
+      final respuesta_personal = await cliente_http
+          .get(url_mis_asistencias, headers: cabeceras)
+          .timeout(const Duration(seconds: 4));
+
+      if (respuesta_personal.statusCode == 200) {
+        final lista = (jsonDecode(respuesta_personal.body) as List)
+            .cast<Map<String, dynamic>>();
+        return Resultado.exitoso(lista);
+      }
+
+      // 2. Fallback al endpoint canónico de asistencia (/api/asistencia)
       final respuesta = await cliente_http.get(
         Uri.parse(
           '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_ASISTENCIA_HISTORIAL}',

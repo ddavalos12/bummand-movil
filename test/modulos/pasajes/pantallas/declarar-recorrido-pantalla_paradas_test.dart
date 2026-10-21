@@ -10,52 +10,89 @@ void main() {
   });
 
   group('DeclararRecorridoPantalla Paradas Emblemáticas Pruebas de Widget', () {
-    testWidgets('Muestra chips de paradas frecuentes y autocompleta al tocarlas', (
-      WidgetTester probador,
-    ) async {
-      probador.view.physicalSize = const Size(1080, 2400);
-      probador.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        probador.view.resetPhysicalSize();
-        probador.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'Muestra selector de tipo de actividad y paradas frecuentes integradas en combobox dinámico con autocompletado y menú',
+      (WidgetTester probador) async {
+        probador.view.physicalSize = const Size(1080, 2400);
+        probador.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          probador.view.resetPhysicalSize();
+          probador.view.resetDevicePixelRatio();
+        });
 
-      await probador.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: DeclararRecorridoPantalla(),
+        await probador.pumpWidget(
+          const ProviderScope(
+            child: MaterialApp(
+              home: DeclararRecorridoPantalla(),
+            ),
           ),
-        ),
-      );
+        );
 
-      await probador.pumpAndSettle();
+        await probador.pumpAndSettle();
 
-      expect(find.text('Paradas frecuentes (Origen):'), findsOneWidget);
-      expect(find.text('Paradas frecuentes (Destino):'), findsOneWidget);
+        // 1. Verificación del selector de Tipo de Actividad
+        expect(find.text('Tipo de actividad'), findsOneWidget);
+        expect(find.text('Prácticas'), findsOneWidget);
+        expect(find.text('Escuela de Líderes'), findsOneWidget);
+        expect(find.text('Acciones de Servicio'), findsOneWidget);
 
-      // Verificamos que las paradas emblemáticas estén en los chips (aparecen tanto en Origen como en Destino)
-      expect(find.text('Ceja'), findsNWidgets(2));
-      expect(find.text('Pérez Velasco'), findsNWidgets(2));
-      expect(find.text('Plaza San Francisco'), findsNWidgets(2));
-      expect(find.text('San Pedro'), findsNWidgets(2));
-      expect(find.text('Cruce Viacha'), findsNWidgets(2));
-      expect(find.text('Miraflores'), findsNWidgets(2));
-      expect(find.text('Sopocachi'), findsNWidgets(2));
-      expect(find.text('Teleférico'), findsNWidgets(2));
+        // Seleccionar Tipo de Actividad 'Escuela de Líderes'
+        await probador.tap(find.text('Escuela de Líderes'));
+        await probador.pumpAndSettle();
 
-      // Tocar el primer chip 'Ceja' (en Origen)
-      await probador.tap(find.text('Ceja').first);
-      await probador.pumpAndSettle();
+        // 2. Verificación de Combobox dinámico en Origen y Destino
+        final botones_desplegables = find.byTooltip('Paradas frecuentes');
+        expect(botones_desplegables, findsAtLeastNWidgets(2));
 
-      // Verificar que el campo Origen tenga 'Ceja'
-      expect(find.widgetWithText(TextFormField, 'Ceja'), findsOneWidget);
+        // Abrir menú desplegable en Origen (primer combobox)
+        await probador.tap(botones_desplegables.first);
+        await probador.pumpAndSettle();
 
-      // Tocar el segundo chip 'San Pedro' (en Destino)
-      await probador.tap(find.text('San Pedro').last);
-      await probador.pumpAndSettle();
+        // Verificar que aparezcan las paradas frecuentes en el menú
+        expect(find.text('Ceja'), findsWidgets);
+        expect(find.text('Pérez Velasco'), findsWidgets);
+        expect(find.text('Plaza San Francisco'), findsWidgets);
+        expect(find.text('San Pedro'), findsWidgets);
+        expect(find.text('Teleférico'), findsWidgets);
 
-      // Verificar que el campo Destino tenga 'San Pedro'
-      expect(find.widgetWithText(TextFormField, 'San Pedro'), findsOneWidget);
-    });
+        // Seleccionar 'Ceja' en Origen
+        await probador.tap(find.text('Ceja').last);
+        await probador.pumpAndSettle();
+
+        expect(find.widgetWithText(TextField, 'Ceja'), findsOneWidget);
+
+        // Abrir menú desplegable en Destino (segundo combobox)
+        await probador.tap(find.byTooltip('Paradas frecuentes').at(1));
+        await probador.pumpAndSettle();
+
+        // Verificar que no aparece 'Ceja' como opción duplicada en el menú desplegable de la parada 2,
+        // pero sí están disponibles la institución y demás paradas
+        expect(find.widgetWithText(PopupMenuItem<String>, 'Ceja'), findsNothing);
+        expect(
+          find.widgetWithText(PopupMenuItem<String>, 'Oficina Central Diaconía'),
+          findsOneWidget,
+        );
+
+        // Seleccionar 'Oficina Central Diaconía' en Destino
+        await probador.tap(find.text('Oficina Central Diaconía').last);
+        await probador.pumpAndSettle();
+
+        expect(
+          find.widgetWithText(TextField, 'Oficina Central Diaconía'),
+          findsOneWidget,
+        );
+
+        // Agregar una parada intermedia y verificar que el destino final sigue siendo la última parada
+        await probador.tap(find.text('Agregar parada intermedia'));
+        await probador.pumpAndSettle();
+
+        final campos_parada = probador
+            .widgetList<TextField>(find.byType(TextField))
+            .toList();
+        expect(campos_parada[1].controller?.text, 'Ceja');
+        expect(campos_parada[2].controller?.text, '');
+        expect(campos_parada[3].controller?.text, 'Oficina Central Diaconía');
+      },
+    );
   });
 }

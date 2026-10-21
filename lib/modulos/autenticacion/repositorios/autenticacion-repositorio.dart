@@ -50,6 +50,11 @@ class AutenticacionRepositorio {
       }
 
       final usuario = UsuarioModelo.desdeJson(datos);
+      if (usuario.rol.toLowerCase().trim() != 'becario') {
+        return Resultado.fallido(
+          'Esta aplicación móvil es exclusiva para estudiantes becarios. Si eres Supervisor o Administrador, ingresa desde el panel web.',
+        );
+      }
       await _guardarSesion(usuario);
       return Resultado.exitoso(usuario);
     } catch (error_capturado) {
@@ -142,6 +147,11 @@ class AutenticacionRepositorio {
       return null;
     }
 
+    if (rol.toLowerCase().trim() != 'becario') {
+      await cerrarSesion();
+      return null;
+    }
+
     final id = preferencias.getInt(_CLAVE_USUARIO_ID) ?? 0;
     final nombre = preferencias.getString(_CLAVE_USUARIO_NOMBRE) ?? '';
     final correo = preferencias.getString(_CLAVE_USUARIO_CORREO) ?? '';
@@ -156,7 +166,62 @@ class AutenticacionRepositorio {
   }
 
   Future<bool> estaAutenticado() async {
+    final sesion = await obtenerSesionActual();
+    return sesion != null;
+  }
+
+  Future<Resultado<Map<String, dynamic>>> consultarEstadoConfirmacion() async {
     final token = await obtenerToken();
-    return token != null && token.isNotEmpty;
+    if (token == null) return Resultado.fallido('Sesión no encontrada');
+
+    try {
+      final url = Uri.parse(
+        '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_BECARIOS_ESTADO_CONFIRMACION}',
+      );
+      final respuesta = await _cliente_http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (respuesta.statusCode != 200) {
+        return Resultado.fallido('No se pudo consultar el estado de confirmación');
+      }
+
+      final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
+      return Resultado.exitoso(datos);
+    } catch (e) {
+      return Resultado.fallido('Error de conexión con el servidor: $e');
+    }
+  }
+
+  Future<Resultado<String>> confirmarDatosPropios() async {
+    final token = await obtenerToken();
+    if (token == null) return Resultado.fallido('Sesión no encontrada');
+
+    try {
+      final url = Uri.parse(
+        '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_BECARIOS_CONFIRMAR_DATOS}',
+      );
+      final respuesta = await _cliente_http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (respuesta.statusCode != 200 && respuesta.statusCode != 201) {
+        final cuerpo = jsonDecode(respuesta.body);
+        return Resultado.fallido(cuerpo['mensaje']?.toString() ?? 'Error al confirmar datos');
+      }
+
+      final cuerpo = jsonDecode(respuesta.body);
+      return Resultado.exitoso(cuerpo['mensaje']?.toString() ?? 'Confirmado exitosamente');
+    } catch (e) {
+      return Resultado.fallido('Error al conectar con el servidor: $e');
+    }
   }
 }

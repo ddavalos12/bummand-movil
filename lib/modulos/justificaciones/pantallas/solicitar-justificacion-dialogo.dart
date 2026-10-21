@@ -45,13 +45,34 @@ class _SolicitarJustificacionDialogoState
   final _descripcion_controlador = TextEditingController();
 
   static const List<String> MOTIVOS_DISPONIBLES = [
-    'Corte de ruta/Paro',
-    'Emergencia médica',
-    'Trámite académico',
+    'Emergencia médica / Receta',
+    'Corte de ruta / Transporte',
+    'Trámite académico / Examen',
+    'Asunto pastoral / Institucional',
     'Otro',
   ];
 
+  static const List<Map<String, String>> TIPOS_PRUEBA = [
+    {
+      'etiqueta': 'Receta médica prescrita',
+      'archivo': 'Receta_Medica_Prescrita.pdf',
+    },
+    {
+      'etiqueta': 'Certificado médico SSU',
+      'archivo': 'Certificado_Medico_SSU.pdf',
+    },
+    {
+      'etiqueta': 'Comprobante fotográfico',
+      'archivo': 'Comprobante_Fotografico_Incidencia.jpg',
+    },
+    {
+      'etiqueta': 'Boleta de trámite',
+      'archivo': 'Boleta_Tramite_Universitario.pdf',
+    },
+  ];
+
   String _motivo_seleccionado = MOTIVOS_DISPONIBLES.first;
+  String? _archivo_adjunto;
   bool _enviando = false;
 
   @override
@@ -63,6 +84,18 @@ class _SolicitarJustificacionDialogoState
   Future<void> _enviar() async {
     if (!_clave_formulario.currentState!.validate()) return;
 
+    if (_archivo_adjunto == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Debes adjuntar una prueba justificable (receta, certificado o fotografía — No carta)",
+          ),
+          backgroundColor: Color(0xFFD97706),
+        ),
+      );
+      return;
+    }
+
     setState(() => _enviando = true);
 
     final servicio = ref.read(justificaciones_servicio_proveedor);
@@ -70,12 +103,16 @@ class _SolicitarJustificacionDialogoState
     final fecha_str =
         "${hoy.year.toString().padLeft(4, '0')}-${hoy.month.toString().padLeft(2, '0')}-${hoy.day.toString().padLeft(2, '0')}";
 
+    final detalle_texto = _descripcion_controlador.text.trim();
+    final descripcion_final =
+        "$detalle_texto\n\n[Prueba Justificable: $_archivo_adjunto]";
+
     final resultado = await servicio.enviarJustificacion(
       tipo_incidencia: widget.tipo_incidencia,
       referencia_id: widget.evento_id,
       fecha_incidencia: fecha_str,
       motivo: _motivo_seleccionado,
-      descripcion: _descripcion_controlador.text.trim(),
+      descripcion: descripcion_final,
     );
 
     if (!mounted) return;
@@ -87,8 +124,8 @@ class _SolicitarJustificacionDialogoState
         SnackBar(
           content: Text(
             es_offline
-                ? 'Justificación guardada en cola offline'
-                : 'Justificación enviada al supervisor correctamente',
+                ? 'Permiso / Justificación guardado en cola offline'
+                : 'Permiso / Justificación con prueba enviado al supervisor correctamente',
           ),
           backgroundColor: const Color(0xFF10B981),
         ),
@@ -157,7 +194,7 @@ class _SolicitarJustificacionDialogoState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Solicitud de Justificación",
+                          "Permisos y Justificaciones",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -165,7 +202,7 @@ class _SolicitarJustificacionDialogoState
                           ),
                         ),
                         Text(
-                          "Reporte de incidencia o inasistencia motivada",
+                          "Reporte con prueba médica o comprobante justificable",
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.black54,
@@ -217,7 +254,7 @@ class _SolicitarJustificacionDialogoState
               ],
               const SizedBox(height: 16),
               const Text(
-                "Motivo de la incidencia:",
+                "Motivo del permiso o incidencia:",
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -250,8 +287,185 @@ class _SolicitarJustificacionDialogoState
                 }).toList(),
               ),
               const SizedBox(height: 16),
+
+              // Sección obligatoria: Prueba Justificable (No carta)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _archivo_adjunto != null
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFE2E8F0),
+                    width: _archivo_adjunto != null ? 1.5 : 1.0,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.verified_outlined,
+                          size: 18,
+                          color: _archivo_adjunto != null
+                              ? const Color(0xFF059669)
+                              : const Color(0xFFD97706),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            "Prueba Justificable (Obligatoria)",
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Receta médica, certificado o comprobante fotográfico — No carta.",
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Selector rápido de tipos de prueba válidos
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: TIPOS_PRUEBA.map((item) {
+                        final etiqueta = item['etiqueta']!;
+                        final archivo = item['archivo']!;
+                        final seleccionado = _archivo_adjunto == archivo;
+                        return ActionChip(
+                          avatar: Icon(
+                            seleccionado
+                                ? Icons.check_circle_rounded
+                                : Icons.attach_file_rounded,
+                            size: 14,
+                            color: seleccionado
+                                ? Colors.white
+                                : BumandColores.AZUL_DIACONIA,
+                          ),
+                          label: Text(
+                            etiqueta,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: seleccionado
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              color: seleccionado
+                                  ? Colors.white
+                                  : const Color(0xFF334155),
+                            ),
+                          ),
+                          backgroundColor: seleccionado
+                              ? BumandColores.AZUL_DIACONIA
+                              : Colors.white,
+                          side: BorderSide(
+                            color: seleccionado
+                                ? BumandColores.AZUL_DIACONIA
+                                : const Color(0xFFCBD5E1),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _archivo_adjunto = archivo;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Vista de archivo adjunto
+                    if (_archivo_adjunto != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF10B981)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.description_rounded,
+                              color: Color(0xFF059669),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _archivo_adjunto!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF065F46),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() => _archivo_adjunto = null),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _archivo_adjunto =
+                                'Comprobante_Medico_Urgencia_${DateTime.now().day}_${DateTime.now().month}.jpg';
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(
+                            color: Color(0xFF0284C7),
+                            style: BorderStyle.solid,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.camera_alt_outlined,
+                          size: 16,
+                          color: Color(0xFF0284C7),
+                        ),
+                        label: const Text(
+                          "Adjuntar fotografía o certificado médico",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF0284C7),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
               const Text(
-                "Descripción y detalles:",
+                "Explicación de las circunstancias:",
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -261,12 +475,13 @@ class _SolicitarJustificacionDialogoState
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descripcion_controlador,
-                maxLines: 4,
+                maxLines: 3,
                 maxLength: 300,
                 decoration: InputDecoration(
                   hintText:
-                      "Describe las circunstancias del retraso, corte de transporte o impedimento...",
-                  hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                      "Describe las circunstancias de la ausencia o retraso e indica la prueba adjunta...",
+                  hintStyle:
+                      TextStyle(fontSize: 13, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -308,7 +523,9 @@ class _SolicitarJustificacionDialogoState
                         )
                       : const Icon(Icons.send_rounded, size: 18),
                   label: Text(
-                    _enviando ? "Enviando solicitud..." : "Enviar Justificación",
+                    _enviando
+                        ? "Enviando justificación..."
+                        : "Enviar Permiso / Justificación",
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

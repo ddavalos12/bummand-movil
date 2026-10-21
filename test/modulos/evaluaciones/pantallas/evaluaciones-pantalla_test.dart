@@ -9,7 +9,7 @@ import 'package:bumand_movil/modulos/evaluaciones/pantallas/evaluaciones-pantall
 
 void main() {
   group('EvaluacionesPantalla Pruebas de Widget', () {
-    testWidgets('Renderiza nota global 360 y modulos formativos', (
+    testWidgets('Renderiza evaluación de desempeño y módulos formativos sin notas ponderadas', (
       WidgetTester probador,
     ) async {
       probador.view.physicalSize = const Size(1080, 2400);
@@ -34,15 +34,22 @@ void main() {
 
       await probador.pumpAndSettle();
 
-      expect(find.text('Mis Evaluaciones'), findsOneWidget);
-      expect(find.text('Calificación Global'), findsOneWidget);
-      expect(find.text('17.7 / 20 pts'), findsOneWidget);
-      expect(find.text('88.5%'), findsNothing);
-      expect(find.text('Liderazgo en la Iglesia (Formulario F-03)'), findsOneWidget);
+      expect(find.text('Evaluación de Desempeño'), findsOneWidget);
+      expect(find.text('5 módulos · 1 vez por semestre'), findsOneWidget);
+      expect(find.text('Semestre II - 2026'), findsOneWidget);
+      expect(find.text('Módulos Formativos Semestrales'), findsOneWidget);
+
+      expect(find.text('Liderazgo en la Iglesia'), findsOneWidget);
       expect(find.text('Autoevaluación Académica'), findsOneWidget);
-      expect(find.text('Evaluación del Mentor / Prácticas'), findsOneWidget);
+      expect(find.text('Evaluación del Mentor'), findsOneWidget);
       expect(find.text('Evaluación Escuela de Líderes'), findsOneWidget);
       expect(find.text('Evaluación Socioeconómica'), findsOneWidget);
+
+      // Sin nota global ponderada, porcentajes ni puntos
+      expect(find.text('Nota Global Ponderada'), findsNothing);
+      expect(find.text('Calificación Global'), findsNothing);
+      expect(find.textContaining('pts'), findsNothing);
+      expect(find.textContaining('%'), findsNothing);
     });
   });
 }

@@ -31,6 +31,8 @@ class ApiConstantes {
   static const String PUNTO_BIBLIA_VERSICULO = '/biblia/versiculo-diario';
   static const String PUNTO_BIBLIA_OFFLINE = '/biblia/paquete-offline';
   static const String PUNTO_BIBLIA_PASAJE = '/biblia/pasaje';
+  static const String PUNTO_BECARIOS_ESTADO_CONFIRMACION = '/becarios/estado-confirmacion-datos';
+  static const String PUNTO_BECARIOS_CONFIRMAR_DATOS = '/becarios/confirmar-datos';
 
   // Alias para retrocompatibilidad
   static String get baseUrl => RUTA_BASE;

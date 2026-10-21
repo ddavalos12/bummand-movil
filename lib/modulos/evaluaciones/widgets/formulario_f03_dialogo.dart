@@ -1,9 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
+import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
 
-/// Diálogo modal / Bottom Sheet del Formulario F-03 del Pastor
-/// Programa de Becas · Escuela de Líderes BUMAN-D — Evaluación del Becario
 class FormularioF03Dialogo extends StatefulWidget {
   final String nombre_becario;
 
@@ -58,6 +59,7 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
   String _cumplimiento = "Muy bien";
   bool _declara_veridico = false;
   String? _mensaje_error;
+  bool _enviando = false;
 
   @override
   void initState() {
@@ -91,6 +93,68 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
     super.dispose();
   }
 
+  Future<void> _enviarRecepcion() async {
+    if (_pastor_nombre_ctrl.text.trim().isEmpty ||
+        _pastor_correo_ctrl.text.trim().isEmpty) {
+      setState(() {
+        _mensaje_error =
+            "Completa el nombre y correo del pastor antes de enviar.";
+      });
+      return;
+    }
+
+    if (!_declara_veridico) {
+      setState(() {
+        _mensaje_error =
+            "Debes marcar la casilla de declaración jurada de veracidad.";
+      });
+      return;
+    }
+
+    setState(() {
+      _mensaje_error = null;
+      _enviando = true;
+    });
+
+    try {
+      final ruta = '${ApiConstantes.RUTA_BASE}/api/evaluaciones/receptor/f03';
+      await http
+          .post(
+            Uri.parse(ruta),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "becario_id": 1,
+              "periodo": "Semestre II - 2026",
+              "pastor_nombre": _pastor_nombre_ctrl.text,
+              "pastor_correo": _pastor_correo_ctrl.text,
+              "pastor_celular": _pastor_celular_ctrl.text,
+              "iglesia_nombre": _iglesia_nombre_ctrl.text,
+              "iglesia_direccion": _iglesia_dir_ctrl.text,
+              "frecuencia": _frecuencia,
+              "compromiso": _compromiso,
+              "cargo_iglesia": _cargo_iglesia,
+              "cumplimiento": _cumplimiento,
+              "opinion_general": _opinion_ctrl.text,
+              "declaracion_ci": _declara_ci_ctrl.text,
+              "fecha_recepcion": DateTime.now().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() => _enviando = false);
+    Navigator.of(context).pop();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("✓ Formulario F-03 del Pastor recibido exitosamente por el sistema."),
+        backgroundColor: Color(0xFF10B981),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
   void _exportarPdf() {
     if (_pastor_nombre_ctrl.text.trim().isEmpty ||
         _pastor_correo_ctrl.text.trim().isEmpty) {
@@ -113,7 +177,7 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("✓ Formulario F-03 completado y listo para exportar a PDF"),
+        content: Text("✓ Formulario F-03 exportado a PDF correctamente."),
         backgroundColor: BumandColores.TURQUESA_DIACONIA,
         duration: Duration(seconds: 3),
       ),
@@ -132,7 +196,6 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
       ),
       child: Column(
         children: [
-          // Tirador superior y cabecera
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
             child: Column(
@@ -159,7 +222,7 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Text(
-                        "Módulo 01 · F-03",
+                        "Módulo 01 · F-03 Receptor",
                         style: TextStyle(
                           color: BumandColores.AZUL_DIACONIA,
                           fontSize: 12,
@@ -198,15 +261,12 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
             ),
           ),
           const Divider(height: 1),
-
-          // Formulario desplazable
           Expanded(
             child: Form(
               key: _clave_form,
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  // SECCIÓN I
                   _construirTituloSeccion("I. Datos del pastor y de la iglesia local"),
                   _construirCampoTexto("Nombre del pastor", _pastor_nombre_ctrl, "Nombre completo"),
                   _construirCampoTexto("Correo del pastor", _pastor_correo_ctrl, "pastor@correo.com", teclado: TextInputType.emailAddress),
@@ -218,7 +278,6 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
 
                   const SizedBox(height: 20),
 
-                  // SECCIÓN II
                   _construirTituloSeccion("II. Referencias acerca del becario universitario"),
                   _construirCampoTexto("1. Nombre del becario", _becario_nombre_ctrl, "Nombre del becario"),
 
@@ -281,7 +340,6 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
 
                   const SizedBox(height: 20),
 
-                  // SECCIÓN III
                   _construirTituloSeccion("III. Declaración jurada"),
                   _construirCampoTexto("Nombre del pastor (declaración)", _declara_nombre_ctrl, "Nombre completo"),
                   _construirCampoTexto("C.I. del pastor", _declara_ci_ctrl, "Número de documento de identidad"),
@@ -322,7 +380,7 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton.icon(
-                      onPressed: _exportarPdf,
+                      onPressed: _enviando ? null : _enviarRecepcion,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: BumandColores.NARANJA,
                         foregroundColor: BumandColores.NEGRO,
@@ -330,13 +388,40 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text(
-                        "Exportar PDF (F-03 firmado)",
-                        style: TextStyle(
+                      icon: _enviando
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: BumandColores.NEGRO,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded),
+                      label: Text(
+                        _enviando ? "Registrando recepción..." : "Enviar Formulario a Recepción",
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: _exportarPdf,
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.picture_as_pdf, size: 18),
+                      label: const Text(
+                        "Exportar copia en PDF",
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),

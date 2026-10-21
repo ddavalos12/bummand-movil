@@ -32,7 +32,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Sistema de gestión de becarios'), findsOneWidget);
+      expect(find.text('Portal del Estudiante Becario'), findsOneWidget);
       expect(find.byType(TextField), findsNWidgets(2));
       expect(find.text('Ingresar'), findsOneWidget);
       expect(find.text('¿Ya estás en la lista de becarios? Crea tu cuenta'), findsOneWidget);

@@ -45,15 +45,14 @@ void main() {
       expect(find.text('Verificación por geolocalización'), findsOneWidget);
       expect(find.text('Oficina Central Diaconía'), findsOneWidget);
 
-      expect(find.text('Reescanear GPS'), findsOneWidget);
+      expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
 
-      expect(find.text('Marcar\ningreso'), findsOneWidget);
-      expect(find.text('Marcar\nsalida'), findsOneWidget);
+      expect(find.text('Marcar ingreso'), findsOneWidget);
+      expect(find.text('Marcar salida'), findsOneWidget);
 
-      // Verificación de Bloques y Cita Bíblica
-      expect(find.text('Plano del Edificio Institucional'), findsOneWidget);
-      expect(find.textContaining('Bloque detectado: Bloque Norte'), findsOneWidget);
+      // Verificación de Cita Bíblica
       expect(find.textContaining('«Todo lo puedo en Cristo que me fortalece»'), findsOneWidget);
+      expect(find.textContaining('Filipenses 4:13'), findsOneWidget);
     });
 
     testWidgets('Verifica que modo supervisor no aparece en móvil y renderiza los 3 pilares', (
@@ -95,10 +94,10 @@ void main() {
       expect(find.text('Llamada de Lista Rápida'), findsNothing);
       expect(find.text('Confirmar sala'), findsNothing);
 
-      // Debe mostrar los tres pilares institucionales
-      expect(find.text('Registro de Prácticas'), findsOneWidget);
+      // Debe mostrar los tres pilares institucionales como pestañas
+      expect(find.text('Prácticas'), findsOneWidget);
       expect(find.text('Escuela de Líderes'), findsOneWidget);
-      expect(find.text('Acciones de Servicio'), findsOneWidget);
+      expect(find.text('Servicio'), findsOneWidget);
     });
   });
 }

@@ -6,6 +6,9 @@ class RecorridoModelo {
   final String destino;
   final double tarifa;
   final String? apoyo_realizado;
+  final String? calles_declaradas;
+  final String? medio_transporte;
+  final String? detalle_tramos_json;
   final double? lat_origen;
   final double? lng_origen;
   final double? lat_destino;
@@ -19,6 +22,9 @@ class RecorridoModelo {
     required this.destino,
     required this.tarifa,
     this.apoyo_realizado,
+    this.calles_declaradas,
+    this.medio_transporte,
+    this.detalle_tramos_json,
     this.lat_origen,
     this.lng_origen,
     this.lat_destino,
@@ -27,6 +33,9 @@ class RecorridoModelo {
 
   // Getters para retrocompatibilidad
   String? get apoyoRealizado => apoyo_realizado;
+  String? get callesDeclaradas => calles_declaradas;
+  String? get medioTransporte => medio_transporte;
+  String? get detalleTramosJson => detalle_tramos_json;
   double? get latOrigen => lat_origen;
   double? get lngOrigen => lng_origen;
   double? get latDestino => lat_destino;
@@ -55,6 +64,9 @@ class RecorridoModelo {
       destino: json['destino'] as String,
       tarifa: _parsearDouble(json['tarifa']),
       apoyo_realizado: (json['apoyo_realizado'] ?? json['apoyoRealizado']) as String?,
+      calles_declaradas: (json['calles_declaradas'] ?? json['callesDeclaradas']) as String?,
+      medio_transporte: (json['medio_transporte'] ?? json['medioTransporte']) as String?,
+      detalle_tramos_json: (json['detalle_tramos_json'] ?? json['detalleTramosJson']) as String?,
       lat_origen: _parsearDoubleOpcional(json['lat_origen'] ?? json['latOrigen']),
       lng_origen: _parsearDoubleOpcional(json['lng_origen'] ?? json['lngOrigen']),
       lat_destino: _parsearDoubleOpcional(json['lat_destino'] ?? json['latDestino']),
@@ -71,6 +83,9 @@ class RecorridoModelo {
       'destino': destino,
       'tarifa': tarifa,
       'apoyo_realizado': apoyo_realizado,
+      'calles_declaradas': calles_declaradas,
+      'medio_transporte': medio_transporte,
+      'detalle_tramos_json': detalle_tramos_json,
       'lat_origen': lat_origen,
       'lng_origen': lng_origen,
       'lat_destino': lat_destino,

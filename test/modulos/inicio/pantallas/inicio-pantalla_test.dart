@@ -5,9 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bumand_movil/nucleo/utilidades/resultado.dart';
 import 'package:bumand_movil/modulos/inicio/pantallas/inicio-pantalla.dart';
 import 'package:bumand_movil/modulos/asistencia/proveedores/asistencia-proveedor.dart';
-import 'package:bumand_movil/modulos/eventos/servicios/eventos-servicio.dart';
-import 'package:bumand_movil/modulos/eventos/modelos/evento.dart';
-import 'package:bumand_movil/modulos/notificaciones/proveedores/notificaciones-proveedor.dart';
+import 'package:bumand_movil/modulos/evaluaciones/proveedores/evaluaciones-proveedor.dart';
+import 'package:bumand_movil/modulos/evaluaciones/modelos/evaluacion-modelo.dart';
+import 'package:bumand_movil/widgets-comunes/barra-superior-bumand.dart';
+
+class _MenuAbiertoNotificador extends MenuPrincipalNotificador {
+  @override
+  bool build() => true;
+}
 
 void main() {
   setUp(() {
@@ -15,7 +20,72 @@ void main() {
   });
 
   group('InicioPantalla Navegación Pruebas de Widget', () {
-    testWidgets('Renderiza los 3 destinos de navegación y no incluye Eventos ni Devocional en la barra inferior', (
+    testWidgets(
+      'Renderiza los 4 destinos en la barra inferior (Asistencia, Pasajes, Evaluación, Historial)',
+      (WidgetTester probador) async {
+        probador.view.physicalSize = const Size(1080, 2400);
+        probador.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          probador.view.resetPhysicalSize();
+          probador.view.resetDevicePixelRatio();
+        });
+
+        await probador.pumpWidget(
+          ProviderScope(
+            overrides: [
+              perfil_proveedor.overrideWith((ref) async => Resultado.exitoso({
+                    'nombre': 'Valeria Ramos',
+                    'lugarPractica': {
+                      'nombre': 'Oficina Central Diaconía',
+                      'latitud': -16.5000,
+                      'longitud': -68.1500,
+                      'radio_tolerancia_m': 100,
+                    },
+                  })),
+              historial_asistencia_proveedor.overrideWith(
+                (ref) async => Resultado.exitoso(<Map<String, dynamic>>[]),
+              ),
+              evaluacion_consolidada_proveedor.overrideWith(
+                (ref) async =>
+                    Resultado.exitoso(EvaluacionConsolidadaModelo.modeloEjemplo()),
+              ),
+            ],
+            child: const MaterialApp(
+              home: InicioPantalla(),
+            ),
+          ),
+        );
+
+        await probador.pump();
+        await probador.pump(const Duration(milliseconds: 100));
+
+        // Valida los destinos de la barra inferior
+        expect(find.text('Asistencia'), findsWidgets);
+        expect(find.text('Evaluación'), findsWidgets);
+        expect(find.text('Historial'), findsWidgets);
+
+        // No incluye pestañas obsoletas
+        expect(find.text('Eventos'), findsNothing);
+        expect(find.text('Devocional'), findsNothing);
+        expect(find.text('Notificaciones'), findsNothing);
+
+        // Conmutar a la pestaña Evaluación
+        await probador.tap(find.text('Evaluación'));
+        await probador.pump();
+        await probador.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Evaluación'), findsWidgets);
+
+        // Conmutar a la pestaña Historial
+        await probador.tap(find.text('Historial'));
+        await probador.pump();
+        await probador.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Historial'), findsWidgets);
+      },
+    );
+
+    testWidgets('Renderiza la vista de Menú principal cuando está activo', (
       WidgetTester probador,
     ) async {
       probador.view.physicalSize = const Size(1080, 2400);
@@ -37,13 +107,7 @@ void main() {
                     'radio_tolerancia_m': 100,
                   },
                 })),
-            historial_asistencia_proveedor.overrideWith(
-              (ref) async => Resultado.exitoso(<Map<String, dynamic>>[]),
-            ),
-            eventos_lista_proveedor.overrideWith(
-              (ref) async => Resultado.exitoso(<Evento>[]),
-            ),
-            notificaciones_conteo_proveedor.overrideWith((ref) async => 0),
+            menu_principal_proveedor.overrideWith(_MenuAbiertoNotificador.new),
           ],
           child: const MaterialApp(
             home: InicioPantalla(),
@@ -51,21 +115,14 @@ void main() {
         ),
       );
 
-      await probador.pump();
-      await probador.pump(const Duration(milliseconds: 100));
+      await probador.pumpAndSettle();
 
-      expect(find.text('Asistencia'), findsOneWidget);
-      expect(find.text('Pasajes'), findsOneWidget);
-      expect(find.text('Notificaciones'), findsOneWidget);
-      expect(find.text('Eventos'), findsNothing);
-      expect(find.text('Devocional'), findsNothing);
-
-      // Conmutar a la pestaña Pasajes
-      await probador.tap(find.text('Pasajes'));
-      await probador.pump();
-      await probador.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Pasajes'), findsWidgets);
+      expect(find.text('Menú principal'), findsOneWidget);
+      expect(find.text('Espacio integral BUMAND'), findsOneWidget);
+      expect(find.textContaining('Hola, Valeria'), findsOneWidget);
+      expect(find.textContaining('Bienvenida a tu espacio BUMAND'), findsOneWidget);
+      expect(find.text('Permisos y Justificaciones'), findsOneWidget);
+      expect(find.text('Reportes médicos y de inasistencia'), findsOneWidget);
     });
   });
 }

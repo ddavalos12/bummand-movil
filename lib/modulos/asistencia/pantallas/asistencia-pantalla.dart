@@ -9,9 +9,12 @@ import '../../animaciones/animaciones.dart';
 import '../modelos/tipo-asistencia.dart';
 import '../proveedores/asistencia-proveedor.dart';
 import '../widgets/radar_geocerca_widget.dart';
-import '../widgets/mapa-geocerca-bloques-widget.dart';
-import '../widgets/detalle_asistencia_modal.dart';
 import 'historial-asistencia-pantalla.dart';
+import '../../eventos/modelos/evento.dart';
+import '../../eventos/servicios/eventos-servicio.dart';
+import '../../justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
+import '../../pasajes/pantallas/declarar-recorrido-pantalla.dart';
+import '../../pasajes/proveedores/pasajes-proveedor.dart';
 
 class AsistenciaPantalla extends ConsumerStatefulWidget {
   const AsistenciaPantalla({super.key});
@@ -22,37 +25,6 @@ class AsistenciaPantalla extends ConsumerStatefulWidget {
 
 class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
   static const _FONDO = Color(0xFFEFF3F8);
-  static const _BORDE = Color(0xFFE3E9F2);
-
-  static const List<BloqueEdificio> _BLOQUES_EDIFICIO = [
-    BloqueEdificio(
-      id: 'bloque_norte',
-      nombre: 'Bloque Norte',
-      descripcion: 'Auditorio Principal • Escuela de Líderes Diaconales',
-      latitud: -16.500054,
-      longitud: -68.173455,
-      icono: Icons.theater_comedy_outlined,
-      es_auditorio_viernes: true,
-    ),
-    BloqueEdificio(
-      id: 'bloque_central',
-      nombre: 'Bloque Central',
-      descripcion: 'Oficinas Diaconía IFD • Piso 1 y 2',
-      latitud: -16.500100,
-      longitud: -68.173500,
-      icono: Icons.business_outlined,
-    ),
-    BloqueEdificio(
-      id: 'bloque_sur',
-      nombre: 'Bloque Sur',
-      descripcion: 'Aulas de Formación Diaconal y Capilla',
-      latitud: -16.500200,
-      longitud: -68.173600,
-      icono: Icons.church_outlined,
-    ),
-  ];
-
-  late BloqueEdificio _bloque_detectado;
 
   String _tipo = TipoAsistencia.practicas.valor;
   Map<String, dynamic>? _lugar_seleccionado;
@@ -69,6 +41,9 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
   bool _es_retraso = false;
   String? _hora_marcada_ingreso;
   String? _hora_marcada_salida;
+
+  List<Evento> _eventos_servicio = [];
+  Evento? _evento_servicio_activo;
 
   static const List<Map<String, dynamic>> _AGENCIAS_DIACONIA = [
     {
@@ -116,9 +91,9 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
   @override
   void initState() {
     super.initState();
-    _bloque_detectado = _BLOQUES_EDIFICIO[0];
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _escanearUbicacion();
+      _cargarEventosServicio();
     });
   }
 
@@ -132,6 +107,54 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
             : BumandColores.TURQUESA_DIACONIA,
       ),
     );
+  }
+
+  Future<void> _cargarEventosServicio() async {
+    try {
+      final res = await ref.read(eventos_servicio_proveedor).obtenerEventos();
+      if (!mounted) return;
+      if (res.exito && res.datos != null && res.datos!.isNotEmpty) {
+        final eventos = res.datos!;
+        final hoy_str = DateTime.now().toIso8601String().split('T')[0];
+        Evento seleccionado;
+        try {
+          seleccionado = eventos.firstWhere((e) => e.fecha == hoy_str);
+        } catch (_) {
+          try {
+            seleccionado = eventos.firstWhere(
+              (e) => e.estado == 'en_curso' || e.estado == 'programado',
+            );
+          } catch (_) {
+            seleccionado = eventos.first;
+          }
+        }
+
+        setState(() {
+          _eventos_servicio = eventos;
+          _evento_servicio_activo = seleccionado;
+        });
+
+        if (_tipo == TipoAsistencia.accionesServicio.valor) {
+          _aplicarEventoServicio(seleccionado);
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _aplicarEventoServicio(Evento ev) {
+    final mapa_evento = {
+      "nombre": ev.titulo,
+      "direccion": "${ev.direccion_referencia} (${ev.hora_inicio}–${ev.hora_fin})",
+      "latitud": ev.latitud,
+      "longitud": ev.longitud,
+      "radio_tolerancia_m": ev.radio_tolerancia_m,
+      "evento_id": ev.id,
+    };
+    setState(() {
+      _evento_servicio_activo = ev;
+      _lugar_seleccionado = mapa_evento;
+    });
+    _escanearUbicacion(lugar_param: mapa_evento);
   }
 
   Future<void> _escanearUbicacion({Map<String, dynamic>? lugar_param}) async {
@@ -162,11 +185,15 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
 
   void _evaluarGeocerca(Position posicion, Map<String, dynamic>? lugar) {
     final repo = ref.read(asistencia_repositorio_proveedor);
-    final latitud = double.tryParse(lugar?["latitud"]?.toString() ?? "-16.5000") ?? -16.5000;
-    final longitud = double.tryParse(lugar?["longitud"]?.toString() ?? "-68.1500") ?? -68.1500;
+    final latitud =
+        double.tryParse(lugar?["latitud"]?.toString() ?? "-16.5000") ?? -16.5000;
+    final longitud =
+        double.tryParse(lugar?["longitud"]?.toString() ?? "-68.1500") ?? -68.1500;
     final radio = double.tryParse(
-      (lugar?["radio_tolerancia_m"] ?? lugar?["radioToleranciaM"] ?? 50).toString(),
-    ) ?? 50.0;
+          (lugar?["radio_tolerancia_m"] ?? lugar?["radioToleranciaM"] ?? 50)
+              .toString(),
+        ) ??
+        50.0;
 
     final distancia = repo.calcularDistancia(
       posicion: posicion,
@@ -194,6 +221,14 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     });
   }
 
+  int _calcularMultaViernes(int minutos_retraso) {
+    if (minutos_retraso <= 0) return 0;
+    if (minutos_retraso <= 10) return 10;
+    if (minutos_retraso <= 30) return 20;
+    if (minutos_retraso <= 60) return 30;
+    return 50;
+  }
+
   void _calcularPuntualidad(DateTime ahora, String tipo_activo) {
     final es_escuela_lideres_viernes = ahora.weekday == DateTime.friday &&
         tipo_activo == TipoAsistencia.escuelaLideres.valor;
@@ -211,7 +246,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       );
       if (ahora.isAfter(limite_viernes)) {
         final retraso_min = ahora.difference(limite_viernes).inMinutes;
-        final multa = retraso_min * 10;
+        final multa = _calcularMultaViernes(retraso_min);
         setState(() {
           _es_retraso = true;
           _banner_alerta_puntualidad =
@@ -287,6 +322,21 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       _calcularPuntualidad(ahora, _tipo);
     }
 
+    // Si es Acción de Servicio vinculada a un evento activo del backend
+    if (_tipo == TipoAsistencia.accionesServicio.valor &&
+        _evento_servicio_activo != null &&
+        ingreso &&
+        _posicion_actual != null) {
+      try {
+        await ref.read(eventos_servicio_proveedor).marcarAsistencia(
+              evento_id: _evento_servicio_activo!.id,
+              latitud: _posicion_actual!.latitude,
+              longitud: _posicion_actual!.longitude,
+              observaciones: 'Asistencia registrada desde módulo móvil BUMAND',
+            );
+      } catch (_) {}
+    }
+
     final notificador = ref.read(asistencia_notificador_proveedor.notifier);
     final error = ingreso
         ? await notificador.registrarIngreso(
@@ -323,8 +373,6 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       _mensaje(error, es_error: true);
     }
   }
-
-
 
   void _mostrarDialogoSeleccionarAgencia() {
     showModalBottomSheet(
@@ -364,7 +412,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   itemBuilder: (ctx, i) {
                     final ag = _AGENCIAS_DIACONIA[i];
                     final es_actual = (_lugar_seleccionado != null &&
-                            _lugar_seleccionado!["nombre"] == ag["nombre"]);
+                        _lugar_seleccionado!["nombre"] == ag["nombre"]);
                     return ListTile(
                       leading: Icon(
                         Icons.apartment,
@@ -376,8 +424,11 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                         ag["nombre"].toString(),
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: es_actual ? FontWeight.bold : FontWeight.w500,
-                          color: es_actual ? BumandColores.AZUL_DIACONIA : Colors.black87,
+                          fontWeight:
+                              es_actual ? FontWeight.bold : FontWeight.w500,
+                          color: es_actual
+                              ? BumandColores.AZUL_DIACONIA
+                              : Colors.black87,
                         ),
                       ),
                       subtitle: Text(
@@ -387,7 +438,10 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                         style: const TextStyle(fontSize: 11),
                       ),
                       trailing: es_actual
-                          ? const Icon(Icons.check_circle, color: BumandColores.AZUL_DIACONIA)
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: BumandColores.AZUL_DIACONIA,
+                            )
                           : null,
                       onTap: () {
                         Navigator.pop(ctx);
@@ -410,7 +464,6 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
   @override
   Widget build(BuildContext context) {
     final perfil_async = ref.watch(perfil_proveedor);
-    final historial_async = ref.watch(historial_asistencia_proveedor);
     final estado_accion = ref.watch(asistencia_notificador_proveedor);
 
     final lugar_defecto = {
@@ -426,6 +479,25 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         perfil_async.asData?.value.datos?["lugarPractica"] ??
         lugar_defecto;
 
+    String nombre_lugar = lugar["nombre"]?.toString() ?? "Lugar asignado";
+    String desc_lugar = lugar["direccion"]?.toString() ?? "Punto de asistencia";
+
+    if (_tipo == TipoAsistencia.escuelaLideres.valor) {
+      nombre_lugar = "Escuela de Líderes Diaconales";
+      desc_lugar = "Auditorio Central, El Alto — módulo de formación";
+    } else if (_tipo == TipoAsistencia.accionesServicio.valor) {
+      if (_evento_servicio_activo != null) {
+        nombre_lugar = _evento_servicio_activo!.titulo;
+        desc_lugar = _evento_servicio_activo!.direccion_referencia;
+      } else {
+        nombre_lugar = "Acción de Servicio Diaconal";
+        desc_lugar = "Punto y horario configurados en agenda institucional";
+      }
+    }
+
+    final nombre_becario =
+        perfil_async.asData?.value.datos?["nombre"] ?? "María Catunta Laime";
+
     final ahora = DateTime.now();
     final es_escuela_lideres_viernes = ahora.weekday == DateTime.friday &&
         _tipo == TipoAsistencia.escuelaLideres.valor;
@@ -435,7 +507,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         (es_escuela_lideres_viernes && ahora.isAfter(limite_viernes))
             ? ahora.difference(limite_viernes).inMinutes
             : 0;
-    final multa_estimada_real = minutos_retraso_actual * 10;
+    final multa_estimada_real = _calcularMultaViernes(minutos_retraso_actual);
 
     final puede_marcar = _dentro_de_geocerca && !estado_accion.isLoading;
 
@@ -450,17 +522,24 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
           RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(perfil_proveedor);
-              ref.invalidate(historial_asistencia_proveedor);
+              await _cargarEventosServicio();
               await _escanearUbicacion(lugar_param: lugar);
             },
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
-                // 1. Selector Segmentado Vertical de los 3 Pilares (Maqueta)
-                _construirTabsPilares(),
-                const SizedBox(height: 8),
+                // 1. Selector Segmentado Horizontal de 3 Pilares (Fiel a 16.jpeg)
+                _construirTabsSuperiores(),
+                const SizedBox(height: 12),
 
-                // 2. Radar de Geocerca Interactivo con gradiente cian y horas
+                // Selector dinámico de eventos si está en Acción de Servicio y hay varios
+                if (_tipo == TipoAsistencia.accionesServicio.valor &&
+                    _eventos_servicio.length > 1) ...[
+                  _construirSelectorEventosServicio(),
+                  const SizedBox(height: 10),
+                ],
+
+                // 2. Tarjeta azul oscura del Radar con indicador de precisión GPS y reloj digital
                 RadarGeocercaWidget(
                   escaneando: _escaneando_gps,
                   dentro_geocerca: _dentro_de_geocerca,
@@ -470,57 +549,38 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   error_gps: _mensaje_error_gps,
                   hora_ingreso: _hora_marcada_ingreso,
                   hora_salida: _hora_marcada_salida,
+                  nombre_lugar: nombre_lugar,
+                  direccion_lugar: desc_lugar,
+                  nombre_becario: nombre_becario,
                   alReescanear: () => _escanearUbicacion(lugar_param: lugar),
+                  alSeleccionarLugar: _tipo == TipoAsistencia.practicas.valor
+                      ? _mostrarDialogoSeleccionarAgencia
+                      : null,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // 3. Píldora de estado de obtención de ubicación
-                _construirPildoraEstadoUbicacion(),
-                const SizedBox(height: 12),
-
-                // 4. Tarjeta de Agencia Asignada y Becario
-                _construirInfoPilar(
-                  lugar,
-                  perfil_async.asData?.value.datos?["nombre"],
-                ),
-                const SizedBox(height: 14),
-
-                // 5. Botones de acción: Marcar ingreso (ámbar) y Marcar salida (blanco)
-                _construirBotonesAccion(
+                // 3. Botones de acción principales: Marcar ingreso (Azul) y Marcar salida (Borde Azul)
+                _construirBotonesMarcacion(
                   puede_marcar: puede_marcar,
                   is_loading: estado_accion.isLoading,
                   lugar: lugar,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 14),
 
-                // 6. Botón de reescaneo GPS institucional
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () => _escanearUbicacion(lugar_param: lugar),
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      size: 16,
-                      color: BumandColores.AZUL_DIACONIA,
-                    ),
-                    label: const Text(
-                      "Reescanear GPS",
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: BumandColores.AZUL_DIACONIA,
-                      ),
-                    ),
-                  ),
+                // 3.5. Tarjeta de Recorrido del Día con Mapa e integración directa de "Declarar recorrido"
+                _construirTarjetaRecorridoMapa(
+                  nombre_lugar: nombre_lugar,
+                  direccion_lugar: desc_lugar,
                 ),
+                const SizedBox(height: 12),
 
-                // 7. Advertencia en tiempo real para Escuela de Líderes (Viernes pasadas las 14:35)
+                // 4. Advertencia de multas oficiales para Escuela de Líderes (Viernes pasadas 14:35)
                 if (es_escuela_lideres_viernes && minutos_retraso_actual > 0) ...[
-                  const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFF87171)),
                     ),
                     child: Row(
@@ -537,7 +597,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Retraso en Escuela de Líderes (Viernes) - Multa calculada: Bs $multa_estimada_real.00",
+                                "Retraso en Escuela de Líderes (Viernes) - Multa: Bs $multa_estimada_real.00",
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
@@ -546,7 +606,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "Límite: 14:35 • Retraso: $minutos_retraso_actual min.\nTarifa: Bs 10 por minuto de retención institucional.",
+                                "Límite: 14:35 • Retraso: $minutos_retraso_actual min.\nTabla oficial: 1–10 min = Bs 10 · 11–30 min = Bs 20 · 31–60 min = Bs 30 · >60 min = Bs 50",
                                 style: const TextStyle(
                                   fontSize: 11.5,
                                   color: Color(0xFFB91C1C),
@@ -559,34 +619,11 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 12),
                 ],
 
-
-
-                const SizedBox(height: 12),
-
-                // 9. Cita Bíblica Destacada del Día
-                _construirCitaBiblicaSeguimiento(),
-                const SizedBox(height: 14),
-
-                // 10. Mapa de Geocerca con Detección de Bloques (Plano Institucional)
-                MapaGeocercaBloquesWidget(
-                  escaneando: _escaneando_gps,
-                  dentro_geocerca: _dentro_de_geocerca,
-                  posicion: _posicion_actual,
-                  distancia_m: _distancia_actual_m ?? 42.0,
-                  radio_m: _radio_tolerancia_m,
-                  error_gps: _mensaje_error_gps,
-                  bloque_detectado: _bloque_detectado,
-                  bloques_disponibles: _BLOQUES_EDIFICIO,
-                  alReescanear: () => _escanearUbicacion(lugar_param: lugar),
-                  alSeleccionarBloque: (b) =>
-                      setState(() => _bloque_detectado = b),
-                ),
-
-                // Banner de Alerta de Puntualidad / Retraso
+                // 5. Banner interactivo de confirmación de puntualidad
                 if (_banner_alerta_puntualidad != null) ...[
-                  const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
@@ -597,7 +634,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                       color: _es_retraso
                           ? const Color(0xFFFEF3C7)
                           : const Color(0xFFECFDF5),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: _es_retraso
                             ? const Color(0xFFF59E0B)
@@ -616,11 +653,54 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
                 ],
 
-                const SizedBox(height: 20),
-                // Lista de Registros Recientes con Detalle en BottomSheet
-                _construirHistorialReciente(historial_async),
+                // 6. Acceso directo a Permisos y Justificaciones
+                OutlinedButton.icon(
+                  onPressed: () {
+                    SolicitarJustificacionDialogo.mostrar(
+                      context,
+                      evento_id: _evento_servicio_activo?.id,
+                      titulo_evento: _tipo == TipoAsistencia.accionesServicio.valor
+                          ? _evento_servicio_activo?.titulo
+                          : (_tipo == TipoAsistencia.escuelaLideres.valor
+                              ? "Escuela de Líderes Diaconales"
+                              : "Prácticas Institucionales"),
+                      tipo_incidencia: _tipo == TipoAsistencia.escuelaLideres.valor
+                          ? "escuela_lideres"
+                          : (_tipo == TipoAsistencia.accionesServicio.valor
+                              ? "asistencia_evento"
+                              : "asistencia_practicas"),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.assignment_late_outlined,
+                    size: 18,
+                    color: BumandColores.AZUL_DIACONIA,
+                  ),
+                  label: const Text(
+                    "¿Incidencia o retraso? Solicitar Permiso / Justificación",
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 7. Cita bíblica diaconal
+                _construirCitaBiblica(),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -633,94 +713,112 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     );
   }
 
-  Widget _construirTabsPilares() {
-    return Column(
-      children: TipoAsistencia.values.map((t) {
-        final seleccionado = _tipo == t.valor;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Center(
-            child: SizedBox(
-              width: 230,
-              height: 40,
-              child: Material(
-                color: seleccionado
-                    ? const Color(0xFF0284C7)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                elevation: seleccionado ? 0 : 0.5,
-                shadowColor: Colors.black.withValues(alpha: 0.12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () {
-                    setState(() {
-                      _tipo = t.valor;
-                      _banner_alerta_puntualidad = null;
-                    });
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: seleccionado
-                            ? const Color(0xFF0284C7)
-                            : const Color(0xFFE2E8F0),
-                        width: 1,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      t.etiqueta,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: seleccionado
-                            ? Colors.white
-                            : const Color(0xFF334155),
-                      ),
-                    ),
+  Widget _construirTabsSuperiores() {
+    final opciones = [
+      (TipoAsistencia.practicas.valor, "Prácticas"),
+      (TipoAsistencia.escuelaLideres.valor, "Escuela de Líderes"),
+      (TipoAsistencia.accionesServicio.valor, "Servicio"),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: opciones.map((opcion) {
+          final seleccionado = _tipo == opcion.$1;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _tipo = opcion.$1;
+                  _banner_alerta_puntualidad = null;
+                });
+                if (opcion.$1 == TipoAsistencia.accionesServicio.valor) {
+                  if (_eventos_servicio.isEmpty) {
+                    _cargarEventosServicio();
+                  } else if (_evento_servicio_activo != null) {
+                    _aplicarEventoServicio(_evento_servicio_activo!);
+                  }
+                } else {
+                  _escanearUbicacion();
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: seleccionado
+                      ? const Color(0xFF0284C7)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  opcion.$2,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: seleccionado
+                        ? Colors.white
+                        : const Color(0xFF475569),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 
-  Widget _construirPildoraEstadoUbicacion() {
-    final texto = _escaneando_gps
-        ? "Obteniendo tu ubicación..."
-        : (_dentro_de_geocerca
-            ? "Ubicación verificada en geocerca"
-            : "Fuera de radio de geocerca");
+  Widget _construirSelectorEventosServicio() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.circle,
-            size: 8,
-            color: _dentro_de_geocerca && !_escaneando_gps
-                ? const Color(0xFF10B981)
-                : const Color(0xFF475569),
-          ),
+          const Icon(Icons.event_available, color: Color(0xFF0284C7), size: 18),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              texto,
-              style: const TextStyle(
-                color: Color(0xFF475569),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: _evento_servicio_activo?.id,
+                isDense: true,
+                isExpanded: true,
+                items: _eventos_servicio.map((e) {
+                  return DropdownMenuItem<int>(
+                    value: e.id,
+                    child: Text(
+                      "${e.titulo} (${e.fecha})",
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (id) {
+                  if (id != null) {
+                    final ev = _eventos_servicio.firstWhere((e) => e.id == id);
+                    _aplicarEventoServicio(ev);
+                  }
+                },
               ),
             ),
           ),
@@ -729,32 +827,115 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     );
   }
 
-  Widget _construirInfoPilar(
-    Map<String, dynamic> lugar,
-    String? nombre_becario,
-  ) {
-    String nombre_lugar = lugar["nombre"]?.toString() ?? "Lugar asignado";
-    String desc_lugar = lugar["direccion"]?.toString() ?? "Punto de asistencia";
+  Widget _construirBotonesMarcacion({
+    required bool puede_marcar,
+    required bool is_loading,
+    required Map<String, dynamic>? lugar,
+  }) {
+    return Column(
+      children: [
+        // Botón Marcar ingreso (Azul Primario)
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton.icon(
+            onPressed: puede_marcar
+                ? () => _marcar(ingreso: true, lugar: lugar)
+                : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              disabledBackgroundColor:
+                  const Color(0xFF0284C7).withValues(alpha: 0.5),
+              disabledForegroundColor: Colors.white70,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            icon: is_loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.login_rounded, size: 20),
+            label: const Text(
+              "Marcar ingreso",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
 
+        // Botón Marcar salida (Blanco con Borde Azul)
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: puede_marcar
+                ? () => _marcar(ingreso: false, lugar: lugar)
+                : null,
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF0284C7),
+              side: const BorderSide(color: Color(0xFF0284C7), width: 1.5),
+              elevation: 0,
+              disabledForegroundColor: Colors.grey.shade400,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            icon: const Icon(Icons.logout_rounded, size: 20),
+            label: const Text(
+              "Marcar salida",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _construirTarjetaRecorridoMapa({
+    required String nombre_lugar,
+    required String direccion_lugar,
+  }) {
+    final solicitudes_async = ref.watch(solicitudes_pasajes_proveedor);
+    final solicitudes = solicitudes_async.asData?.value ?? [];
+    final solicitud_actual = solicitudes.isNotEmpty ? solicitudes.first : null;
+    final total_recorridos_mes = solicitud_actual?.recorridos.length ?? 0;
+    final monto_devolucion_mes = solicitud_actual?.monto_devolucion ?? 0.0;
+
+    final origen_reciente =
+        (solicitud_actual != null && solicitud_actual.recorridos.isNotEmpty)
+            ? solicitud_actual.recorridos.first.origen
+            : "Villa Adela, El Alto";
+
+    String etiqueta_actividad = "Prácticas";
     if (_tipo == TipoAsistencia.escuelaLideres.valor) {
-      nombre_lugar = "Escuela de Líderes Diaconales";
-      desc_lugar = "Oficina Central, El Alto — módulo de formación en liderazgo";
+      etiqueta_actividad = "Escuela de Líderes";
     } else if (_tipo == TipoAsistencia.accionesServicio.valor) {
-      nombre_lugar = "Comedor Comunitario San José";
-      desc_lugar = "Zona Villa Adela, El Alto — punto de acción de servicio asignado";
+      etiqueta_actividad = "Acciones de Servicio";
     }
 
-    final becario = nombre_becario ?? "Daniel Davalos Quiñóñez";
-    final subtitulo_completo = desc_lugar.contains("— becario:")
-        ? desc_lugar
-        : "$desc_lugar — becario: $becario";
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -763,63 +944,200 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0F2FE),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.domain_rounded,
-              color: Color(0xFF0284C7),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.directions_bus_filled_rounded,
+                  color: Color(0xFFD97706),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        nombre_lugar,
-                        style: const TextStyle(
+                    const Text(
+                      "Recorrido y Mapa de Ruta",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      total_recorridos_mes > 0
+                          ? "$total_recorridos_mes tramos este mes · Devolución 80%: Bs ${monto_devolucion_mes.toStringAsFixed(2)}"
+                          : "Declara tu trayecto de ida y vuelta hacia $etiqueta_actividad",
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const HistorialAsistenciaPantalla(),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: const Color(0xFF0284C7),
+                ),
+                child: const Text(
+                  "Historial",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Mapa visual de la ruta entre el origen del becario y la sede activa
+          GestureDetector(
+            onTap: () async {
+              final guardado = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => DeclararRecorridoPantalla(
+                    destino_inicial: nombre_lugar,
+                    tipo_actividad_inicial: etiqueta_actividad,
+                  ),
+                ),
+              );
+              if (guardado == true) {
+                ref.invalidate(solicitudes_pasajes_proveedor);
+              }
+            },
+            child: Container(
+              height: 110,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF1E3A5F)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _PintorMapaInicioRecorrido(
+                        origen: origen_reciente,
+                        destino: nombre_lugar,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.82),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFF38BDF8).withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.route_rounded,
+                            size: 12,
+                            color: Color(0xFF38BDF8),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "Ruta sugerida · $etiqueta_actividad",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF34D399)),
+                      ),
+                      child: const Text(
+                        "Toca el mapa para editar paradas",
+                        style: TextStyle(
+                          color: Color(0xFFA7F3D0),
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14.5,
-                          color: BumandColores.NEGRO,
                         ),
                       ),
                     ),
-                    if (_tipo == TipoAsistencia.practicas.valor)
-                      GestureDetector(
-                        onTap: _mostrarDialogoSeleccionarAgencia,
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(
-                            Icons.swap_horiz,
-                            color: BumandColores.AZUL_DIACONIA,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitulo_completo,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    color: Color(0xFF64748B),
-                    height: 1.35,
                   ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final guardado = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => DeclararRecorridoPantalla(
+                      destino_inicial: nombre_lugar,
+                      tipo_actividad_inicial: etiqueta_actividad,
+                    ),
+                  ),
+                );
+                if (guardado == true) {
+                  ref.invalidate(solicitudes_pasajes_proveedor);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: BumandColores.NARANJA,
+                foregroundColor: BumandColores.NEGRO,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ],
+              ),
+              icon: const Icon(Icons.add_road_rounded, size: 20),
+              label: const Text(
+                "Declarar recorrido con mapa",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14.5,
+                ),
+              ),
             ),
           ),
         ],
@@ -827,290 +1145,20 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     );
   }
 
-  Widget _construirBotonesAccion({
-    required bool puede_marcar,
-    required bool is_loading,
-    required Map<String, dynamic>? lugar,
-  }) {
-    return Row(
-      children: [
-        // Botón Marcar ingreso (Ámbar)
-        Expanded(
-          child: SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: puede_marcar
-                  ? () => _marcar(ingreso: true, lugar: lugar)
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFBBF24),
-                foregroundColor: const Color(0xFF1E293B),
-                elevation: 0,
-                disabledBackgroundColor:
-                    const Color(0xFFFDE68A).withValues(alpha: 0.6),
-                disabledForegroundColor: const Color(0xFF94A3B8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: is_loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF1E293B),
-                      ),
-                    )
-                  : const Text(
-                      "Marcar\ningreso",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14.5,
-                        height: 1.15,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Botón Marcar salida (Blanco con borde)
-        Expanded(
-          child: SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: puede_marcar
-                  ? () => _marcar(ingreso: false, lugar: lugar)
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF475569),
-                elevation: 0,
-                disabledBackgroundColor: Colors.grey.shade100,
-                disabledForegroundColor: Colors.grey.shade400,
-                side: const BorderSide(color: Color(0xFFE2E8F0)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: const Text(
-                "Marcar\nsalida",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14.5,
-                  height: 1.15,
-                  color: Color(0xFF475569),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _construirHistorialReciente(AsyncValue<dynamic> historial_async) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              "Historial y Registros",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            TextButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const HistorialAsistenciaPantalla(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.arrow_forward, size: 14),
-              label: const Text(
-                "Ver completo",
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: BumandColores.AZUL_DIACONIA,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Elementos interactivos del historial
-        _construirItemHistorial(
-          titulo: "Lun 11 ago",
-          horario: "08:02–13:10",
-          estado_valido: true,
-          alTocar: () {
-            DetalleAsistenciaModal.mostrar(
-              context,
-              titulo: "Lunes 11 de agosto",
-              subtitulo: "Registro de prácticas · 2026",
-              tipo_registro: "Prácticas pre profesionales",
-              lugar: "Iglesia Bautista Central",
-              ingreso: "08:02",
-              salida: "13:10",
-              horas_trabajadas: "5h 08m",
-              distancia: "38 m",
-              dentro_geocerca: true,
-            );
-          },
-        ),
-        _construirItemHistorial(
-          titulo: "Vie 08 ago",
-          horario: "08:55–12:40",
-          estado_valido: true,
-          alTocar: () {
-            DetalleAsistenciaModal.mostrar(
-              context,
-              titulo: "Viernes 08 de agosto",
-              subtitulo: "Registro de prácticas · 2026",
-              tipo_registro: "Prácticas pre profesionales",
-              lugar: "Iglesia Bautista Central",
-              ingreso: "08:55",
-              salida: "12:40",
-              horas_trabajadas: "3h 45m",
-              distancia: "22 m",
-              dentro_geocerca: true,
-            );
-          },
-        ),
-        _construirItemHistorial(
-          titulo: "Jue 07 ago",
-          horario: "Fuera de radio",
-          estado_valido: false,
-          alTocar: () {
-            DetalleAsistenciaModal.mostrar(
-              context,
-              titulo: "Jueves 07 de agosto",
-              subtitulo: "Registro de prácticas · 2026",
-              tipo_registro: "Prácticas pre profesionales",
-              lugar: "Punto no verificado",
-              ingreso: "09:15",
-              salida: "12:00",
-              horas_trabajadas: "2h 45m",
-              distancia: "142 m",
-              dentro_geocerca: false,
-            );
-          },
-        ),
-        _construirItemHistorial(
-          titulo: "Mié 06 ago",
-          horario: "08:47–12:30",
-          estado_valido: true,
-          alTocar: () {
-            DetalleAsistenciaModal.mostrar(
-              context,
-              titulo: "Miércoles 06 de agosto",
-              subtitulo: "Registro de prácticas · 2026",
-              tipo_registro: "Prácticas pre profesionales",
-              lugar: "Iglesia Bautista Central",
-              ingreso: "08:47",
-              salida: "12:30",
-              horas_trabajadas: "3h 43m",
-              distancia: "15 m",
-              dentro_geocerca: true,
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _construirItemHistorial({
-    required String titulo,
-    required String horario,
-    required bool estado_valido,
-    required VoidCallback alTocar,
-  }) {
+  Widget _construirCitaBiblica() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _BORDE),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: alTocar,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: estado_valido
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFFEF4444),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    titulo,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                Text(
-                  horario,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: estado_valido
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFDC2626),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _construirCitaBiblicaSeguimiento() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            BumandColores.AZUL_DIACONIA.withValues(alpha: 0.08),
-            BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.12),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: const Row(
         children: [
           Icon(
             Icons.menu_book_rounded,
-            size: 20,
-            color: BumandColores.AZUL_DIACONIA,
+            size: 18,
+            color: Color(0xFF0284C7),
           ),
           SizedBox(width: 10),
           Expanded(
@@ -1122,8 +1170,8 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   style: TextStyle(
                     fontStyle: FontStyle.italic,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: BumandColores.NEGRO,
+                    fontSize: 11.5,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
                 Text(
@@ -1131,7 +1179,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.bold,
-                    color: BumandColores.AZUL_DIACONIA,
+                    color: Color(0xFF0284C7),
                   ),
                 ),
               ],
@@ -1140,5 +1188,142 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         ],
       ),
     );
+  }
+}
+
+class _PintorMapaInicioRecorrido extends CustomPainter {
+  final String origen;
+  final String destino;
+
+  _PintorMapaInicioRecorrido({
+    required this.origen,
+    required this.destino,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = const Color(0xFF0A1D37),
+    );
+
+    final grilla_paint = Paint()
+      ..color = const Color(0xFF1E3A5F).withValues(alpha: 0.5)
+      ..strokeWidth = 1;
+    for (double x = 0; x < size.width; x += 22) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grilla_paint);
+    }
+    for (double y = 0; y < size.height; y += 22) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grilla_paint);
+    }
+
+    // Vías secundarias simuladas
+    final via_paint = Paint()
+      ..color = const Color(0xFF334155).withValues(alpha: 0.65)
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke;
+    final via_path = Path()
+      ..moveTo(0, size.height * 0.8)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 0.2,
+        size.width,
+        size.height * 0.5,
+      );
+    canvas.drawPath(via_path, via_paint);
+
+    final p_origen = Offset(size.width * 0.16, size.height * 0.64);
+    final p_intermedio = Offset(size.width * 0.50, size.height * 0.42);
+    final p_destino = Offset(size.width * 0.84, size.height * 0.56);
+
+    final ruta_sombra = Paint()
+      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.25)
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final ruta_linea = Paint()
+      ..color = const Color(0xFF38BDF8)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final path_ruta = Path()
+      ..moveTo(p_origen.dx, p_origen.dy)
+      ..quadraticBezierTo(
+        p_intermedio.dx,
+        p_intermedio.dy - 10,
+        p_destino.dx,
+        p_destino.dy,
+      );
+
+    canvas.drawPath(path_ruta, ruta_sombra);
+    canvas.drawPath(path_ruta, ruta_linea);
+
+    _dibujarNodo(
+      canvas,
+      size,
+      p_origen,
+      origen,
+      const Color(0xFF38BDF8),
+      arriba: false,
+    );
+    _dibujarNodo(
+      canvas,
+      size,
+      p_destino,
+      destino,
+      const Color(0xFF10B981),
+      arriba: true,
+    );
+  }
+
+  void _dibujarNodo(
+    Canvas canvas,
+    Size size,
+    Offset punto,
+    String etiqueta,
+    Color color, {
+    required bool arriba,
+  }) {
+    canvas.drawCircle(
+      punto,
+      9,
+      Paint()..color = color.withValues(alpha: 0.25),
+    );
+    canvas.drawCircle(punto, 5.5, Paint()..color = color);
+    canvas.drawCircle(punto, 2, Paint()..color = Colors.white);
+
+    final texto_corto =
+        etiqueta.length > 18 ? "${etiqueta.substring(0, 17)}…" : etiqueta;
+    final tp = TextPainter(
+      text: TextSpan(
+        text: texto_corto,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final dx = (punto.dx - tp.width / 2).clamp(8.0, size.width - tp.width - 8.0);
+    final dy = arriba ? punto.dy - 22 : punto.dy + 9;
+
+    final fondo_etiqueta = RRect.fromRectAndRadius(
+      Rect.fromLTWH(dx - 4, dy - 2, tp.width + 8, tp.height + 4),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(
+      fondo_etiqueta,
+      Paint()..color = const Color(0xFF0F172A).withValues(alpha: 0.85),
+    );
+    tp.paint(canvas, Offset(dx, dy));
+  }
+
+  @override
+  bool shouldRepaint(covariant _PintorMapaInicioRecorrido oldDelegate) {
+    return oldDelegate.origen != origen || oldDelegate.destino != destino;
   }
 }

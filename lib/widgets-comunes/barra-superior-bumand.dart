@@ -7,6 +7,8 @@ import '../modulos/autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modulos/autenticacion/pantallas/inicio-sesion-pantalla.dart';
 import '../modulos/evaluaciones/pantallas/evaluaciones-pantalla.dart';
 import '../modulos/asistencia/pantallas/historial-asistencia-pantalla.dart';
+import '../modulos/justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
+import '../modulos/notificaciones/pantallas/notificaciones-pantalla.dart';
 
 class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget {
   final String titulo;
@@ -14,6 +16,7 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
   final List<Widget>? acciones_adicionales;
   final bool mostrar_logos;
   final bool mostrar_perfil;
+  final VoidCallback? alTocarLogo;
 
   const BarraSuperiorBumand({
     super.key,
@@ -22,6 +25,7 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
     this.acciones_adicionales,
     this.mostrar_logos = true,
     this.mostrar_perfil = true,
+    this.alTocarLogo,
   });
 
   static const _DEGRADADO_DIACONIA = LinearGradient(
@@ -193,6 +197,38 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                 );
               },
             ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.assignment_late_outlined,
+                  color: Color(0xFFD97706),
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                "Permisos y Justificaciones",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: BumandColores.NEGRO,
+                ),
+              ),
+              subtitle: const Text(
+                "Reportes médicos y de incidencias con prueba",
+                style: TextStyle(fontSize: 12),
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                SolicitarJustificacionDialogo.mostrar(context);
+              },
+            ),
             const Divider(),
             const SizedBox(height: 4),
             ListTile(
@@ -277,13 +313,25 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
       actions: [
         ...?acciones_adicionales,
         if (mostrar_logos) ...[
-          // Logo BUMAND Blanco oficial
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 22),
-            child: SvgPicture.asset(
-              'assets/logos/logo-bumand-blanco.svg',
-              height: 26,
-              fit: BoxFit.contain,
+          // Logo BUMAND Blanco oficial interactivo
+          GestureDetector(
+            onTap: () {
+              if (alTocarLogo != null) {
+                alTocarLogo!();
+              } else {
+                ref.read(menu_principal_proveedor.notifier).alternar();
+              }
+            },
+            child: Tooltip(
+              message: "Menú principal",
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 22),
+                child: SvgPicture.asset(
+                  'assets/logos/logo-bumand-blanco.svg',
+                  height: 26,
+                  fit: BoxFit.contain,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -307,16 +355,45 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
               fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
         ],
-        if (mostrar_perfil)
+        if (mostrar_perfil) ...[
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, size: 22),
+            tooltip: "Notificaciones y códigos",
+            visualDensity: VisualDensity.compact,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const NotificacionesPantalla(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.account_circle_outlined, size: 24),
             tooltip: "Mi perfil y sesión",
+            visualDensity: VisualDensity.compact,
             onPressed: () => _mostrarDialogoPerfil(context, ref),
           ),
+        ],
         const SizedBox(width: 4),
       ],
     );
   }
 }
+
+class MenuPrincipalNotificador extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void alternar() => state = !state;
+  void mostrar() => state = true;
+  void ocultar() => state = false;
+}
+
+final menu_principal_proveedor =
+    NotifierProvider<MenuPrincipalNotificador, bool>(
+  MenuPrincipalNotificador.new,
+);
+

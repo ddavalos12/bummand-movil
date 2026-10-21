@@ -7,6 +7,7 @@ import '../../../widgets-comunes/tarjeta-spotlight.dart';
 import '../../../widgets-comunes/boton-juicy.dart';
 import '../proveedores/autenticacion-proveedor.dart';
 import '../verificacion_post_login_vista.dart';
+import '../../inicio/pantallas/inicio-pantalla.dart';
 import 'registro-pantalla.dart';
 
 class InicioSesionPantalla extends ConsumerStatefulWidget {
@@ -62,12 +63,30 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
         .iniciarSesion(correo, contrasena);
 
     if (exito && mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const VerificacionPostLoginVista(),
-        ),
-        (_) => false,
-      );
+      final repo = ref.read(autenticacion_repositorio_proveedor);
+      final estado_confirmacion = await repo.consultarEstadoConfirmacion();
+
+      if (!mounted) return;
+
+      final bool debe_confirmar =
+          estado_confirmacion.exito &&
+          (estado_confirmacion.datos?['debe_confirmar'] == true);
+
+      if (debe_confirmar) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const VerificacionPostLoginVista(),
+          ),
+          (_) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const InicioPantalla(),
+          ),
+          (_) => false,
+        );
+      }
     }
   }
 
@@ -299,9 +318,8 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
                       ),
                       const SizedBox(height: 6),
 
-                      // Subtítulo
                       const Text(
-                        "Sistema de gestión de becarios",
+                        "Portal del Estudiante Becario",
                         style: TextStyle(
                           fontSize: 14,
                           color: Color(0xFF64748B),
@@ -311,7 +329,6 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
                       ),
                       const SizedBox(height: 10),
 
-                      // Indicador azul horizontal
                       Center(
                         child: Container(
                           width: 44,
@@ -324,9 +341,8 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
                       ),
                       const SizedBox(height: 16),
 
-                      // Texto de instrucción
                       const Text(
-                        "Ingresa a tu cuenta para continuar",
+                        "Acceso móvil exclusivo para estudiantes becarios",
                         style: TextStyle(
                           fontSize: 13,
                           color: Color(0xFF94A3B8),

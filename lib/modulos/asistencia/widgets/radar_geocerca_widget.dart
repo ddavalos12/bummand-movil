@@ -1,8 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
-/// Widget interactivo de Radar de Geocerca con gradiente cian-turquesa institucional,
-/// círculos concéntricos animados, ícono de transeúnte y marcas horarias de ingreso/salida.
 class RadarGeocercaWidget extends StatefulWidget {
   final bool escaneando;
   final bool dentro_geocerca;
@@ -13,6 +12,10 @@ class RadarGeocercaWidget extends StatefulWidget {
   final VoidCallback? alReescanear;
   final String? hora_ingreso;
   final String? hora_salida;
+  final String? nombre_lugar;
+  final String? direccion_lugar;
+  final String? nombre_becario;
+  final VoidCallback? alSeleccionarLugar;
 
   const RadarGeocercaWidget({
     super.key,
@@ -25,6 +28,10 @@ class RadarGeocercaWidget extends StatefulWidget {
     this.alReescanear,
     this.hora_ingreso,
     this.hora_salida,
+    this.nombre_lugar,
+    this.direccion_lugar,
+    this.nombre_becario,
+    this.alSeleccionarLugar,
   });
 
   @override
@@ -34,6 +41,33 @@ class RadarGeocercaWidget extends StatefulWidget {
 class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controlador_pulso;
+  Timer? _temporizador_reloj;
+  DateTime _ahora = DateTime.now();
+
+  static const List<String> _DIAS = [
+    'LUN',
+    'MAR',
+    'MIÉ',
+    'JUE',
+    'VIE',
+    'SÁB',
+    'DOM',
+  ];
+
+  static const List<String> _MESES = [
+    'ENE',
+    'FEB',
+    'MAR',
+    'ABR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AGO',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DIC',
+  ];
 
   @override
   void initState() {
@@ -42,243 +76,355 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat();
+
+    _temporizador_reloj = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() => _ahora = DateTime.now());
+      }
+    });
   }
 
   @override
   void dispose() {
+    _temporizador_reloj?.cancel();
     _controlador_pulso.dispose();
     super.dispose();
   }
 
+  String _formatearFecha(DateTime fecha) {
+    final dia_nombre = _DIAS[fecha.weekday - 1];
+    final mes_nombre = _MESES[fecha.month - 1];
+    return "$dia_nombre ${fecha.day} $mes_nombre ${fecha.year}";
+  }
+
   @override
   Widget build(BuildContext context) {
+    final precision_m = (widget.posicion?.accuracy ?? 6.0).round();
+    final distancia_m = (widget.distancia_m ?? 42.0).round();
     final hora_ingreso_texto = widget.hora_ingreso ?? '--:--';
     final hora_salida_texto = widget.hora_salida ?? '--:--';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF0284C7),
-            Color(0xFF009EA8),
-            Color(0xFF06B6D4),
+            Color(0xFF0A1E3F),
+            Color(0xFF0C192E),
+            Color(0xFF060E1D),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF1E293B)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0284C7).withValues(alpha: 0.30),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: const Color(0xFF0A1E3F).withValues(alpha: 0.40),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Fila Superior: Estado de Búsqueda y Spinner/Refresco
+          // Fila superior: Precisión GPS institucional y botón de refresco
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                widget.escaneando ? 'Buscando GPS...' : 'Buscando GPS...',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              if (widget.escaneando)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              else
-                GestureDetector(
-                  onTap: widget.alReescanear,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.refresh_rounded,
-                      color: Colors.white,
-                      size: 18,
+                      color: widget.escaneando
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF10B981),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  Text(
+                    widget.escaneando ? 'Detectando satélites...' : 'GPS sincronizado',
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.gps_fixed_rounded,
+                    color: Color(0xFF38BDF8),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "GPS · precisión $precision_m m",
+                    style: const TextStyle(
+                      color: Color(0xFFCBD5E1),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: widget.alReescanear,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.refresh_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
+          ),
+          const SizedBox(height: 10),
+
+          // Centro: Círculos concéntricos de radar con marcador ámbar institucional
+          SizedBox(
+            height: 140,
+            width: 140,
+            child: AnimatedBuilder(
+              animation: _controlador_pulso,
+              builder: (ctx, child) {
+                return CustomPaint(
+                  painter: _PintorRadarAzul(
+                    progreso: _controlador_pulso.value,
+                    color_onda: const Color(0xFF0284C7),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF0F172A),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B),
+                          width: 2.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.location_on_rounded,
+                        color: Color(0xFFF59E0B),
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
           const SizedBox(height: 12),
 
-          // Centro: Radar con Ondas Concéntricas y Monigote Central
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                height: 160,
-                width: 160,
-                child: AnimatedBuilder(
-                  animation: _controlador_pulso,
-                  builder: (ctx, child) {
-                    return CustomPaint(
-                      painter: _PintorCirculosConcentricos(
-                        progreso: _controlador_pulso.value,
-                        color_onda: Colors.white,
-                        activo: true,
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.directions_walk_rounded,
-                            color: Color(0xFF475569),
-                            size: 28,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+          // Insignia: Dentro del radio permitido · X m
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: widget.dentro_geocerca
+                  ? const Color(0xFF065F46).withValues(alpha: 0.8)
+                  : const Color(0xFF991B1B).withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: widget.dentro_geocerca
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFEF4444),
+                width: 1,
               ),
-
-              // Balizas decorativas orbitales
-              Positioned(
-                top: 30,
-                right: 38,
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.2),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.circle, size: 6, color: Colors.white),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.circle,
+                  size: 7,
+                  color: widget.dentro_geocerca
+                      ? const Color(0xFF34D399)
+                      : const Color(0xFFF87171),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  widget.dentro_geocerca
+                      ? "Dentro del radio permitido · $distancia_m m"
+                      : "Fuera del radio permitido · $distancia_m m",
+                  style: TextStyle(
+                    color: widget.dentro_geocerca
+                        ? const Color(0xFFD1FAE5)
+                        : const Color(0xFFFEE2E2),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              Positioned(
-                bottom: 34,
-                left: 36,
-                child: Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.2),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.circle, size: 5, color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Fila Inferior: Horas de Ingreso y Salida
+          // Información de Sede/Lugar y Becario
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: widget.alSeleccionarLugar,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.apartment_rounded,
+                        color: Color(0xFF38BDF8),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.nombre_lugar ?? "Iglesia Bautista Central",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (widget.direccion_lugar != null &&
+                                widget.direccion_lugar!.isNotEmpty)
+                              Text(
+                                widget.direccion_lugar!,
+                                style: const TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontSize: 11,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (widget.alSeleccionarLugar != null) ...[
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.swap_horiz_rounded,
+                          color: Color(0xFF38BDF8),
+                          size: 18,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (widget.nombre_becario != null) ...[
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Divider(color: Colors.white12, height: 8),
+                  ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person_rounded,
+                        color: Color(0xFF38BDF8),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.nombre_becario!,
+                          style: const TextStyle(
+                            color: Color(0xFFE2E8F0),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Reloj Digital Grande y Fecha oficial
+          Text(
+            "${_ahora.hour.toString().padLeft(2, '0')}:${_ahora.minute.toString().padLeft(2, '0')}",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 40,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2.0,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _formatearFecha(_ahora),
+            style: const TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Fila sutil con estado de marcaciones de hoy
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Ingreso
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFBAE6FD),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      const Text(
-                        'Ingreso · de dónde partió',
-                        style: TextStyle(
-                          color: Color(0xFFE0F2FE),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    hora_ingreso_texto,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                ],
+              Text(
+                "Ingreso: $hora_ingreso_texto",
+                style: TextStyle(
+                  color: widget.hora_ingreso != null
+                      ? const Color(0xFF34D399)
+                      : const Color(0xFF64748B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-
-              // Salida
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFBAE6FD),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      const Text(
-                        'Salida',
-                        style: TextStyle(
-                          color: Color(0xFFE0F2FE),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    hora_salida_texto,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                ],
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text("•", style: TextStyle(color: Color(0xFF475569))),
+              ),
+              Text(
+                "Salida: $hora_salida_texto",
+                style: TextStyle(
+                  color: widget.hora_salida != null
+                      ? const Color(0xFF38BDF8)
+                      : const Color(0xFF64748B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -288,15 +434,13 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
   }
 }
 
-class _PintorCirculosConcentricos extends CustomPainter {
+class _PintorRadarAzul extends CustomPainter {
   final double progreso;
   final Color color_onda;
-  final bool activo;
 
-  const _PintorCirculosConcentricos({
+  const _PintorRadarAzul({
     required this.progreso,
     required this.color_onda,
-    required this.activo,
   });
 
   @override
@@ -306,32 +450,30 @@ class _PintorCirculosConcentricos extends CustomPainter {
 
     for (int i = 0; i < 3; i++) {
       final fase = (progreso + (i * 0.33)) % 1.0;
-      final radio = 28.0 + (fase * (radio_maximo - 28.0));
-      final opacidad = activo ? ((1.0 - fase) * 0.35).clamp(0.0, 1.0) : 0.08;
+      final radio = 22.0 + (fase * (radio_maximo - 22.0));
+      final opacidad = ((1.0 - fase) * 0.45).clamp(0.0, 1.0);
 
       final pintura_relleno = Paint()
-        ..color = color_onda.withValues(alpha: opacidad * 0.20)
+        ..color = color_onda.withValues(alpha: opacidad * 0.15)
         ..style = PaintingStyle.fill;
 
       final pintura_borde = Paint()
         ..color = color_onda.withValues(alpha: opacidad)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
+        ..strokeWidth = 1.3;
 
       lienzo.drawCircle(centro, radio, pintura_relleno);
       lienzo.drawCircle(centro, radio, pintura_borde);
     }
 
     final pintura_fija = Paint()
-      ..color = color_onda.withValues(alpha: 0.20)
+      ..color = color_onda.withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     lienzo.drawCircle(centro, radio_maximo, pintura_fija);
   }
 
   @override
-  bool shouldRepaint(covariant _PintorCirculosConcentricos oldDelegate) =>
-      oldDelegate.progreso != progreso ||
-      oldDelegate.color_onda != color_onda ||
-      oldDelegate.activo != activo;
+  bool shouldRepaint(covariant _PintorRadarAzul oldDelegate) =>
+      oldDelegate.progreso != progreso || oldDelegate.color_onda != color_onda;
 }

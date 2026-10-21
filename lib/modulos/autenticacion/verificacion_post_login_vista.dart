@@ -19,6 +19,7 @@ class _VerificacionPostLoginVistaState
   final TextEditingController _telefono_controlador = TextEditingController();
   final TextEditingController _direccion_controlador = TextEditingController();
   final TextEditingController _emergencia_controlador = TextEditingController();
+  bool _guardando_confirmacion = false;
 
   @override
   void initState() {
@@ -36,21 +37,39 @@ class _VerificacionPostLoginVistaState
     super.dispose();
   }
 
-  void _confirmarDatosFinales() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✓ Datos institucionales y de contacto confirmados'),
-        backgroundColor: BumandColores.AZUL_DIACONIA,
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _confirmarDatosFinales() async {
+    if (_guardando_confirmacion) return;
+    setState(() => _guardando_confirmacion = true);
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const InicioPantalla(),
-      ),
-      (_) => false,
-    );
+    final repo = ref.read(autenticacion_repositorio_proveedor);
+    final resultado = await repo.confirmarDatosPropios();
+
+    if (!mounted) return;
+    setState(() => _guardando_confirmacion = false);
+
+    if (resultado.exito) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✓ Datos confirmados formalmente ante Diaconía FRIF-IFD'),
+          backgroundColor: BumandColores.AZUL_DIACONIA,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const InicioPantalla(),
+        ),
+        (_) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(resultado.error ?? 'No se pudo registrar la confirmación'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   Widget _construirBannerDiaconia() {
@@ -509,7 +528,7 @@ class _VerificacionPostLoginVistaState
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _confirmarDatosFinales,
+                        onPressed: _guardando_confirmacion ? null : _confirmarDatosFinales,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: BumandColores.NARANJA,
                           foregroundColor: BumandColores.NEGRO,
@@ -518,20 +537,29 @@ class _VerificacionPostLoginVistaState
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Confirmar datos e ingresar',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                        child: _guardando_confirmacion
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Confirmar datos e ingresar',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(Icons.arrow_forward_rounded, size: 20),
+                                ],
                               ),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward_rounded, size: 20),
-                          ],
-                        ),
                       ),
                     ),
                     const SizedBox(height: 20),

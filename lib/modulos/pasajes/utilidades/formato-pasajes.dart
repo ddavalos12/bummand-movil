@@ -23,12 +23,72 @@ class FormatoPasajes {
 
   static String bs(dynamic valor) => "Bs ${numero(valor).toStringAsFixed(2)}";
 
+  static (int anio, int mes) parsearPeriodo(String periodo_str) {
+    try {
+      final limpio = periodo_str.trim().toLowerCase();
+
+      // Formato YYYY-MM o YYYY/MM
+      if (limpio.contains('-') || (limpio.contains('/') && !limpio.contains(' '))) {
+        final sep = limpio.contains('-') ? '-' : '/';
+        final partes = limpio.split(sep);
+        if (partes.length == 2) {
+          final p0 = int.tryParse(partes[0]);
+          final p1 = int.tryParse(partes[1]);
+          if (p0 != null && p1 != null) {
+            if (p0 > 1000) {
+              return (p0, p1.clamp(1, 12));
+            } else {
+              return (p1, p0.clamp(1, 12));
+            }
+          }
+        }
+      }
+
+      // Nombres de meses en español
+      const meses_es = {
+        'enero': 1,
+        'febrero': 2,
+        'marzo': 3,
+        'abril': 4,
+        'mayo': 5,
+        'junio': 6,
+        'julio': 7,
+        'agosto': 8,
+        'septiembre': 9,
+        'setiembre': 9,
+        'octubre': 10,
+        'noviembre': 11,
+        'diciembre': 12,
+      };
+
+      int mes_encontrado = 0;
+      for (final entrada in meses_es.entries) {
+        if (limpio.contains(entrada.key)) {
+          mes_encontrado = entrada.value;
+          break;
+        }
+      }
+
+      final match_anio = RegExp(r'\b(20\d\d)\b').firstMatch(limpio);
+      final anio_encontrado = match_anio != null
+          ? (int.tryParse(match_anio.group(1)!) ?? DateTime.now().year)
+          : DateTime.now().year;
+
+      if (mes_encontrado > 0) {
+        return (anio_encontrado, mes_encontrado);
+      }
+    } catch (_) {}
+
+    final hoy = DateTime.now();
+    return (hoy.year, hoy.month);
+  }
+
   static String periodo(String periodo_str) {
-    final partes = periodo_str.split("-");
-    if (partes.length != 2) return periodo_str;
-    final mes = int.tryParse(partes[1]) ?? 0;
-    if (mes < 1 || mes > 12) return periodo_str;
-    return "${_MESES[mes - 1]} ${partes[0]}";
+    final (anio, mes) = parsearPeriodo(periodo_str);
+    if (mes >= 1 && mes <= 12) {
+      return "${_MESES[mes - 1]} $anio";
+    }
+    return periodo_str;
   }
 
   static String diaMes(DateTime fecha) {
@@ -41,8 +101,8 @@ class FormatoPasajes {
   static String get periodoActual => periodoDe(DateTime.now());
 
   static DateTime fechaHabilitada(String periodo_str) {
-    final p = periodo_str.split("-").map(int.parse).toList();
-    return DateTime(p[0], p[1], DIA_ENVIO_FORMULARIO);
+    final (anio, mes) = parsearPeriodo(periodo_str);
+    return DateTime(anio, mes, DIA_ENVIO_FORMULARIO);
   }
 
   static bool puedeEnviar(String periodo_str) {

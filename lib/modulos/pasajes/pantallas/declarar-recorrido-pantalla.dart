@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,7 +44,14 @@ class _TramoTarifa {
 }
 
 class DeclararRecorridoPantalla extends ConsumerStatefulWidget {
-  const DeclararRecorridoPantalla({super.key});
+  final String? destino_inicial;
+  final String? tipo_actividad_inicial;
+
+  const DeclararRecorridoPantalla({
+    super.key,
+    this.destino_inicial,
+    this.tipo_actividad_inicial,
+  });
 
   @override
   ConsumerState<DeclararRecorridoPantalla> createState() =>
@@ -64,6 +72,12 @@ class _DeclararRecorridoPantallaState
   int _paso_activo = 1; // 1 = Ida, 2 = Vuelta
   bool _guardando = false;
   String? _capturando_gps_id;
+  String _tipo_actividad = "Prácticas";
+  static const List<String> TIPOS_ACTIVIDAD = [
+    "Prácticas",
+    "Escuela de Líderes",
+    "Acciones de Servicio",
+  ];
 
   // Paradas dinámicas para Ida y Vuelta
   final List<_ParadaRuta> _paradas_ida = [];
@@ -84,6 +98,10 @@ class _DeclararRecorridoPantallaState
   ];
 
   static const List<String> PARADAS_FRECUENTES = [
+    'Oficina Central Diaconía',
+    'Villa Adela, El Alto',
+    'Agencia Diaconía Ceja',
+    'Sede Escuela de Líderes',
     'Ceja',
     'Pérez Velasco',
     'Plaza San Francisco',
@@ -94,23 +112,69 @@ class _DeclararRecorridoPantallaState
     'Teleférico',
   ];
 
+  List<String> _obtenerOpcionesParadaDisponibles(
+    List<_ParadaRuta> lista_paradas,
+    int indice_actual,
+  ) {
+    final usadas_en_otras = <String>{};
+    for (int i = 0; i < lista_paradas.length; i++) {
+      if (i == indice_actual) continue;
+      final valor = lista_paradas[i].controlador.text.trim().toLowerCase();
+      if (valor.isNotEmpty) {
+        usadas_en_otras.add(valor);
+      }
+    }
+
+    final catalogo = <String>[
+      ...PARADAS_FRECUENTES,
+      if (widget.destino_inicial != null &&
+          widget.destino_inicial!.trim().isNotEmpty &&
+          !PARADAS_FRECUENTES.contains(widget.destino_inicial!.trim()))
+        widget.destino_inicial!.trim(),
+    ];
+
+    return catalogo
+        .where((op) => !usadas_en_otras.contains(op.trim().toLowerCase()))
+        .toList();
+  }
+
+  bool _tieneParadasDuplicadas(List<_ParadaRuta> lista_paradas) {
+    final vistos = <String>{};
+    for (final p in lista_paradas) {
+      final texto = p.controlador.text.trim().toLowerCase();
+      if (texto.isEmpty) continue;
+      if (vistos.contains(texto)) return true;
+      vistos.add(texto);
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
+    if (widget.tipo_actividad_inicial != null &&
+        TIPOS_ACTIVIDAD.contains(widget.tipo_actividad_inicial)) {
+      _tipo_actividad = widget.tipo_actividad_inicial!;
+    }
+    final destino_base =
+        (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty)
+            ? widget.destino_inicial!
+            : "Oficina Central Diaconía";
+
     // Inicializar paradas mínimas de Ida
     _paradas_ida.add(
       _ParadaRuta(controlador: TextEditingController(text: "Villa Adela, El Alto")),
     );
     _paradas_ida.add(
       _ParadaRuta(
-        controlador: TextEditingController(text: "Oficina Central Diaconía"),
+        controlador: TextEditingController(text: destino_base),
       ),
     );
 
     // Inicializar paradas mínimas de Vuelta
     _paradas_vuelta.add(
       _ParadaRuta(
-        controlador: TextEditingController(text: "Oficina Central Diaconía"),
+        controlador: TextEditingController(text: destino_base),
       ),
     );
     _paradas_vuelta.add(
@@ -163,7 +227,10 @@ class _DeclararRecorridoPantallaState
       if (origen != null && origen.isNotEmpty && _paradas_ida.isNotEmpty) {
         _paradas_ida[0].controlador.text = origen;
       }
-      if (destino != null && destino.isNotEmpty && _paradas_ida.length > 1) {
+      if ((widget.destino_inicial == null || widget.destino_inicial!.isEmpty) &&
+          destino != null &&
+          destino.isNotEmpty &&
+          _paradas_ida.length > 1) {
         _paradas_ida[1].controlador.text = destino;
       }
     });
@@ -291,6 +358,22 @@ class _DeclararRecorridoPantallaState
       return;
     }
 
+    if (_tieneParadasDuplicadas(_paradas_ida)) {
+      _mensaje(
+        "No puedes elegir dos veces el mismo lugar en el tramo de ida",
+        es_error: true,
+      );
+      return;
+    }
+
+    if (_tieneParadasDuplicadas(_paradas_vuelta)) {
+      _mensaje(
+        "No puedes elegir dos veces el mismo lugar en el tramo de vuelta",
+        es_error: true,
+      );
+      return;
+    }
+
     final total_ida = _calcularSubtotal(_tramos_ida);
     if (total_ida <= 0) {
       _mensaje("Selecciona al menos una tarifa para la ida", es_error: true);
@@ -300,8 +383,37 @@ class _DeclararRecorridoPantallaState
     setState(() => _guardando = true);
 
     final fecha_str = FormatoPasajes.fechaApi(_fecha);
-    final apoyo = _apoyo_controlador.text.trim();
+    final texto_apoyo = _apoyo_controlador.text.trim();
     final repositorio = ref.read(pasajes_repositorio_proveedor);
+
+    // Tramo IDA: Calles completas, medios y detalle JSON
+    final calles_ida = _paradas_ida
+        .map((p) => p.controlador.text.trim())
+        .where((t) => t.isNotEmpty)
+        .join(' → ');
+
+    final medios_ida_set = _tramos_ida
+        .map((t) => t.nombre ?? "Minibús")
+        .where((n) => n.isNotEmpty)
+        .toSet();
+    final medios_ida = medios_ida_set.isNotEmpty
+        ? medios_ida_set.join(" + ")
+        : "Minibús";
+
+    final detalle_ida_json = jsonEncode({
+      "sentido": "ida",
+      "calles_paradas": _paradas_ida.map((p) => p.controlador.text.trim()).toList(),
+      "tramos": _tramos_ida
+          .map((t) => {
+                "nombre": t.nombre ?? "Minibús",
+                "monto": t.monto,
+              })
+          .toList(),
+    });
+
+    final apoyo_ida = texto_apoyo.isNotEmpty
+        ? "[$_tipo_actividad] $texto_apoyo | Calles: $calles_ida | Transporte: $medios_ida"
+        : "[$_tipo_actividad] Calles: $calles_ida | Transporte: $medios_ida";
 
     final ida = await repositorio.agregarRecorrido(
       fecha: fecha_str,
@@ -309,7 +421,10 @@ class _DeclararRecorridoPantallaState
       origen: origen,
       destino: destino,
       tarifa: total_ida,
-      apoyo_realizado: apoyo,
+      apoyo_realizado: apoyo_ida,
+      calles_declaradas: calles_ida,
+      medio_transporte: medios_ida,
+      detalle_tramos_json: detalle_ida_json,
       lat_origen: _paradas_ida.first.posicion_gps?.latitude,
       lng_origen: _paradas_ida.first.posicion_gps?.longitude,
       lat_destino: _paradas_ida.last.posicion_gps?.latitude,
@@ -329,13 +444,45 @@ class _DeclararRecorridoPantallaState
       final origen_vuelta = _paradas_vuelta.first.controlador.text.trim();
       final destino_vuelta = _paradas_vuelta.last.controlador.text.trim();
 
+      // Tramo VUELTA: Calles completas, medios y detalle JSON
+      final calles_vuelta = _paradas_vuelta
+          .map((p) => p.controlador.text.trim())
+          .where((t) => t.isNotEmpty)
+          .join(' → ');
+
+      final medios_vuelta_set = _tramos_vuelta
+          .map((t) => t.nombre ?? "Minibús")
+          .where((n) => n.isNotEmpty)
+          .toSet();
+      final medios_vuelta = medios_vuelta_set.isNotEmpty
+          ? medios_vuelta_set.join(" + ")
+          : "Minibús";
+
+      final detalle_vuelta_json = jsonEncode({
+        "sentido": "vuelta",
+        "calles_paradas": _paradas_vuelta.map((p) => p.controlador.text.trim()).toList(),
+        "tramos": _tramos_vuelta
+            .map((t) => {
+                  "nombre": t.nombre ?? "Minibús",
+                  "monto": t.monto,
+                })
+            .toList(),
+      });
+
+      final apoyo_vuelta = texto_apoyo.isNotEmpty
+          ? "[$_tipo_actividad] $texto_apoyo | Calles: $calles_vuelta | Transporte: $medios_vuelta"
+          : "[$_tipo_actividad] Calles: $calles_vuelta | Transporte: $medios_vuelta";
+
       await repositorio.agregarRecorrido(
         fecha: fecha_str,
         tramo: "vuelta",
         origen: origen_vuelta.isNotEmpty ? origen_vuelta : destino,
         destino: destino_vuelta.isNotEmpty ? destino_vuelta : origen,
         tarifa: total_vuelta,
-        apoyo_realizado: apoyo,
+        apoyo_realizado: apoyo_vuelta,
+        calles_declaradas: calles_vuelta,
+        medio_transporte: medios_vuelta,
+        detalle_tramos_json: detalle_vuelta_json,
         lat_origen: _paradas_vuelta.first.posicion_gps?.latitude,
         lng_origen: _paradas_vuelta.first.posicion_gps?.longitude,
         lat_destino: _paradas_vuelta.last.posicion_gps?.latitude,
@@ -346,6 +493,8 @@ class _DeclararRecorridoPantallaState
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_CLAVE_ORIGEN, origen);
     await prefs.setString(_CLAVE_DESTINO, destino);
+
+    ref.invalidate(solicitudes_pasajes_proveedor);
 
     if (!mounted) return;
     _mensaje("✓ Recorrido del día guardado correctamente");
@@ -405,6 +554,14 @@ class _DeclararRecorridoPantallaState
               ),
             ),
             const SizedBox(height: 12),
+
+            // Mapa interactivo del trayecto declarado (Ida / Vuelta)
+            _construirMapaRutaRecorrido(),
+            const SizedBox(height: 14),
+
+            // Selector de Tipo de Actividad (Prácticas, Escuela de Líderes, Acciones de Servicio)
+            _construirSelectorTipoActividad(),
+            const SizedBox(height: 14),
 
             // Campo de Apoyo Realizado
             const Text(
@@ -609,11 +766,7 @@ class _DeclararRecorridoPantallaState
           ),
           const SizedBox(height: 12),
 
-          // Chips de paradas frecuentes para autocompletar
-          _construirChipsParadasFrecuentes(es_origen: true),
-          _construirChipsParadasFrecuentes(es_origen: false),
-
-          // Paradas dinámicas de la Ida
+          // Paradas dinámicas de la Ida con autocompletado integrado
           for (int i = 0; i < _paradas_ida.length; i++)
             _construirFilaParada(
               numero: i + 1,
@@ -631,13 +784,17 @@ class _DeclararRecorridoPantallaState
           TextButton.icon(
             onPressed: () {
               setState(() {
-                _paradas_ida.add(
+                final indice_insercion = _paradas_ida.length >= 2
+                    ? _paradas_ida.length - 1
+                    : _paradas_ida.length;
+                _paradas_ida.insert(
+                  indice_insercion,
                   _ParadaRuta(controlador: TextEditingController()),
                 );
               });
             },
             icon: const Icon(Icons.add, size: 16),
-            label: const Text("+ Agregar parada"),
+            label: const Text("Agregar parada intermedia"),
             style: TextButton.styleFrom(
               foregroundColor: BumandColores.AZUL_DIACONIA,
             ),
@@ -679,7 +836,7 @@ class _DeclararRecorridoPantallaState
               });
             },
             icon: const Icon(Icons.add_road, size: 16),
-            label: const Text("+ Agregar tramo de tarifa (transbordo)"),
+            label: const Text("Agregar tramo de tarifa (transbordo)"),
             style: TextButton.styleFrom(
               foregroundColor: BumandColores.AZUL_DIACONIA,
             ),
@@ -690,6 +847,13 @@ class _DeclararRecorridoPantallaState
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
+                if (_tieneParadasDuplicadas(_paradas_ida)) {
+                  _mensaje(
+                    "No puedes elegir dos veces el mismo lugar en el tramo de ida",
+                    es_error: true,
+                  );
+                  return;
+                }
                 HapticFeedback.lightImpact();
                 setState(() => _paso_activo = 2);
               },
@@ -792,13 +956,17 @@ class _DeclararRecorridoPantallaState
           TextButton.icon(
             onPressed: () {
               setState(() {
-                _paradas_vuelta.add(
+                final indice_insercion = _paradas_vuelta.length >= 2
+                    ? _paradas_vuelta.length - 1
+                    : _paradas_vuelta.length;
+                _paradas_vuelta.insert(
+                  indice_insercion,
                   _ParadaRuta(controlador: TextEditingController()),
                 );
               });
             },
             icon: const Icon(Icons.add, size: 16),
-            label: const Text("+ Agregar parada"),
+            label: const Text("Agregar parada intermedia"),
             style: TextButton.styleFrom(
               foregroundColor: BumandColores.AZUL_DIACONIA,
             ),
@@ -840,7 +1008,7 @@ class _DeclararRecorridoPantallaState
               });
             },
             icon: const Icon(Icons.add_road, size: 16),
-            label: const Text("+ Agregar tramo de tarifa (transbordo)"),
+            label: const Text("Agregar tramo de tarifa (transbordo)"),
             style: TextButton.styleFrom(
               foregroundColor: BumandColores.AZUL_DIACONIA,
             ),
@@ -850,47 +1018,59 @@ class _DeclararRecorridoPantallaState
     );
   }
 
-  Widget _construirChipsParadasFrecuentes({required bool es_origen}) {
+  Widget _construirSelectorTipoActividad() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          es_origen
-              ? "Paradas frecuentes (Origen):"
-              : "Paradas frecuentes (Destino):",
-          style: const TextStyle(
-            fontSize: 11.5,
+        const Text(
+          "Tipo de actividad",
+          style: TextStyle(
+            fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF64748B),
+            color: Color(0xFF334155),
           ),
         ),
         const SizedBox(height: 6),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          padding: const EdgeInsets.all(4),
           child: Row(
-            children: PARADAS_FRECUENTES.map((parada) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: ActionChip(
-                  label: Text(parada, style: const TextStyle(fontSize: 11)),
-                  backgroundColor: const Color(0xFFF1F5F9),
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    setState(() {
-                      if (es_origen && _paradas_ida.isNotEmpty) {
-                        _paradas_ida.first.controlador.text = parada;
-                      } else if (!es_origen && _paradas_ida.length > 1) {
-                        _paradas_ida.last.controlador.text = parada;
-                      }
-                    });
-                  },
+            children: TIPOS_ACTIVIDAD.map((tipo) {
+              final seleccionado = _tipo_actividad == tipo;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _tipo_actividad = tipo),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: seleccionado
+                          ? BumandColores.AZUL_DIACONIA
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      tipo,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: seleccionado
+                            ? Colors.white
+                            : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
                 ),
               );
             }).toList(),
           ),
         ),
-        const SizedBox(height: 8),
       ],
     );
   }
@@ -902,7 +1082,15 @@ class _DeclararRecorridoPantallaState
     required bool puede_eliminar,
     required VoidCallback alEliminar,
   }) {
+    final lista_paradas = es_ida ? _paradas_ida : _paradas_vuelta;
+    final es_ultima = numero == lista_paradas.length;
+    final opciones_disponibles = _obtenerOpcionesParadaDisponibles(
+      lista_paradas,
+      numero - 1,
+    );
+
     return Container(
+      key: ObjectKey(parada),
       margin: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
@@ -941,28 +1129,18 @@ class _DeclararRecorridoPantallaState
                 : () => _capturarGps('parada_${es_ida ? "ida" : "vuelta"}_$numero', parada),
           ),
 
-          // Campo de texto de parada
+          // Campo dinámico con autocompletado y menú de paradas frecuentes sin duplicados
           Expanded(
-            child: TextFormField(
-              controller: parada.controlador,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                hintText: numero == 1
-                    ? "Origen (toca 📍 o escribe)"
-                    : numero == 2
-                        ? "Destino (toca 📍 o escribe)"
-                        : "Parada $numero",
-                hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                ),
-              ),
+            child: _CampoParadaCombobox(
+              key: ObjectKey(parada.controlador),
+              controlador: parada.controlador,
+              pista: numero == 1
+                  ? "Origen (escribe o elige parada)"
+                  : es_ultima
+                      ? "Destino final (escribe o elige parada)"
+                      : "Parada intermedia $numero",
+              opciones: opciones_disponibles,
+              alCambiar: (_) => setState(() {}),
             ),
           ),
           const SizedBox(width: 6),
@@ -1193,4 +1371,435 @@ class _DeclararRecorridoPantallaState
       ),
     );
   }
+
+  Widget _construirMapaRutaRecorrido() {
+    final paradas_activas = _paso_activo == 1 ? _paradas_ida : _paradas_vuelta;
+    final tramos_activos = _paso_activo == 1 ? _tramos_ida : _tramos_vuelta;
+    final nombres_paradas = paradas_activas
+        .map((p) => p.controlador.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+    final origen_txt =
+        nombres_paradas.isNotEmpty ? nombres_paradas.first : "Origen por definir";
+    final destino_txt =
+        nombres_paradas.length > 1 ? nombres_paradas.last : "Destino por definir";
+    final medios_txt = tramos_activos
+        .map((t) => t.nombre ?? "Minibús")
+        .where((n) => n.isNotEmpty)
+        .toSet()
+        .join(" + ");
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F294A), Color(0xFF153E6C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F294A).withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.map_outlined,
+                      color: Color(0xFF38BDF8),
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _paso_activo == 1
+                        ? "Mapa de Ruta · Tramo de Ida"
+                        : "Mapa de Ruta · Tramo de Vuelta",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFF34D399).withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Text(
+                  "${nombres_paradas.length} paradas",
+                  style: const TextStyle(
+                    color: Color(0xFF6EE7B7),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 120,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CustomPaint(
+                painter: _PintorMapaTrayecto(
+                  paradas: nombres_paradas.isEmpty
+                      ? ["Origen", "Destino"]
+                      : nombres_paradas,
+                  es_vuelta: _paso_activo == 2,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(
+                Icons.trip_origin,
+                size: 13,
+                color: Color(0xFF38BDF8),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  "$origen_txt  →  $destino_txt",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFE2E8F0),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                medios_txt.isNotEmpty ? medios_txt : "Minibús",
+                style: const TextStyle(
+                  color: Color(0xFFFBBF24),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+class _PintorMapaTrayecto extends CustomPainter {
+  final List<String> paradas;
+  final bool es_vuelta;
+
+  _PintorMapaTrayecto({
+    required this.paradas,
+    required this.es_vuelta,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fondo_paint = Paint()..color = const Color(0xFF0A1D37);
+    canvas.drawRect(Offset.zero & size, fondo_paint);
+
+    final grilla_paint = Paint()
+      ..color = const Color(0xFF1E3A5F).withValues(alpha: 0.55)
+      ..strokeWidth = 1;
+
+    const paso_grilla = 24.0;
+    for (double x = 0; x < size.width; x += paso_grilla) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grilla_paint);
+    }
+    for (double y = 0; y < size.height; y += paso_grilla) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grilla_paint);
+    }
+
+    // Avenidas referenciales estilizadas (Autopista La Paz - El Alto / Av. Juan Pablo II)
+    final avenida_paint = Paint()
+      ..color = const Color(0xFF334155).withValues(alpha: 0.7)
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke;
+    final via_path = Path()
+      ..moveTo(0, size.height * 0.75)
+      ..quadraticBezierTo(
+        size.width * 0.45,
+        size.height * 0.25,
+        size.width,
+        size.height * 0.45,
+      );
+    canvas.drawPath(via_path, avenida_paint);
+
+    final total = paradas.length < 2 ? 2 : paradas.length;
+    final puntos = <Offset>[];
+    final margen_x = 34.0;
+    final ancho_util = (size.width - margen_x * 2).clamp(40.0, size.width);
+
+    for (int i = 0; i < total; i++) {
+      final t = total == 1 ? 0.5 : i / (total - 1);
+      final x = margen_x + ancho_util * t;
+      final variacion_y = (i.isEven ? 0.62 : 0.36);
+      final y = size.height * variacion_y;
+      puntos.add(Offset(x, y));
+    }
+
+    // Sombra de ruta activa
+    final ruta_sombra = Paint()
+      ..color = (es_vuelta
+              ? const Color(0xFFF59E0B)
+              : const Color(0xFF38BDF8))
+          .withValues(alpha: 0.28)
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final ruta_paint = Paint()
+      ..color = es_vuelta ? const Color(0xFFFBBF24) : const Color(0xFF38BDF8)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final path_ruta = Path()..moveTo(puntos.first.dx, puntos.first.dy);
+    for (int i = 1; i < puntos.length; i++) {
+      final prev = puntos[i - 1];
+      final curr = puntos[i];
+      final ctrl_x = (prev.dx + curr.dx) / 2;
+      path_ruta.cubicTo(ctrl_x, prev.dy, ctrl_x, curr.dy, curr.dx, curr.dy);
+    }
+    canvas.drawPath(path_ruta, ruta_sombra);
+    canvas.drawPath(path_ruta, ruta_paint);
+
+    // Dibujar nodos y etiquetas de cada parada
+    for (int i = 0; i < puntos.length; i++) {
+      final p = puntos[i];
+      final es_extremo = i == 0 || i == puntos.length - 1;
+      final color_nodo = i == 0
+          ? const Color(0xFF38BDF8)
+          : (i == puntos.length - 1
+              ? const Color(0xFF10B981)
+              : const Color(0xFFFBBF24));
+
+      canvas.drawCircle(
+        p,
+        es_extremo ? 9 : 6,
+        Paint()..color = color_nodo.withValues(alpha: 0.28),
+      );
+      canvas.drawCircle(
+        p,
+        es_extremo ? 5.5 : 4,
+        Paint()..color = color_nodo,
+      );
+      canvas.drawCircle(
+        p,
+        2,
+        Paint()..color = Colors.white,
+      );
+
+      final texto_parada = i < paradas.length ? paradas[i] : "Parada ${i + 1}";
+      final etiqueta_corta = texto_parada.length > 16
+          ? "${texto_parada.substring(0, 15)}…"
+          : texto_parada;
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: etiqueta_corta,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final dy_texto = (i.isEven) ? p.dy + 10 : p.dy - 22;
+      final dx_texto =
+          (p.dx - tp.width / 2).clamp(6.0, size.width - tp.width - 6.0);
+
+      final rect_etiqueta = RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          dx_texto - 4,
+          dy_texto - 2,
+          tp.width + 8,
+          tp.height + 4,
+        ),
+        const Radius.circular(5),
+      );
+      canvas.drawRRect(
+        rect_etiqueta,
+        Paint()..color = const Color(0xFF0F172A).withValues(alpha: 0.85),
+      );
+      tp.paint(canvas, Offset(dx_texto, dy_texto));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PintorMapaTrayecto oldDelegate) {
+    return oldDelegate.es_vuelta != es_vuelta ||
+        oldDelegate.paradas.join('|') != paradas.join('|');
+  }
+}
+
+class _CampoParadaCombobox extends StatelessWidget {
+  final TextEditingController controlador;
+  final String pista;
+  final List<String> opciones;
+  final ValueChanged<String>? alCambiar;
+
+  const _CampoParadaCombobox({
+    super.key,
+    required this.controlador,
+    required this.pista,
+    required this.opciones,
+    this.alCambiar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Autocomplete<String>(
+          initialValue: TextEditingValue(text: controlador.text),
+          optionsBuilder: (TextEditingValue valorTexto) {
+            if (valorTexto.text.isEmpty) {
+              return opciones;
+            }
+            return opciones.where((opcion) =>
+                opcion.toLowerCase().contains(valorTexto.text.toLowerCase()));
+          },
+          onSelected: (String seleccion) {
+            controlador.text = seleccion;
+            alCambiar?.call(seleccion);
+          },
+          fieldViewBuilder:
+              (context, textController, focusNode, onFieldSubmitted) {
+            if (controlador.text != textController.text && !focusNode.hasFocus) {
+              textController.text = controlador.text;
+            }
+            return TextField(
+              controller: textController,
+              focusNode: focusNode,
+              onChanged: (val) {
+                controlador.text = val;
+                alCambiar?.call(val);
+              },
+              onSubmitted: (_) => onFieldSubmitted(),
+              style: const TextStyle(fontSize: 13.5),
+              decoration: InputDecoration(
+                hintText: pista,
+                hintStyle:
+                    TextStyle(fontSize: 12.5, color: Colors.grey.shade400),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                suffixIcon: PopupMenuButton<String>(
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    size: 22,
+                    color: Color(0xFF64748B),
+                  ),
+                  tooltip: "Paradas frecuentes",
+                  onSelected: (String parada) {
+                    textController.text = parada;
+                    controlador.text = parada;
+                    alCambiar?.call(parada);
+                  },
+                  itemBuilder: (context) {
+                    return opciones.map((p) {
+                      return PopupMenuItem<String>(
+                        value: p,
+                        height: 38,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 16,
+                              color: BumandColores.AZUL_DIACONIA,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                p,
+                                style: const TextStyle(fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList();
+                  },
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+              ),
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4.0,
+                borderRadius: BorderRadius.circular(10),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: 200,
+                    maxWidth: constraints.maxWidth,
+                  ),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final option = options.elementAt(index);
+                      return ListTile(
+                        dense: true,
+                        leading: const Icon(
+                          Icons.location_on_outlined,
+                          size: 16,
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                        title:
+                            Text(option, style: const TextStyle(fontSize: 13)),
+                        onTap: () => onSelected(option),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
