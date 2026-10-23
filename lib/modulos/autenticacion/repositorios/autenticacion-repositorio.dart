@@ -62,6 +62,34 @@ class AutenticacionRepositorio {
     }
   }
 
+  Future<Resultado<Map<String, dynamic>>> verificarCi(String ci) async {
+    final ci_limpio = ci.trim();
+    if (ci_limpio.isEmpty) {
+      return Resultado.fallido('El documento de identidad es requerido');
+    }
+
+    try {
+      final url = Uri.parse(
+        '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_VERIFICAR_CI}/$ci_limpio',
+      );
+      final respuesta = await _cliente_http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
+      if (respuesta.statusCode != 200) {
+        final mensaje_error =
+            datos['mensaje'] ?? datos['error'] ?? datos['message'] ?? 'Error al verificar el C.I.';
+        return Resultado.fallido(mensaje_error.toString());
+      }
+
+      return Resultado.exitoso(datos);
+    } catch (error_capturado) {
+      return Resultado.fallido('No se pudo conectar con el servidor: $error_capturado');
+    }
+  }
+
   Future<Resultado<UsuarioModelo>> registrar(
     String ci,
     String correo,

@@ -184,5 +184,30 @@ void main() {
       expect(token_guardado, equals('token-nuevo-registro'));
       expect(rol_guardado, equals('becario'));
     });
+
+    test('Verificacion de CI consulta ApiConstantes.PUNTO_VERIFICAR_CI y retorna datos', () async {
+      String? url_solicitada;
+
+      final cliente_simulado = MockClienteHttp((peticion) async {
+        url_solicitada = peticion.url.toString();
+        final cuerpo = jsonEncode({
+          'existe': true,
+          'ya_registrado': false,
+          'nombre': 'Adai Belen Huayta Cardozo',
+          'carrera': 'Ingeniería de Sistemas',
+          'universidad': 'UMSA',
+        });
+        return http.Response(cuerpo, 200, headers: {'content-type': 'application/json'});
+      });
+
+      final repositorio = AutenticacionRepositorio(cliente_http: cliente_simulado);
+      final resultado = await repositorio.verificarCi('13696496');
+
+      expect(resultado.exito, isTrue);
+      expect(resultado.datos!['existe'], isTrue);
+      expect(resultado.datos!['ya_registrado'], isFalse);
+      expect(resultado.datos!['nombre'], equals('Adai Belen Huayta Cardozo'));
+      expect(url_solicitada, equals('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_VERIFICAR_CI}/13696496'));
+    });
   });
 }

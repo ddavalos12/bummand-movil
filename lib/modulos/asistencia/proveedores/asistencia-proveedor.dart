@@ -30,12 +30,10 @@ final historial_asistencia_proveedor = FutureProvider((ref) {
 final historialAsistenciaProveedor = historial_asistencia_proveedor;
 
 class AsistenciaNotificador extends AsyncNotifier<void> {
-  late final AsistenciaRepositorio _repo;
+  AsistenciaRepositorio get _repo => ref.read(asistencia_repositorio_proveedor);
 
   @override
-  FutureOr<void> build() {
-    _repo = ref.read(asistencia_repositorio_proveedor);
-  }
+  FutureOr<void> build() {}
 
   Future<String?> registrarIngreso(
     String tipo, {

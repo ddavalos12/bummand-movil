@@ -22,11 +22,11 @@ final solicitudesPasajesProveedor = solicitudes_pasajes_proveedor;
 
 class SolicitudesPasajesNotificador
     extends AsyncNotifier<List<SolicitudPasajeModelo>> {
-  late final PasajesRepositorio _repositorio;
+  PasajesRepositorio get _repositorio =>
+      ref.read(pasajes_repositorio_proveedor);
 
   @override
   Future<List<SolicitudPasajeModelo>> build() async {
-    _repositorio = ref.watch(pasajes_repositorio_proveedor);
     return await _cargarSolicitudesInterno();
   }
 

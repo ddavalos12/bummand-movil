@@ -179,12 +179,8 @@ void main() {
 
         expect(
           find.text('Escala Oficial de Retenciones por Retraso'),
-          findsOneWidget,
+          findsNothing,
         );
-        expect(find.text('10 Bs.'), findsOneWidget);
-        expect(find.text('20 Bs.'), findsOneWidget);
-        expect(find.text('30 Bs.'), findsOneWidget);
-        expect(find.text('50 Bs.'), findsOneWidget);
         expect(find.text('Total Retención'), findsOneWidget);
         expect(find.text('Minutos Retraso'), findsOneWidget);
         expect(find.text('Viernes 09/10/2026'), findsOneWidget);

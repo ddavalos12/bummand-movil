@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../nucleo/utilidades/resultado.dart';
 import '../modelos/usuario-modelo.dart';
 import '../repositorios/autenticacion-repositorio.dart';
 
@@ -34,11 +35,11 @@ class AutenticacionEstado {
 typedef AuthEstado = AutenticacionEstado;
 
 class AutenticacionNotificador extends Notifier<AutenticacionEstado> {
-  late final AutenticacionRepositorio _repositorio;
+  AutenticacionRepositorio get _repositorio =>
+      ref.read(autenticacion_repositorio_proveedor);
 
   @override
   AutenticacionEstado build() {
-    _repositorio = ref.watch(autenticacion_repositorio_proveedor);
     return const AutenticacionEstado();
   }
 
@@ -68,6 +69,10 @@ class AutenticacionNotificador extends Notifier<AutenticacionEstado> {
       state = state.copiarCon(cargando: false, error: resultado.error);
       return false;
     }
+  }
+
+  Future<Resultado<Map<String, dynamic>>> verificarCi(String ci) async {
+    return _repositorio.verificarCi(ci);
   }
 
   Future<void> verificarSesionExistente() async {

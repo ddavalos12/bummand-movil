@@ -9,6 +9,7 @@ import '../../animaciones/animaciones.dart';
 import '../modelos/versiculo-diario-modelo.dart';
 import '../proveedores/devocionales-proveedor.dart';
 import '../repositorios/devocionales-repositorio.dart';
+import '../widgets/selector-cita-biblica-dialogo.dart';
 
 class DevocionalesPantalla extends ConsumerStatefulWidget {
   const DevocionalesPantalla({super.key});
@@ -230,13 +231,46 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: cita_ctrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Cita bíblica (ej. Filipenses 4:13)',
-                    prefixIcon: Icon(Icons.auto_stories_outlined),
-                    border: OutlineInputBorder(),
+                  readOnly: true,
+                  onTap: () async {
+                    final seleccion = await SelectorCitaBiblicaDialogo.mostrar(
+                      ctx,
+                      cita_inicial: cita_ctrl.text.isNotEmpty
+                          ? cita_ctrl.text
+                          : 'Filipenses 4:13',
+                    );
+                    if (seleccion != null) {
+                      cita_ctrl.text = seleccion;
+                    }
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Cita bíblica canónica',
+                    hintText: 'Toca para seleccionar libro, capítulo y rango',
+                    prefixIcon: const Icon(Icons.auto_stories_outlined),
+                    suffixIcon: IconButton(
+                      icon: const Icon(
+                        Icons.tune_outlined,
+                        color: BumandColores.AZUL_DIACONIA,
+                      ),
+                      tooltip: 'Selector canónico de pasaje bíblico',
+                      onPressed: () async {
+                        final seleccion =
+                            await SelectorCitaBiblicaDialogo.mostrar(
+                          ctx,
+                          cita_inicial: cita_ctrl.text.isNotEmpty
+                              ? cita_ctrl.text
+                              : 'Filipenses 4:13',
+                        );
+                        if (seleccion != null) {
+                          cita_ctrl.text = seleccion;
+                        }
+                      },
+                    ),
+                    border: const OutlineInputBorder(),
                   ),
-                  validator: (v) =>
-                      v?.trim().isEmpty ?? true ? 'Campo obligatorio' : null,
+                  validator: (v) => v?.trim().isEmpty ?? true
+                      ? 'Seleccione una cita bíblica'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

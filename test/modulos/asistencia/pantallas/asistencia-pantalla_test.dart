@@ -50,9 +50,9 @@ void main() {
       expect(find.text('Marcar ingreso'), findsOneWidget);
       expect(find.text('Marcar salida'), findsOneWidget);
 
-      // Verificación de Cita Bíblica
-      expect(find.textContaining('«Todo lo puedo en Cristo que me fortalece»'), findsOneWidget);
-      expect(find.textContaining('Filipenses 4:13'), findsOneWidget);
+      // Verificación de Cita Bíblica (removida)
+      expect(find.textContaining('«Todo lo puedo en Cristo que me fortalece»'), findsNothing);
+      expect(find.textContaining('Filipenses 4:13'), findsNothing);
     });
 
     testWidgets('Verifica que modo supervisor no aparece en móvil y renderiza los 3 pilares', (

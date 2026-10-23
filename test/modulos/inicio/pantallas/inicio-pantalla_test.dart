@@ -61,6 +61,7 @@ void main() {
 
         // Valida los destinos de la barra inferior
         expect(find.text('Asistencia'), findsWidgets);
+        expect(find.text('Pasajes'), findsWidgets);
         expect(find.text('Evaluación'), findsWidgets);
         expect(find.text('Historial'), findsWidgets);
 
@@ -68,6 +69,16 @@ void main() {
         expect(find.text('Eventos'), findsNothing);
         expect(find.text('Devocional'), findsNothing);
         expect(find.text('Notificaciones'), findsNothing);
+
+        // Conmutar a la pestaña Pasajes (Declarar pasajes de hoy)
+        await probador.tap(find.text('Pasajes'));
+        await probador.pump();
+        await probador.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Declarar pasajes'), findsOneWidget);
+        expect(find.textContaining('1 · Ida'), findsOneWidget);
+        expect(find.textContaining('2 · Vuelta'), findsOneWidget);
+        expect(find.text('Disponible para editar sólo hoy'), findsOneWidget);
 
         // Conmutar a la pestaña Evaluación
         await probador.tap(find.text('Evaluación'));

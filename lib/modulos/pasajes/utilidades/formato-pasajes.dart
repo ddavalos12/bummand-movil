@@ -117,6 +117,21 @@ class FormatoPasajes {
   static String ddmmyyyy(DateTime f) =>
       "${f.day.toString().padLeft(2, '0')}/${f.month.toString().padLeft(2, '0')}/${f.year}";
 
+  static String fechaCompleta(DateTime f) {
+    const dias = [
+      "Lunes",
+      "Martes",
+      "Miércoles",
+      "Jueves",
+      "Viernes",
+      "Sábado",
+      "Domingo",
+    ];
+    final dia_semana = dias[f.weekday - 1];
+    final mes = _MESES[f.month - 1];
+    return "$dia_semana, ${f.day} de $mes de ${f.year}";
+  }
+
   static String fechaApi(DateTime fecha) =>
       "${fecha.year.toString().padLeft(4, '0')}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}";
 }

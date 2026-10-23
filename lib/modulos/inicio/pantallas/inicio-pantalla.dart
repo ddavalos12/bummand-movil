@@ -11,6 +11,7 @@ import '../../evaluaciones/pantallas/evaluacion-socioeconomica-pantalla.dart';
 import '../../evaluaciones/pantallas/evaluaciones-pantalla.dart';
 import '../../justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
 import '../../pasajes/pantallas/declarar-recorrido-pantalla.dart';
+import '../proveedores/inicio-proveedor.dart';
 
 class InicioPantalla extends ConsumerStatefulWidget {
   final bool mostrar_versiculo_inicio;
@@ -21,16 +22,16 @@ class InicioPantalla extends ConsumerStatefulWidget {
 }
 
 class _InicioPantallaState extends ConsumerState<InicioPantalla> {
-  int _indice = 0;
-
   static const _pantallas = [
     AsistenciaPantalla(),
+    DeclararRecorridoPantalla(es_pestana: true, solo_hoy: true),
     EvaluacionesPantalla(),
     HistorialAsistenciaPantalla(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final indice_actual = ref.watch(pestana_inicio_proveedor);
     final menu_abierto = ref.watch(menu_principal_proveedor);
 
     return Scaffold(
@@ -41,15 +42,15 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
           Expanded(
             child: menu_abierto
                 ? _construirVistaMenuPrincipal(context)
-                : IndexedStack(index: _indice, children: _pantallas),
+                : IndexedStack(index: indice_actual, children: _pantallas),
           ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _indice,
+        selectedIndex: indice_actual,
         onDestinationSelected: (i) {
           ref.read(menu_principal_proveedor.notifier).ocultar();
-          setState(() => _indice = i);
+          ref.read(pestana_inicio_proveedor.notifier).cambiarPestana(i);
         },
         backgroundColor: BumandColores.BLANCO,
         indicatorColor: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.15),
@@ -61,6 +62,14 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
               color: BumandColores.AZUL_DIACONIA,
             ),
             label: "Asistencia",
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.directions_bus_outlined),
+            selectedIcon: Icon(
+              Icons.directions_bus,
+              color: BumandColores.AZUL_DIACONIA,
+            ),
+            label: "Pasajes",
           ),
           NavigationDestination(
             icon: Icon(Icons.assignment_outlined),
@@ -168,7 +177,7 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
             subtitulo: "Registra tu ingreso, salida y recorrido con mapa",
             alTocar: () {
               ref.read(menu_principal_proveedor.notifier).ocultar();
-              setState(() => _indice = 0);
+              ref.read(pestana_inicio_proveedor.notifier).cambiarPestana(0);
             },
           ),
           const SizedBox(height: 10),
@@ -181,11 +190,7 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
             subtitulo: "Declara tus paradas de ida y vuelta con mapa",
             alTocar: () {
               ref.read(menu_principal_proveedor.notifier).ocultar();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const DeclararRecorridoPantalla(),
-                ),
-              );
+              ref.read(pestana_inicio_proveedor.notifier).cambiarPestana(1);
             },
           ),
           const SizedBox(height: 10),
@@ -198,7 +203,7 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
             subtitulo: "Revisa tus módulos",
             alTocar: () {
               ref.read(menu_principal_proveedor.notifier).ocultar();
-              setState(() => _indice = 1);
+              ref.read(pestana_inicio_proveedor.notifier).cambiarPestana(2);
             },
           ),
           const SizedBox(height: 10),
@@ -228,7 +233,7 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
             subtitulo: "Consulta tus asistencias y pasajes",
             alTocar: () {
               ref.read(menu_principal_proveedor.notifier).ocultar();
-              setState(() => _indice = 2);
+              ref.read(pestana_inicio_proveedor.notifier).cambiarPestana(3);
             },
           ),
           const SizedBox(height: 10),

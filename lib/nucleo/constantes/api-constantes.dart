@@ -22,6 +22,7 @@ class ApiConstantes {
   // Rutas específicas de módulos
   static const String PUNTO_INICIO_SESION = '/autenticacion/inicio-sesion';
   static const String PUNTO_REGISTRO = '/autenticacion/registro';
+  static const String PUNTO_VERIFICAR_CI = '/autenticacion/verificar-ci';
   static const String PUNTO_ASISTENCIA_INGRESO = '/asistencia/ingreso';
   static const String PUNTO_ASISTENCIA_SALIDA = '/asistencia/salida';
   static const String PUNTO_ASISTENCIA_HISTORIAL = '/asistencia';

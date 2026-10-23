@@ -43,235 +43,251 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      builder: (ctx) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.88,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: BumandColores.AZUL_DIACONIA,
-                  child: Text(
-                    (usuario?.nombre.isNotEmpty ?? false)
-                        ? usuario!.nombre.substring(0, 1).toUpperCase()
-                        : "B",
-                    style: const TextStyle(
-                      color: BumandColores.NARANJA,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 22,
+        child: Container(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            16,
+            24,
+            MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      Text(
-                        usuario?.nombre ?? "Usuario Becario",
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: BumandColores.AZUL_DIACONIA,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        usuario?.correo ?? "becario@bumand.bo",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: BumandColores.AZUL_DIACONIA.withValues(
-                            alpha: 0.1,
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                      CircleAvatar(
+                        radius: 26,
+                        backgroundColor: BumandColores.AZUL_DIACONIA,
                         child: Text(
-                          (usuario?.rol ?? "becario").toUpperCase(),
+                          (usuario?.nombre.isNotEmpty ?? false)
+                              ? usuario!.nombre.substring(0, 1).toUpperCase()
+                              : "B",
                           style: const TextStyle(
-                            fontSize: 10,
+                            color: BumandColores.NARANJA,
                             fontWeight: FontWeight.bold,
-                            color: BumandColores.AZUL_DIACONIA,
+                            fontSize: 22,
                           ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              usuario?.nombre ?? "Usuario Becario",
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: BumandColores.AZUL_DIACONIA,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              usuario?.correo ?? "becario@bumand.bo",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: BumandColores.AZUL_DIACONIA.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                (usuario?.rol ?? "becario").toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: BumandColores.AZUL_DIACONIA,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.assignment_turned_in_outlined,
-                  color: BumandColores.AZUL_DIACONIA,
-                  size: 20,
-                ),
-              ),
-              title: const Text(
-                "Mis Evaluaciones (360°)",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: BumandColores.NEGRO,
-                ),
-              ),
-              subtitle: const Text(
-                "Calificación ponderada y desglose modular",
-                style: TextStyle(fontSize: 12),
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EvaluacionesPantalla()),
-                );
-              },
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.history_rounded,
-                  color: BumandColores.AZUL_DIACONIA,
-                  size: 20,
-                ),
-              ),
-              title: const Text(
-                "Historial de Asistencias",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: BumandColores.NEGRO,
-                ),
-              ),
-              subtitle: const Text(
-                "Marcaciones de ingreso y salida con GPS",
-                style: TextStyle(fontSize: 12),
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const HistorialAsistenciaPantalla(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.assignment_late_outlined,
-                  color: Color(0xFFD97706),
-                  size: 20,
-                ),
-              ),
-              title: const Text(
-                "Permisos y Justificaciones",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: BumandColores.NEGRO,
-                ),
-              ),
-              subtitle: const Text(
-                "Reportes médicos y de incidencias con prueba",
-                style: TextStyle(fontSize: 12),
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                SolicitarJustificacionDialogo.mostrar(context);
-              },
-            ),
-            const Divider(),
-            const SizedBox(height: 4),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.logout,
-                  color: Colors.redAccent,
-                  size: 20,
-                ),
-              ),
-              title: const Text(
-                "Cerrar sesión corporativa",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.redAccent,
-                  fontSize: 15,
-                ),
-              ),
-              subtitle: const Text(
-                "Finalizar sesión en este dispositivo",
-                style: TextStyle(fontSize: 12),
-              ),
-              onTap: () async {
-                Navigator.of(ctx).pop();
-                await ref.read(autenticacion_proveedor.notifier).cerrarSesion();
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (_) => const InicioSesionPantalla(),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.assignment_turned_in_outlined,
+                        color: BumandColores.AZUL_DIACONIA,
+                        size: 20,
+                      ),
                     ),
-                    (_) => false,
-                  );
-                }
-              },
+                    title: const Text(
+                      "Mis Evaluaciones (360°)",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: BumandColores.NEGRO,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Calificación ponderada y desglose modular",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const EvaluacionesPantalla()),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.history_rounded,
+                        color: BumandColores.AZUL_DIACONIA,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      "Historial de Asistencias",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: BumandColores.NEGRO,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Marcaciones de ingreso y salida con GPS",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const HistorialAsistenciaPantalla(),
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.assignment_late_outlined,
+                        color: Color(0xFFD97706),
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      "Permisos y Justificaciones",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: BumandColores.NEGRO,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Reportes médicos y de incidencias con prueba",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      SolicitarJustificacionDialogo.mostrar(context);
+                    },
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 4),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.logout,
+                        color: Colors.redAccent,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      "Cerrar sesión corporativa",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.redAccent,
+                        fontSize: 15,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Finalizar sesión en este dispositivo",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onTap: () async {
+                      Navigator.of(ctx).pop();
+                      await ref.read(autenticacion_proveedor.notifier).cerrarSesion();
+                      if (context.mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const InicioSesionPantalla(),
+                          ),
+                          (_) => false,
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-          ],
+          ),
         ),
       ),
     );

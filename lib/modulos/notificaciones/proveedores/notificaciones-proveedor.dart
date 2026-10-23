@@ -27,11 +27,11 @@ final notificaciones_conteo_proveedor = FutureProvider<int>((ref) async {
 });
 
 class NotificacionesNotificador extends AsyncNotifier<List<NotificacionModelo>> {
-  late final NotificacionesRepositorio _repo;
+  NotificacionesRepositorio get _repo =>
+      ref.read(notificaciones_repositorio_proveedor);
 
   @override
   FutureOr<List<NotificacionModelo>> build() async {
-    _repo = ref.read(notificaciones_repositorio_proveedor);
     return _cargarNotificaciones();
   }
 

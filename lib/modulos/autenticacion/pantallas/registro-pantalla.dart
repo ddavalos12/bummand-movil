@@ -28,6 +28,11 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
   String? _error_validacion;
   late final AnimationController _animacion_controlador;
 
+  bool _verificando_ci = false;
+  String? _nombre_becario_verificado;
+  bool _ci_verificado_exitoso = false;
+  String _ultimo_ci_verificado = "";
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +40,49 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
       vsync: this,
       duration: const Duration(seconds: 6),
     )..repeat();
+
+    _ci_controlador.addListener(() {
+      final ci = _ci_controlador.text.trim();
+      if (ci.length >= 6 && !_verificando_ci && ci != _ultimo_ci_verificado) {
+        _ultimo_ci_verificado = ci;
+        _verificarCiEnVivo(ci);
+      }
+    });
+  }
+
+  Future<void> _verificarCiEnVivo(String ci) async {
+    if (!RegExp(r'^\d{5,10}$').hasMatch(ci)) return;
+
+    setState(() => _verificando_ci = true);
+    final resultado =
+        await ref.read(autenticacion_proveedor.notifier).verificarCi(ci);
+    if (!mounted) return;
+
+    setState(() {
+      _verificando_ci = false;
+      if (resultado.exito && resultado.datos != null) {
+        final datos = resultado.datos!;
+        final existe = datos['existe'] == true;
+        final ya_registrado = datos['ya_registrado'] == true;
+        final nombre = datos['nombre']?.toString();
+
+        if (existe && !ya_registrado) {
+          _nombre_becario_verificado = nombre;
+          _ci_verificado_exitoso = true;
+          _error_validacion = null;
+        } else if (ya_registrado) {
+          _nombre_becario_verificado = null;
+          _ci_verificado_exitoso = false;
+          _error_validacion =
+              "El C.I. $ci ya tiene una cuenta activa. Inicia sesión directamente.";
+        } else {
+          _nombre_becario_verificado = null;
+          _ci_verificado_exitoso = false;
+          _error_validacion =
+              "El C.I. $ci no figura en la nómina oficial. Consulta con Administración.";
+        }
+      }
+    });
   }
 
   @override
@@ -362,6 +410,65 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                         icono: Icons.badge_outlined,
                         tipo_teclado: TextInputType.number,
                       ),
+                      if (_verificando_ci) ...[
+                        const SizedBox(height: 6),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 13,
+                              height: 13,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF0284C7),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              "Verificando carnet en la nómina...",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF0284C7),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (_ci_verificado_exitoso && _nombre_becario_verificado != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFF86EFAC)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle_rounded,
+                                color: Color(0xFF16A34A),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "¡Hola $_nombre_becario_verificado! Tu C.I. está registrado en nómina. Crea tus credenciales:",
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF166534),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 11),
                       _construirCampoTexto(
                         controlador: _correo_controlador,

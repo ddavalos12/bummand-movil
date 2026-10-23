@@ -1022,13 +1022,9 @@ class _DialogoVerificacionSupervisorState
     extends State<_DialogoVerificacionSupervisor> {
   final _repositorio = EvaluacionesRepositorio();
   final _codigo_ctrl = TextEditingController();
-  final _correo_ctrl = TextEditingController(text: "angel.ali@bumand.bo");
-  final _contrasena_ctrl = TextEditingController();
 
-  bool _usar_credenciales = false;
   bool _enviando_codigo = true;
   bool _verificando = false;
-  String _supervisor_nombre = "Lic. Carlos Mendoza";
   String? _mensaje_error;
 
   @override
@@ -1040,8 +1036,6 @@ class _DialogoVerificacionSupervisorState
   @override
   void dispose() {
     _codigo_ctrl.dispose();
-    _correo_ctrl.dispose();
-    _contrasena_ctrl.dispose();
     super.dispose();
   }
 
@@ -1051,20 +1045,23 @@ class _DialogoVerificacionSupervisorState
       _mensaje_error = null;
     });
 
-    final resultado = await _repositorio.solicitarCodigoTutor(becario_id: 1);
+    await _repositorio.solicitarCodigoTutor(becario_id: 1);
     if (!mounted) return;
-
-    final datos = resultado.datos;
-    final nombre =
-        datos?['supervisor_nombre']?.toString() ?? "Lic. Carlos Mendoza";
 
     setState(() {
       _enviando_codigo = false;
-      _supervisor_nombre = nombre;
     });
   }
 
   Future<void> _verificarIdentidad() async {
+    final codigo = _codigo_ctrl.text.trim();
+    if (codigo.isEmpty) {
+      setState(() {
+        _mensaje_error = "Ingresa el código de 6 dígitos enviado a administración.";
+      });
+      return;
+    }
+
     setState(() {
       _verificando = true;
       _mensaje_error = null;
@@ -1072,9 +1069,7 @@ class _DialogoVerificacionSupervisorState
 
     final resultado = await _repositorio.verificarCodigoTutor(
       becario_id: 1,
-      codigo: _usar_credenciales ? null : _codigo_ctrl.text.trim(),
-      correo: _usar_credenciales ? _correo_ctrl.text.trim() : null,
-      contrasena: _usar_credenciales ? _contrasena_ctrl.text : null,
+      codigo: codigo,
     );
 
     if (!mounted) return;
@@ -1082,12 +1077,12 @@ class _DialogoVerificacionSupervisorState
 
     if (resultado.exito && resultado.datos?['verificado'] == true) {
       final nombre =
-          resultado.datos?['supervisor_nombre']?.toString() ?? _supervisor_nombre;
+          resultado.datos?['supervisor_nombre']?.toString() ?? "Administración";
       Navigator.of(context).pop(nombre);
     } else {
       setState(() {
         _mensaje_error =
-            resultado.error ?? "No se pudo verificar la identidad del supervisor.";
+            resultado.error ?? "Código incorrecto o expirado.";
       });
     }
   }
@@ -1147,203 +1142,88 @@ class _DialogoVerificacionSupervisorState
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() {
-                        _usar_credenciales = false;
-                        _mensaje_error = null;
-                      }),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: !_usar_credenciales
-                              ? BumandColores.AZUL_DIACONIA
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Text(
-                          "Código en pantalla",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: !_usar_credenciales
-                                ? Colors.white
-                                : const Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() {
-                        _usar_credenciales = true;
-                        _mensaje_error = null;
-                      }),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _usar_credenciales
-                              ? BumandColores.AZUL_DIACONIA
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Text(
-                          "Credenciales Tutor",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: _usar_credenciales
-                                ? Colors.white
-                                : const Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 14),
 
-            if (!_usar_credenciales) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
+            Container(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFBAE6FD)),
+                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.notifications_active_outlined,
-                          size: 17,
-                          color: Color(0xFF0284C7),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            _enviando_codigo
-                                ? "Enviando notificación al supervisor..."
-                                : "Notificación enviada a $_supervisor_nombre",
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0369A1),
-                            ),
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      Icons.pin_outlined,
+                      size: 15,
+                      color: BumandColores.AZUL_DIACONIA,
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(width: 5),
                     Text(
-                      "Se ha enviado una notificación con un código de 6 dígitos a la pantalla del Supervisor ($_supervisor_nombre). Pídele a tu supervisor que ingrese el código que aparece en su pantalla o sus credenciales institucionales.",
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF334155),
-                        height: 1.3,
+                      "Código en pantalla",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: BumandColores.AZUL_DIACONIA,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-              const Text(
-                "Código de 6 dígitos del Supervisor",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF334155),
-                ),
+            ),
+            const SizedBox(height: 14),
+
+            const Text(
+              "Código de 6 dígitos del Administrador",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF334155),
               ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _codigo_ctrl,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _codigo_ctrl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 8,
+                color: BumandColores.AZUL_DIACONIA,
+              ),
+              decoration: InputDecoration(
+                counterText: "",
+                hintText: "000000",
+                hintStyle: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.bold,
                   letterSpacing: 8,
-                  color: BumandColores.AZUL_DIACONIA,
+                  color: Colors.grey.shade400,
                 ),
-                decoration: InputDecoration(
-                  counterText: "",
-                  hintText: "000000",
-                  hintStyle: TextStyle(
-                    fontSize: 20,
-                    letterSpacing: 8,
-                    color: Colors.grey.shade400,
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed:
-                      _enviando_codigo ? null : _solicitarCodigoNotificacion,
-                  icon: const Icon(Icons.refresh, size: 15),
-                  label: const Text(
-                    "Reenviar código a pantalla del supervisor",
-                    style: TextStyle(fontSize: 11.5),
-                  ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed:
+                    _enviando_codigo ? null : _solicitarCodigoNotificacion,
+                icon: const Icon(Icons.refresh, size: 15),
+                label: Text(
+                  _enviando_codigo
+                      ? "Enviando código..."
+                      : "Reenviar código a administración",
+                  style: const TextStyle(fontSize: 11.5),
                 ),
               ),
-            ] else ...[
-              const Text(
-                "Ingresa las credenciales institucionales del Supervisor/Tutor asignado:",
-                style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _correo_ctrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: "Correo institucional del supervisor",
-                  prefixIcon: const Icon(Icons.email_outlined, size: 18),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _contrasena_ctrl,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Contraseña del supervisor",
-                  prefixIcon: const Icon(Icons.lock_outline, size: 18),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
+            ),
 
             if (_mensaje_error != null) ...[
               Container(

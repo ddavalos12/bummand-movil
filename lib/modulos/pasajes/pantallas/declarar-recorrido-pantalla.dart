@@ -5,10 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../modelos/recorrido-modelo.dart';
 import '../proveedores/pasajes-proveedor.dart';
 import '../utilidades/formato-pasajes.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../../../compartido/componentes/seleccionador_fecha.dart';
+import '../../../widgets-comunes/barra-superior-bumand.dart';
+import '../../inicio/proveedores/inicio-proveedor.dart';
 
 /// Modelo interno para una parada dinámica
 class _ParadaRuta {
@@ -18,6 +21,7 @@ class _ParadaRuta {
 
   _ParadaRuta({
     required this.controlador,
+    this.posicion_gps,
     this.confirmada = false,
   });
 
@@ -46,11 +50,15 @@ class _TramoTarifa {
 class DeclararRecorridoPantalla extends ConsumerStatefulWidget {
   final String? destino_inicial;
   final String? tipo_actividad_inicial;
+  final bool es_pestana;
+  final bool solo_hoy;
 
   const DeclararRecorridoPantalla({
     super.key,
     this.destino_inicial,
     this.tipo_actividad_inicial,
+    this.es_pestana = false,
+    this.solo_hoy = false,
   });
 
   @override
@@ -73,6 +81,10 @@ class _DeclararRecorridoPantallaState
   bool _guardando = false;
   String? _capturando_gps_id;
   String _tipo_actividad = "Prácticas";
+  bool _formulario_inicializado_con_hoy = false;
+  int? _id_recorrido_ida_hoy;
+  int? _id_recorrido_vuelta_hoy;
+
   static const List<String> TIPOS_ACTIVIDAD = [
     "Prácticas",
     "Escuela de Líderes",
@@ -216,6 +228,495 @@ class _DeclararRecorridoPantallaState
       t.dispose();
     }
     super.dispose();
+  }
+
+  bool _esMismaFecha(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  void _cargarDatosDesdeRecorridosExistentes(
+    RecorridoModelo? ida,
+    RecorridoModelo? vuelta,
+  ) {
+    _id_recorrido_ida_hoy = ida?.id;
+    _id_recorrido_vuelta_hoy = vuelta?.id;
+
+    if (ida != null) {
+      if (ida.apoyo_realizado != null && ida.apoyo_realizado!.isNotEmpty) {
+        final texto = ida.apoyo_realizado!;
+        if (texto.startsWith('[')) {
+          final fin_actividad = texto.indexOf(']');
+          if (fin_actividad > 1) {
+            final act = texto.substring(1, fin_actividad);
+            if (TIPOS_ACTIVIDAD.contains(act)) {
+              _tipo_actividad = act;
+            }
+            final resto = texto.substring(fin_actividad + 1).trim();
+            final partes_resto = resto.split('| Calles:');
+            if (partes_resto.isNotEmpty) {
+              _apoyo_controlador.text = partes_resto.first.trim();
+            }
+          }
+        } else {
+          final partes = texto.split('| Calles:');
+          _apoyo_controlador.text = partes.first.trim();
+        }
+      }
+
+      List<String> paradas_texto = [];
+      if (ida.detalle_tramos_json != null && ida.detalle_tramos_json!.isNotEmpty) {
+        try {
+          final json_data = jsonDecode(ida.detalle_tramos_json!) as Map<String, dynamic>;
+          if (json_data['calles_paradas'] is List) {
+            paradas_texto = (json_data['calles_paradas'] as List)
+                .map((e) => e.toString())
+                .where((s) => s.isNotEmpty)
+                .toList();
+          }
+        } catch (_) {}
+      }
+      if (paradas_texto.isEmpty && ida.calles_declaradas != null && ida.calles_declaradas!.isNotEmpty) {
+        paradas_texto = ida.calles_declaradas!.split(' → ').where((s) => s.isNotEmpty).toList();
+      }
+      if (paradas_texto.isEmpty) {
+        paradas_texto = [ida.origen, ida.destino];
+      }
+
+      if (paradas_texto.length >= 2) {
+        for (final p in _paradas_ida) {
+          p.dispose();
+        }
+        _paradas_ida.clear();
+        for (int i = 0; i < paradas_texto.length; i++) {
+          final pos = (i == 0 && ida.lat_origen != null && ida.lng_origen != null)
+              ? Position(
+                  latitude: ida.lat_origen!,
+                  longitude: ida.lng_origen!,
+                  timestamp: DateTime.now(),
+                  accuracy: 10,
+                  altitude: 0,
+                  altitudeAccuracy: 0,
+                  heading: 0,
+                  headingAccuracy: 0,
+                  speed: 0,
+                  speedAccuracy: 0,
+                )
+              : (i == paradas_texto.length - 1 && ida.lat_destino != null && ida.lng_destino != null)
+                  ? Position(
+                      latitude: ida.lat_destino!,
+                      longitude: ida.lng_destino!,
+                      timestamp: DateTime.now(),
+                      accuracy: 10,
+                      altitude: 0,
+                      altitudeAccuracy: 0,
+                      heading: 0,
+                      headingAccuracy: 0,
+                      speed: 0,
+                      speedAccuracy: 0,
+                    )
+                  : null;
+          _paradas_ida.add(
+            _ParadaRuta(
+              controlador: TextEditingController(text: paradas_texto[i]),
+              posicion_gps: pos,
+              confirmada: pos != null,
+            ),
+          );
+        }
+      }
+
+      List<Map<String, dynamic>> tramos_data = [];
+      if (ida.detalle_tramos_json != null && ida.detalle_tramos_json!.isNotEmpty) {
+        try {
+          final json_data = jsonDecode(ida.detalle_tramos_json!) as Map<String, dynamic>;
+          if (json_data['tramos'] is List) {
+            tramos_data = (json_data['tramos'] as List)
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList();
+          }
+        } catch (_) {}
+      }
+      if (tramos_data.isNotEmpty) {
+        for (final t in _tramos_ida) {
+          t.dispose();
+        }
+        _tramos_ida.clear();
+        for (final item in tramos_data) {
+          final monto = double.tryParse(item['monto']?.toString() ?? '') ?? 2.0;
+          final nombre = item['nombre']?.toString() ?? 'Minibús';
+          _tramos_ida.add(
+            _TramoTarifa(
+              monto: monto,
+              nombre: nombre,
+              controlador_personalizado: TextEditingController(text: monto.toStringAsFixed(2)),
+            ),
+          );
+        }
+      } else if (ida.tarifa > 0) {
+        for (final t in _tramos_ida) {
+          t.dispose();
+        }
+        _tramos_ida.clear();
+        _tramos_ida.add(
+          _TramoTarifa(
+            monto: ida.tarifa,
+            nombre: ida.medio_transporte ?? "Minibús",
+            controlador_personalizado: TextEditingController(text: ida.tarifa.toStringAsFixed(2)),
+          ),
+        );
+      }
+    }
+
+    if (vuelta != null) {
+      List<String> paradas_texto = [];
+      if (vuelta.detalle_tramos_json != null && vuelta.detalle_tramos_json!.isNotEmpty) {
+        try {
+          final json_data = jsonDecode(vuelta.detalle_tramos_json!) as Map<String, dynamic>;
+          if (json_data['calles_paradas'] is List) {
+            paradas_texto = (json_data['calles_paradas'] as List)
+                .map((e) => e.toString())
+                .where((s) => s.isNotEmpty)
+                .toList();
+          }
+        } catch (_) {}
+      }
+      if (paradas_texto.isEmpty && vuelta.calles_declaradas != null && vuelta.calles_declaradas!.isNotEmpty) {
+        paradas_texto = vuelta.calles_declaradas!.split(' → ').where((s) => s.isNotEmpty).toList();
+      }
+      if (paradas_texto.isEmpty) {
+        paradas_texto = [vuelta.origen, vuelta.destino];
+      }
+
+      if (paradas_texto.length >= 2) {
+        for (final p in _paradas_vuelta) {
+          p.dispose();
+        }
+        _paradas_vuelta.clear();
+        for (int i = 0; i < paradas_texto.length; i++) {
+          final pos = (i == 0 && vuelta.lat_origen != null && vuelta.lng_origen != null)
+              ? Position(
+                  latitude: vuelta.lat_origen!,
+                  longitude: vuelta.lng_origen!,
+                  timestamp: DateTime.now(),
+                  accuracy: 10,
+                  altitude: 0,
+                  altitudeAccuracy: 0,
+                  heading: 0,
+                  headingAccuracy: 0,
+                  speed: 0,
+                  speedAccuracy: 0,
+                )
+              : (i == paradas_texto.length - 1 && vuelta.lat_destino != null && vuelta.lng_destino != null)
+                  ? Position(
+                      latitude: vuelta.lat_destino!,
+                      longitude: vuelta.lng_destino!,
+                      timestamp: DateTime.now(),
+                      accuracy: 10,
+                      altitude: 0,
+                      altitudeAccuracy: 0,
+                      heading: 0,
+                      headingAccuracy: 0,
+                      speed: 0,
+                      speedAccuracy: 0,
+                    )
+                  : null;
+          _paradas_vuelta.add(
+            _ParadaRuta(
+              controlador: TextEditingController(text: paradas_texto[i]),
+              posicion_gps: pos,
+              confirmada: pos != null,
+            ),
+          );
+        }
+      }
+
+      List<Map<String, dynamic>> tramos_data = [];
+      if (vuelta.detalle_tramos_json != null && vuelta.detalle_tramos_json!.isNotEmpty) {
+        try {
+          final json_data = jsonDecode(vuelta.detalle_tramos_json!) as Map<String, dynamic>;
+          if (json_data['tramos'] is List) {
+            tramos_data = (json_data['tramos'] as List)
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList();
+          }
+        } catch (_) {}
+      }
+      if (tramos_data.isNotEmpty) {
+        for (final t in _tramos_vuelta) {
+          t.dispose();
+        }
+        _tramos_vuelta.clear();
+        for (final item in tramos_data) {
+          final monto = double.tryParse(item['monto']?.toString() ?? '') ?? 2.0;
+          final nombre = item['nombre']?.toString() ?? 'Minibús';
+          _tramos_vuelta.add(
+            _TramoTarifa(
+              monto: monto,
+              nombre: nombre,
+              controlador_personalizado: TextEditingController(text: monto.toStringAsFixed(2)),
+            ),
+          );
+        }
+      } else if (vuelta.tarifa > 0) {
+        for (final t in _tramos_vuelta) {
+          t.dispose();
+        }
+        _tramos_vuelta.clear();
+        _tramos_vuelta.add(
+          _TramoTarifa(
+            monto: vuelta.tarifa,
+            nombre: vuelta.medio_transporte ?? "Minibús",
+            controlador_personalizado: TextEditingController(text: vuelta.tarifa.toStringAsFixed(2)),
+          ),
+        );
+      }
+    }
+
+    setState(() {});
+  }
+
+  Widget _construirTarjetaEstadoHoy(
+    RecorridoModelo? ida_hoy,
+    RecorridoModelo? vuelta_hoy,
+  ) {
+    final subtotal_registrado = (ida_hoy?.tarifa ?? 0.0) + (vuelta_hoy?.tarifa ?? 0.0);
+    final devolucion_registrada = subtotal_registrado * 0.8;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF86EFAC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF16A34A),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Recorrido de hoy declarado",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Color(0xFF14532D),
+                      ),
+                    ),
+                    Text(
+                      "Disponible para editar sólo hoy · Puedes ajustar cualquier parada o tarifa",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF15803D),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFDCFCE7)),
+            ),
+            child: Column(
+              children: [
+                if (ida_hoy != null)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "Ida: ${ida_hoy.origen} → ${ida_hoy.destino}",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E293B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Bs ${ida_hoy.tarifa.toStringAsFixed(2)}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (vuelta_hoy != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "Vuelta: ${vuelta_hoy.origen} → ${vuelta_hoy.destino}",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E293B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Bs ${vuelta_hoy.tarifa.toStringAsFixed(2)}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const Divider(height: 12, color: Color(0xFFE2E8F0)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Total guardado (Devolución 80%):",
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      "Bs ${subtotal_registrado.toStringAsFixed(2)} (Bs ${devolucion_registrada.toStringAsFixed(2)})",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF15803D),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirTarjetaFechaHoy() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFBAE6FD)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0F2FE),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.calendar_today_rounded,
+              color: BumandColores.AZUL_DIACONIA,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Recorrido de hoy: ${FormatoPasajes.fechaCompleta(_fecha)}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.lock_clock_outlined,
+                      size: 13,
+                      color: Color(0xFF0284C7),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      "Disponible para editar sólo hoy",
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0284C7),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFA7F3D0)),
+            ),
+            child: const Text(
+              "HOY",
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF065F46),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _cargarUltimoRecorrido() async {
@@ -386,6 +887,13 @@ class _DeclararRecorridoPantallaState
     final texto_apoyo = _apoyo_controlador.text.trim();
     final repositorio = ref.read(pasajes_repositorio_proveedor);
 
+    if (_id_recorrido_ida_hoy != null) {
+      await repositorio.eliminarRecorrido(_id_recorrido_ida_hoy!);
+    }
+    if (_id_recorrido_vuelta_hoy != null) {
+      await repositorio.eliminarRecorrido(_id_recorrido_vuelta_hoy!);
+    }
+
     // Tramo IDA: Calles completas, medios y detalle JSON
     final calles_ida = _paradas_ida
         .map((p) => p.controlador.text.trim())
@@ -497,8 +1005,20 @@ class _DeclararRecorridoPantallaState
     ref.invalidate(solicitudes_pasajes_proveedor);
 
     if (!mounted) return;
-    _mensaje("✓ Recorrido del día guardado correctamente");
-    Navigator.of(context).pop(true);
+    if (widget.es_pestana) {
+      setState(() {
+        _guardando = false;
+        _formulario_inicializado_con_hoy = false;
+      });
+      _mensaje(
+        (_id_recorrido_ida_hoy != null || _id_recorrido_vuelta_hoy != null)
+            ? "✓ Recorrido de hoy actualizado correctamente"
+            : "✓ Recorrido de hoy guardado correctamente",
+      );
+    } else {
+      _mensaje("✓ Recorrido del día guardado correctamente");
+      Navigator.of(context).pop(true);
+    }
   }
 
   @override
@@ -508,51 +1028,98 @@ class _DeclararRecorridoPantallaState
     final total_dia = subtotal_ida + subtotal_vuelta;
     final devolucion_80 = total_dia * 0.8;
 
+    final solicitudes_async = ref.watch(solicitudes_pasajes_proveedor);
+    final solicitudes = solicitudes_async.asData?.value ?? [];
+    final hoy = DateTime.now();
+
+    RecorridoModelo? rec_ida_hoy;
+    RecorridoModelo? rec_vuelta_hoy;
+
+    for (final s in solicitudes) {
+      for (final r in s.recorridos) {
+        if (_esMismaFecha(r.fecha, hoy)) {
+          if (r.tramo.toLowerCase() == 'ida') {
+            rec_ida_hoy = r;
+          } else if (r.tramo.toLowerCase() == 'vuelta') {
+            rec_vuelta_hoy = r;
+          }
+        }
+      }
+    }
+
+    if (widget.solo_hoy &&
+        !_formulario_inicializado_con_hoy &&
+        (rec_ida_hoy != null || rec_vuelta_hoy != null)) {
+      _formulario_inicializado_con_hoy = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _cargarDatosDesdeRecorridosExistentes(rec_ida_hoy, rec_vuelta_hoy);
+        }
+      });
+    }
+
+    final bool ya_declarado_hoy = (rec_ida_hoy != null ||
+        rec_vuelta_hoy != null ||
+        _id_recorrido_ida_hoy != null);
+
     return Scaffold(
       backgroundColor: const Color(0xFFEFF3F8),
-      appBar: AppBar(
-        title: const Text(
-          "Declarar recorrido",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: BumandColores.NEGRO,
-      ),
+      appBar: widget.es_pestana
+          ? BarraSuperiorBumand(
+              titulo: "Declarar pasajes",
+              subtitulo: "Recorrido de hoy",
+              alTocarLogo: () =>
+                  ref.read(menu_principal_proveedor.notifier).mostrar(),
+            )
+          : AppBar(
+              title: const Text(
+                "Declarar recorrido",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: Colors.white,
+              elevation: 0,
+              foregroundColor: BumandColores.NEGRO,
+            ),
       body: Form(
         key: _clave_formulario,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Chip de confirmación de correo y datos
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF10B981)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle, color: Color(0xFF10B981), size: 14),
-                    SizedBox(width: 6),
-                    Text(
-                      "Correo y datos confirmados",
-                      style: TextStyle(
-                        color: Color(0xFF065F46),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+            // Chip o tarjeta de estado de hoy
+            if (widget.solo_hoy && ya_declarado_hoy)
+              _construirTarjetaEstadoHoy(rec_ida_hoy, rec_vuelta_hoy)
+            else
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF10B981)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle,
+                          color: Color(0xFF10B981), size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        widget.solo_hoy
+                            ? "Declaración activa para hoy"
+                            : "Correo y datos confirmados",
+                        style: const TextStyle(
+                          color: Color(0xFF065F46),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 12),
 
             // Mapa interactivo del trayecto declarado (Ida / Vuelta)
@@ -592,18 +1159,21 @@ class _DeclararRecorridoPantallaState
             ),
             const SizedBox(height: 12),
 
-            // Selector de fecha del recorrido
-            SeleccionadorFecha(
-              fecha: _fecha,
-              onCambiada: (v) => setState(() => _fecha = v),
-              primeraFecha: DateTime(
-                DateTime.now().year,
-                DateTime.now().month - 2,
-                1,
+            // Selector de fecha del recorrido o Tarjeta fija de Hoy
+            if (widget.solo_hoy)
+              _construirTarjetaFechaHoy()
+            else
+              SeleccionadorFecha(
+                fecha: _fecha,
+                onCambiada: (v) => setState(() => _fecha = v),
+                primeraFecha: DateTime(
+                  DateTime.now().year,
+                  DateTime.now().month - 2,
+                  1,
+                ),
+                ultimaFecha: DateTime.now(),
+                etiqueta: "Fecha del recorrido",
               ),
-              ultimaFecha: DateTime.now(),
-              etiqueta: "Fecha del recorrido",
-            ),
             const SizedBox(height: 16),
 
             // Stepper Segmentado: 1 · Ida  |  2 · Vuelta
@@ -642,16 +1212,44 @@ class _DeclararRecorridoPantallaState
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.check_circle_outline),
-                label: const Text(
-                  "Guardar recorrido del día",
-                  style: TextStyle(
+                    : Icon(
+                        (widget.solo_hoy && ya_declarado_hoy)
+                            ? Icons.published_with_changes_rounded
+                            : Icons.check_circle_outline,
+                      ),
+                label: Text(
+                  widget.solo_hoy
+                      ? (ya_declarado_hoy
+                          ? "Actualizar recorrido de hoy"
+                          : "Guardar recorrido de hoy")
+                      : "Guardar recorrido del día",
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ),
+            if (widget.es_pestana) ...[
+              const SizedBox(height: 14),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () {
+                    ref.read(pestana_inicio_proveedor.notifier).cambiarPestana(3);
+                  },
+                  icon: const Icon(Icons.history_rounded, size: 18),
+                  label: const Text(
+                    "Ver historial mensual de pasajes",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
           ],
         ),
       ),

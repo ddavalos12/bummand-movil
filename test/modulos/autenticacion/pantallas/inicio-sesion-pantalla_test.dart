@@ -19,6 +19,11 @@ class RepositorioSimulado extends AutenticacionRepositorio {
     return resultado_configurado ??
         Resultado.fallido('Credenciales incorrectas');
   }
+
+  @override
+  Future<Resultado<Map<String, dynamic>>> consultarEstadoConfirmacion() async {
+    return Resultado.exitoso({'debe_confirmar': true});
+  }
 }
 
 void main() {
