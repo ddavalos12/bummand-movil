@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../nucleo/tema/colores.dart';
 import '../servicios/justificaciones-servicio.dart';
@@ -430,11 +431,26 @@ class _SolicitarJustificacionDialogoState
                       )
                     else
                       OutlinedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _archivo_adjunto =
-                                'Comprobante_Medico_Urgencia_${DateTime.now().day}_${DateTime.now().month}.jpg';
-                          });
+                        onPressed: () async {
+                          try {
+                            final resultado = await FilePicker.pickFiles(
+                              type: FileType.custom,
+                              allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+                            );
+                            if (resultado.isNotEmpty) {
+                              setState(() {
+                                _archivo_adjunto = resultado.first.name;
+                              });
+                            }
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("No se pudo abrir el selector: $e"),
+                                backgroundColor: const Color(0xFFDC2626),
+                              ),
+                            );
+                          }
                         },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(
@@ -451,7 +467,7 @@ class _SolicitarJustificacionDialogoState
                           color: Color(0xFF0284C7),
                         ),
                         label: const Text(
-                          "Adjuntar fotografía o certificado médico",
+                          "Adjuntar fotografía o certificado médico (PDF/IMG)",
                           style: TextStyle(
                             fontSize: 12,
                             color: Color(0xFF0284C7),

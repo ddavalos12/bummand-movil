@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../nucleo/constantes/api-constantes.dart';
@@ -611,14 +612,65 @@ class _ReceptorAcademicoModal extends StatefulWidget {
 
 class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
   final _promedio_ctrl = TextEditingController(text: "81.5");
-  String? _archivo_record = "Record_Academico_Semestre_II_2026.pdf";
-  String? _archivo_historial = "Historial_Academico_Institucional.pdf";
+  String? _archivo_record;
+  String? _archivo_historial;
+  String? _tamano_record;
+  String? _tamano_historial;
   bool _enviando = false;
 
   @override
   void dispose() {
     _promedio_ctrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _seleccionarArchivo(bool es_record) async {
+    try {
+      final resultado = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+      );
+
+      if (resultado.isNotEmpty) {
+        final archivo = resultado.first;
+        final bytes = archivo.lengthSync();
+        final tamano = bytes != null
+            ? (bytes > 1024 * 1024
+                ? "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB"
+                : "${(bytes / 1024).toStringAsFixed(1)} KB")
+            : null;
+
+        setState(() {
+          if (es_record) {
+            _archivo_record = archivo.name;
+            _tamano_record = tamano;
+          } else {
+            _archivo_historial = archivo.name;
+            _tamano_historial = tamano;
+          }
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("No se pudo seleccionar el archivo: $e"),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+    }
+  }
+
+  void _eliminarArchivo(bool es_record) {
+    setState(() {
+      if (es_record) {
+        _archivo_record = null;
+        _tamano_record = null;
+      } else {
+        _archivo_historial = null;
+        _tamano_historial = null;
+      }
+    });
   }
 
   Future<void> _enviarDocumentos() async {
@@ -737,21 +789,17 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
           _construirSelectorDocumento(
             etiqueta: "1. Récord Académico (Semestre II - 2026)",
             archivo: _archivo_record,
-            alPresionar: () {
-              setState(() {
-                _archivo_record = "Record_Academico_Semestre_II_2026.pdf";
-              });
-            },
+            tamano: _tamano_record,
+            alPresionar: () => _seleccionarArchivo(true),
+            alEliminar: () => _eliminarArchivo(true),
           ),
           const SizedBox(height: 10),
           _construirSelectorDocumento(
             etiqueta: "2. Historial Académico Completo",
             archivo: _archivo_historial,
-            alPresionar: () {
-              setState(() {
-                _archivo_historial = "Historial_Academico_Institucional.pdf";
-              });
-            },
+            tamano: _tamano_historial,
+            alPresionar: () => _seleccionarArchivo(false),
+            alEliminar: () => _eliminarArchivo(false),
           ),
           const SizedBox(height: 14),
           Column(
@@ -815,8 +863,11 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
   Widget _construirSelectorDocumento({
     required String etiqueta,
     required String? archivo,
+    required String? tamano,
     required VoidCallback alPresionar,
+    required VoidCallback alEliminar,
   }) {
+    final es_pdf = archivo != null && archivo.toLowerCase().endsWith(".pdf");
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -829,9 +880,13 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
       child: Row(
         children: [
           Icon(
-            archivo != null ? Icons.check_circle : Icons.upload_file,
-            color: archivo != null ? const Color(0xFF10B981) : const Color(0xFF64748B),
-            size: 22,
+            archivo != null
+                ? (es_pdf ? Icons.picture_as_pdf : Icons.image)
+                : Icons.upload_file,
+            color: archivo != null
+                ? (es_pdf ? const Color(0xFFE11D48) : const Color(0xFF0D9488))
+                : const Color(0xFF64748B),
+            size: 24,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -847,18 +902,44 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                   ),
                 ),
                 Text(
-                  archivo ?? "Ningún archivo seleccionado",
+                  archivo != null
+                      ? "$archivo ${tamano != null ? '($tamano)' : ''}"
+                      : "Ningún archivo PDF o imagen seleccionado",
                   style: TextStyle(
                     fontSize: 11,
                     color: archivo != null ? const Color(0xFF047857) : Colors.grey.shade500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          TextButton(
+          if (archivo != null)
+            IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Color(0xFF94A3B8)),
+              onPressed: alEliminar,
+              tooltip: "Eliminar archivo",
+            ),
+          ElevatedButton(
             onPressed: alPresionar,
-            child: Text(archivo == null ? "Adjuntar" : "Cambiar"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: archivo == null
+                  ? BumandColores.AZUL_DIACONIA
+                  : const Color(0xFFF1F5F9),
+              foregroundColor: archivo == null
+                  ? Colors.white
+                  : const Color(0xFF063A6B),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              archivo == null ? "Adjuntar" : "Cambiar",
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
