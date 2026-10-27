@@ -9,6 +9,9 @@ import '../modulos/evaluaciones/pantallas/evaluaciones-pantalla.dart';
 import '../modulos/asistencia/pantallas/historial-asistencia-pantalla.dart';
 import '../modulos/justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
 import '../modulos/notificaciones/pantallas/notificaciones-pantalla.dart';
+import '../modulos/inicio/pantallas/acerca-de-pantalla.dart';
+import '../modulos/refrigerios/pantallas/refrigerios-pantalla.dart';
+
 
 class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget {
   final String titulo;
@@ -242,6 +245,78 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                       SolicitarJustificacionDialogo.mostrar(context);
                     },
                   ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: BumandColores.azulMarinoSecundario.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.apartment_rounded,
+                        color: BumandColores.azulMarinoSecundario,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      "Acerca de Nosotros",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: BumandColores.NEGRO,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Diaconía FRIF-IFD · Principios e historia",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AcercaDePantalla(),
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: BumandColores.azulCieloSuave.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.restaurant_menu_rounded,
+                        color: BumandColores.azulMarinoProfundo,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      'Mis Refrigerios',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: BumandColores.NEGRO,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Registro de recojo y constancias de ración',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const RefrigeriosPantalla(),
+                        ),
+                      );
+                    },
+                  ),
                   const Divider(),
                   const SizedBox(height: 4),
                   ListTile(
@@ -343,7 +418,7 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 22),
                 child: SvgPicture.asset(
-                  'assets/logos/logo-bumand-blanco.svg',
+                  'assets/logos/logo-bumand-dorado-blanco.svg',
                   height: 26,
                   fit: BoxFit.contain,
                 ),
@@ -353,10 +428,10 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
           const SizedBox(width: 8),
           // Logo Diaconía IFD oficial en cápsula blanca de alta visibilidad
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.12),
@@ -366,8 +441,8 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
               ],
             ),
             child: SvgPicture.asset(
-              'assets/logos/logo-diaconia.svg',
-              height: 16,
+              'assets/logos/logo-diaconia-color.svg',
+              height: 18,
               fit: BoxFit.contain,
             ),
           ),

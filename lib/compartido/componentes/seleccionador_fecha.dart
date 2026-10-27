@@ -47,17 +47,17 @@ class SeleccionadorFecha extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE3DCCB), width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: BumandColores.grisClaro, width: 1.2),
       ),
       child: ListTile(
-        leading: const Icon(Icons.calendar_today, color: BumandColores.TURQUESA_DIACONIA),
-        title: Text(etiqueta, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        leading: const Icon(Icons.calendar_today, color: BumandColores.azulMarinoProfundo),
+        title: Text(etiqueta, style: const TextStyle(fontSize: 12, color: BumandColores.grisMedio)),
         subtitle: Text(
           "${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}",
-          style: const TextStyle(fontWeight: FontWeight.bold, color: BumandColores.AZUL_DIACONIA),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: BumandColores.azulMarinoProfundo),
         ),
-        trailing: const Icon(Icons.edit_calendar, color: Colors.black54),
+        trailing: const Icon(Icons.edit_calendar, color: BumandColores.grisMedio),
         onTap: () => _elegirFecha(context),
       ),
     );
@@ -84,9 +84,9 @@ class SeleccionadorHora extends StatelessWidget {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: BumandColores.TURQUESA_DIACONIA,
-              onPrimary: BumandColores.BLANCO,
-              onSurface: BumandColores.NEGRO,
+              primary: BumandColores.azulMarinoProfundo,
+              onPrimary: BumandColores.blanco,
+              onSurface: BumandColores.negro,
             ),
           ),
           child: child!,
@@ -103,17 +103,17 @@ class SeleccionadorHora extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE3DCCB), width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: BumandColores.grisClaro, width: 1.2),
       ),
       child: ListTile(
-        leading: const Icon(Icons.access_time, color: BumandColores.TURQUESA_DIACONIA),
-        title: Text(etiqueta, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        leading: const Icon(Icons.access_time, color: BumandColores.azulMarinoProfundo),
+        title: Text(etiqueta, style: const TextStyle(fontSize: 12, color: BumandColores.grisMedio)),
         subtitle: Text(
           hora.format(context),
-          style: const TextStyle(fontWeight: FontWeight.bold, color: BumandColores.AZUL_DIACONIA),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: BumandColores.azulMarinoProfundo),
         ),
-        trailing: const Icon(Icons.edit, color: Colors.black54),
+        trailing: const Icon(Icons.edit, color: BumandColores.grisMedio),
         onTap: () => _elegirHora(context),
       ),
     );

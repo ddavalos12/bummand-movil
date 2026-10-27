@@ -12,6 +12,9 @@ import '../../evaluaciones/pantallas/evaluaciones-pantalla.dart';
 import '../../justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
 import '../../pasajes/pantallas/declarar-recorrido-pantalla.dart';
 import '../proveedores/inicio-proveedor.dart';
+import 'acerca-de-pantalla.dart';
+import '../../refrigerios/pantallas/refrigerios-pantalla.dart';
+
 
 class InicioPantalla extends ConsumerStatefulWidget {
   final bool mostrar_versiculo_inicio;
@@ -131,7 +134,7 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
                   height: 48,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Color(0xFF0284C7),
+                    color: BumandColores.azulMarinoProfundo,
                   ),
                   child: const Icon(
                     Icons.person_rounded,
@@ -171,7 +174,7 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
           // Tarjetas de Acceso Directo a los Módulos Clave (Fiel a 16.jpeg y 17.jpeg)
           _construirItemMenu(
             icono: Icons.location_on_rounded,
-            color_icono: const Color(0xFF0284C7),
+            color_icono: BumandColores.azulMarinoProfundo,
             fondo_icono: const Color(0xFFE0F2FE),
             titulo: "Asistencia y Ruta del Día",
             subtitulo: "Registra tu ingreso, salida y recorrido con mapa",
@@ -248,7 +251,40 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
               SolicitarJustificacionDialogo.mostrar(context);
             },
           ),
+          const SizedBox(height: 10),
+          _construirItemMenu(
+            icono: Icons.restaurant_menu_rounded,
+            color_icono: BumandColores.azulMarinoProfundo,
+            fondo_icono: const Color(0xFFE0F2FE),
+            titulo: 'Mis Refrigerios',
+            subtitulo: 'Registro de recojo y constancias de ración',
+            alTocar: () {
+              ref.read(menu_principal_proveedor.notifier).ocultar();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const RefrigeriosPantalla(),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: 14),
+          _construirItemMenu(
+            icono: Icons.apartment_rounded,
+            color_icono: BumandColores.azulMarinoSecundario,
+            fondo_icono: const Color(0xFFE2E8F0),
+            titulo: "Acerca de Nosotros",
+            subtitulo: "Diaconía FRIF-IFD · Principios e historia",
+            alTocar: () {
+              ref.read(menu_principal_proveedor.notifier).ocultar();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AcercaDePantalla(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+
 
           // Fila del Perfil del Becario
           Container(
@@ -262,7 +298,7 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
               children: [
                 const Icon(
                   Icons.account_circle,
-                  color: Color(0xFF0284C7),
+                  color: BumandColores.azulMarinoProfundo,
                   size: 26,
                 ),
                 const SizedBox(width: 12),

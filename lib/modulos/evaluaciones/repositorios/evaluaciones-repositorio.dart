@@ -150,12 +150,12 @@ class EvaluacionesRepositorio {
         return Resultado.exitoso({
           'enviado': datos['enviado'] ?? true,
           'supervisor_nombre':
-              (datos['supervisor_nombre'] ?? 'Administración').toString(),
+              (datos['supervisor_nombre'] ?? 'Supervisor Asignado').toString(),
           'supervisor_correo':
               (datos['supervisor_correo'] ?? 'admin@bumand.bo').toString(),
           'expira_en_minutos': datos['expira_en_minutos'] ?? 10,
           'mensaje': datos['mensaje'] ??
-              'Se envió una notificación con el código de 6 dígitos a la pantalla de los administradores.',
+              'Se envió una notificación con el código de 6 dígitos a la pantalla de su supervisor específico.',
         });
       }
     } catch (_) {} finally {
@@ -164,11 +164,11 @@ class EvaluacionesRepositorio {
 
     return Resultado.exitoso({
       'enviado': true,
-      'supervisor_nombre': 'Administración',
+      'supervisor_nombre': 'Supervisor Asignado',
       'supervisor_correo': 'admin@bumand.bo',
       'expira_en_minutos': 10,
       'mensaje':
-          'Se envió una notificación con el código de 6 dígitos a la pantalla de los administradores.',
+          'Se envió una notificación con el código de 6 dígitos a la pantalla de su supervisor específico.',
     });
   }
 
@@ -216,7 +216,7 @@ class EvaluacionesRepositorio {
 
     if (codigo != null && codigo.trim().isNotEmpty) {
       return Resultado.fallido(
-        'El código ingresado no coincide con el enviado a la pantalla de administración.',
+        'El código ingresado no coincide con el enviado a la pantalla de su supervisor.',
       );
     }
 

@@ -21,7 +21,7 @@ class AsistenciaPantalla extends ConsumerStatefulWidget {
 }
 
 class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
-  static const _FONDO = Color(0xFFEFF3F8);
+  static const _FONDO = BumandColores.fondo;
 
   String _tipo = TipoAsistencia.practicas.valor;
   Map<String, dynamic>? _lugar_seleccionado;
@@ -628,7 +628,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: _es_retraso
-                            ? const Color(0xFFF59E0B)
+                            ? BumandColores.amarilloRadiante
                             : const Color(0xFF10B981),
                       ),
                     ),
@@ -680,7 +680,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   ),
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    side: const BorderSide(color: BumandColores.grisClaro),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -746,7 +746,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
                   color: seleccionado
-                      ? const Color(0xFF0284C7)
+                      ? BumandColores.azulMarinoProfundo
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -778,11 +778,11 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        border: Border.all(color: BumandColores.grisClaro),
       ),
       child: Row(
         children: [
-          const Icon(Icons.event_available, color: Color(0xFF0284C7), size: 18),
+          const Icon(Icons.event_available, color: BumandColores.azulMarinoProfundo, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonHideUnderline(
@@ -830,11 +830,11 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                 ? () => _marcar(ingreso: true, lugar: lugar)
                 : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0284C7),
+              backgroundColor: BumandColores.azulMarinoProfundo,
               foregroundColor: Colors.white,
               elevation: 0,
               disabledBackgroundColor:
-                  const Color(0xFF0284C7).withValues(alpha: 0.5),
+                  BumandColores.azulMarinoProfundo.withValues(alpha: 0.5),
               disabledForegroundColor: Colors.white70,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -872,8 +872,8 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                 : null,
             style: OutlinedButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF0284C7),
-              side: const BorderSide(color: Color(0xFF0284C7), width: 1.5),
+              foregroundColor: BumandColores.azulMarinoProfundo,
+              side: const BorderSide(color: BumandColores.azulMarinoProfundo, width: 1.5),
               elevation: 0,
               disabledForegroundColor: Colors.grey.shade400,
               shape: RoundedRectangleBorder(

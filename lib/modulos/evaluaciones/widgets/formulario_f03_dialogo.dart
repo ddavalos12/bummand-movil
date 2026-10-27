@@ -149,7 +149,7 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("✓ Formulario F-03 del Pastor recibido exitosamente por el sistema."),
-        backgroundColor: Color(0xFF10B981),
+        backgroundColor: BumandColores.azulMarinoProfundo,
         duration: Duration(seconds: 3),
       ),
     );
@@ -382,10 +382,10 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
                     child: ElevatedButton.icon(
                       onPressed: _enviando ? null : _enviarRecepcion,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: BumandColores.NARANJA,
-                        foregroundColor: BumandColores.NEGRO,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                        backgroundColor: BumandColores.amarilloRadiante,
+                    foregroundColor: BumandColores.azulMarinoSecundario,
+                                                shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       icon: _enviando
@@ -415,7 +415,7 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
                       onPressed: _exportarPdf,
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       icon: const Icon(Icons.picture_as_pdf, size: 18),

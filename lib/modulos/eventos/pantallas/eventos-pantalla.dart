@@ -20,7 +20,7 @@ class EventosPantalla extends ConsumerStatefulWidget {
 
 class _EventosPantallaState extends ConsumerState<EventosPantalla>
     with SingleTickerProviderStateMixin {
-  static const _COLOR_FONDO = Color(0xFFEFF3F8);
+  static const _COLOR_FONDO = BumandColores.fondo;
 
   late final AnimationController _controlador_pulso;
   Position? _posicion_actual;
@@ -793,8 +793,11 @@ class _RadarEventoCard extends StatelessWidget {
                       style: TextStyle(fontSize: 13),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF59E0B),
-                      foregroundColor: Colors.white,
+                      backgroundColor: BumandColores.amarilloRadiante,
+                      foregroundColor: BumandColores.azulMarinoSecundario,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
@@ -812,7 +815,7 @@ class _RadarEventoCard extends StatelessWidget {
         radio_esquinas: 20.0,
         ancho_borde: 2.2,
         color_haz: const Color(0xFF10B981),
-        color_haz_secundario: const Color(0xFF17B4C4),
+        color_haz_secundario: BumandColores.azulCieloSuave,
         hijo: contenido_tarjeta,
       );
     }

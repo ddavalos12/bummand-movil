@@ -13,8 +13,8 @@ import 'evaluacion-socioeconomica-pantalla.dart';
 class EvaluacionesPantalla extends ConsumerWidget {
   const EvaluacionesPantalla({super.key});
 
-  static const _FONDO = Color(0xFFEFF3F8);
-  static const _BORDE = Color(0xFFE2E8F0);
+  static const _FONDO = BumandColores.fondo;
+  static const _BORDE = BumandColores.grisClaro;
 
   Color _obtenerColorModulo(int numero) {
     switch (numero) {

@@ -19,8 +19,8 @@ class NotificacionesPantalla extends ConsumerStatefulWidget {
 
 class _NotificacionesPantallaState
     extends ConsumerState<NotificacionesPantalla> {
-  static const _FONDO = Color(0xFFEFF3F8);
-  static const _BORDE = Color(0xFFE3E9F2);
+  static const _FONDO = BumandColores.fondo;
+  static const _BORDE = BumandColores.grisClaro;
 
   String _filtro_actual = "todas";
 

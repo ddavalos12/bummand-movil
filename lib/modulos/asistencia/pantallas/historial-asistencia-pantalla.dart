@@ -25,8 +25,8 @@ class HistorialAsistenciaPantalla extends ConsumerStatefulWidget {
 class _HistorialAsistenciaPantallaState
     extends ConsumerState<HistorialAsistenciaPantalla>
     with SingleTickerProviderStateMixin {
-  static const _FONDO = Color(0xFFEFF3F8);
-  static const _BORDE = Color(0xFFE2E8F0);
+  static const _FONDO = BumandColores.fondo;
+  static const _BORDE = BumandColores.grisClaro;
 
   late final TabController _controlador_tabs;
   String _filtro_tipo = "todas";
@@ -602,11 +602,11 @@ class _HistorialAsistenciaPantallaState
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F2B48),
+        color: BumandColores.azulMarinoSecundario,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F2B48).withValues(alpha: 0.3),
+            color: BumandColores.azulMarinoSecundario.withValues(alpha: 0.3),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -1224,7 +1224,7 @@ class _HistorialAsistenciaPantallaState
                     gradient: const LinearGradient(
                       colors: [
                         BumandColores.AZUL_DIACONIA,
-                        Color(0xFF0F4C81),
+                        BumandColores.azulMarinoSecundario,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,

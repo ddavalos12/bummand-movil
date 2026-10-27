@@ -175,7 +175,7 @@ class DetalleAsistenciaModal extends StatelessWidget {
             style: FilledButton.styleFrom(
               backgroundColor: BumandColores.AZUL_DIACONIA,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),

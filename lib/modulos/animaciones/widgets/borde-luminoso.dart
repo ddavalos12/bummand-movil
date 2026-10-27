@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../../../nucleo/tema/colores.dart';
+
 /// Cult UI — Borde Luminoso en Rotación (Border Beam)
 /// Traza un haz de luz suave y animado por el perímetro de una tarjeta para
 /// destacar logros institucionales o estado de validación.
@@ -18,8 +20,8 @@ class BordeLuminoso extends StatefulWidget {
     this.ancho_borde = 2.0,
     this.radio_esquinas = 16.0,
     this.duracion = const Duration(seconds: 4),
-    this.color_haz = const Color(0xFF17B4C4),
-    this.color_haz_secundario = const Color(0xFFF8C766),
+    this.color_haz = BumandColores.azulCieloSuave,
+    this.color_haz_secundario = BumandColores.amarilloRadiante,
   });
 
   @override

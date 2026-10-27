@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../nucleo/tema/colores.dart';
+
 /// Cult UI — Tarjeta con Reflector de Puntero (Spotlight Card)
 /// Proyecta una fuente de luz radial interactiva al tocar o arrastrar el dedo/mouse,
 /// realzando la profundidad y estética visual del contenedor.
@@ -16,7 +18,7 @@ class TarjetaSpotlight extends StatefulWidget {
     super.key,
     required this.hijo,
     this.color_fondo = Colors.white,
-    this.color_luz = const Color(0x2817B4C4),
+    this.color_luz = const Color(0x2800ABBD),
     this.radio_luz = 140.0,
     this.radio_borde,
     this.padding = const EdgeInsets.all(16.0),
@@ -62,7 +64,7 @@ class _TarjetaSpotlightState extends State<TarjetaSpotlight> {
             color: widget.color_fondo,
             borderRadius: radio,
             border: Border.all(
-              color: const Color(0xFFE3DCCB),
+              color: BumandColores.grisClaro,
               width: 1.2,
             ),
             boxShadow: const [

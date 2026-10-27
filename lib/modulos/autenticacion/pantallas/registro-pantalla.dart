@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/tarjeta-spotlight.dart';
 import '../../../widgets-comunes/boton-juicy.dart';
 import '../proveedores/autenticacion-proveedor.dart';
@@ -152,10 +153,10 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(26),
+        color: BumandColores.fondo,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: BumandColores.grisClaro,
           width: 1.2,
         ),
       ),
@@ -167,13 +168,13 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
         autocorrect: false,
         style: const TextStyle(
           fontSize: 14.5,
-          color: Color(0xFF1E293B),
+          color: BumandColores.negro,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: texto_marcador,
           hintStyle: const TextStyle(
-            color: Color(0xFF94A3B8),
+            color: BumandColores.grisMedio,
             fontSize: 14.5,
             fontWeight: FontWeight.w400,
           ),
@@ -182,12 +183,12 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFFE0F2FE),
+              color: BumandColores.azulCieloSuave.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icono,
-              color: const Color(0xFF0284C7),
+              color: BumandColores.azulMarinoProfundo,
               size: 19,
             ),
           ),
@@ -197,7 +198,7 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                     _ocultar_contrasena
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
-                    color: const Color(0xFF94A3B8),
+                    color: BumandColores.grisMedio,
                     size: 20,
                   ),
                   onPressed: () =>
@@ -318,8 +319,8 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF063A6B)
-                                      .withValues(alpha: 0.04),
+                                  color: BumandColores.azulMarinoSecundario
+                                      .withValues(alpha: 0.05),
                                   blurRadius: 16,
                                   offset: const Offset(0, 4),
                                 ),
@@ -332,7 +333,7 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                                 Hero(
                                   tag: 'hero-logo-bumand',
                                   child: SvgPicture.asset(
-                                    'assets/logos/logo-bumand.svg',
+                                    'assets/logos/logo-bumand-oficial.svg',
                                     height: 44,
                                     fit: BoxFit.contain,
                                   ),
@@ -342,12 +343,12 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                                   width: 1.5,
                                   margin:
                                       const EdgeInsets.symmetric(horizontal: 12),
-                                  color: const Color(0xFFE2E8F0),
+                                  color: BumandColores.grisClaro,
                                 ),
                                 Hero(
                                   tag: 'hero-logo-diaconia',
                                   child: SvgPicture.asset(
-                                    'assets/logos/logo-diaconia.svg',
+                                    'assets/logos/logo-diaconia-color.svg',
                                     height: 40,
                                     fit: BoxFit.contain,
                                   ),
@@ -371,11 +372,11 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                             children: [
                               TextSpan(
                                 text: 'Crear mi ',
-                                style: TextStyle(color: Color(0xFF0F172A)),
+                                style: TextStyle(color: BumandColores.negro),
                               ),
                               TextSpan(
                                 text: 'cuenta',
-                                style: TextStyle(color: Color(0xFF0284C7)),
+                                style: TextStyle(color: BumandColores.azulMarinoProfundo),
                               ),
                             ],
                           ),
@@ -386,7 +387,7 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                         "Activación de cuenta para becarios en nómina oficial",
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF64748B),
+                          color: BumandColores.textoSecundario,
                           fontWeight: FontWeight.w500,
                         ),
                         textAlign: TextAlign.center,
@@ -397,7 +398,7 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                           width: 44,
                           height: 3.5,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0284C7),
+                            color: BumandColores.amarilloRadiante,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -537,9 +538,9 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                       BotonJuicy(
                         al_presionar: estado_auth.cargando ? null : _registrar,
                         cargando: estado_auth.cargando,
-                        color_fondo: const Color(0xFFF59E0B),
-                        color_texto: Colors.white,
-                        radio_borde: 26,
+                        color_fondo: BumandColores.azulMarinoProfundo,
+                        color_texto: BumandColores.blanco,
+                        radio_borde: 16,
                         alto: 48,
                         icono: Icons.check_circle_outline_rounded,
                         texto_o_hijo: const Text(
@@ -562,7 +563,7 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF0284C7),
+                              color: BumandColores.azulMarinoProfundo,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -574,7 +575,7 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                         children: [
                           const Expanded(
                             child: Divider(
-                              color: Color(0xFFE2E8F0),
+                              color: BumandColores.grisClaro,
                               thickness: 1,
                             ),
                           ),
@@ -582,15 +583,15 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             child: CustomPaint(
                               size: const Size(26, 13),
-                              painter: PintorPezCristiano(
-                                color: const Color(0xFFFDBC58),
+                              painter: const PintorPezCristiano(
+                                color: BumandColores.amarilloRadiante,
                                 grosor: 1.8,
                               ),
                             ),
                           ),
                           const Expanded(
                             child: Divider(
-                              color: Color(0xFFE2E8F0),
+                              color: BumandColores.grisClaro,
                               thickness: 1,
                             ),
                           ),

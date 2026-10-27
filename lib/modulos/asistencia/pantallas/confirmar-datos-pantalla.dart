@@ -14,8 +14,8 @@ class ConfirmarDatosPantalla extends ConsumerStatefulWidget {
 }
 
 class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla> {
-  static const _FONDO = Color(0xFFEFF3F8);
-  static const _BORDE = Color(0xFFE2E8F0);
+  static const _FONDO = BumandColores.fondo;
+  static const _BORDE = BumandColores.grisClaro;
 
   final TextEditingController _telefono_controlador = TextEditingController();
   final TextEditingController _direccion_controlador = TextEditingController();
@@ -413,10 +413,10 @@ class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla>
                           ),
                         ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: BumandColores.NARANJA_OSCURO,
-                    foregroundColor: Colors.white,
+                    backgroundColor: BumandColores.amarilloRadiante,
+                    foregroundColor: BumandColores.azulMarinoSecundario,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                 ),

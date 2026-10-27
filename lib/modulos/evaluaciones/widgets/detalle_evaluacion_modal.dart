@@ -70,7 +70,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
       case "recibido":
       case "documentos recibidos":
       case "aprobado":
-        return const Color(0xFF10B981);
+        return BumandColores.azulMarinoProfundo;
       case "pendiente":
       case "en revisión":
         return const Color(0xFFF59E0B);
@@ -279,7 +279,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFCBD5E1)),
               ),
               child: Row(
@@ -331,7 +331,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,11 +368,11 @@ class DetalleEvaluacionModal extends StatelessWidget {
                   FormularioF03Dialogo.mostrar(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: BumandColores.NARANJA,
-                  foregroundColor: BumandColores.NEGRO,
+                  backgroundColor: BumandColores.amarilloRadiante,
+                  foregroundColor: BumandColores.azulMarinoSecundario,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 icon: const Icon(Icons.church_outlined),
@@ -398,7 +398,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 icon: const Icon(Icons.upload_file),
@@ -424,7 +424,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 icon: const Icon(Icons.qr_code_2),
@@ -446,11 +446,11 @@ class DetalleEvaluacionModal extends StatelessWidget {
                   DetalleEvaluacionModal.mostrarReceptorSocioeconomico(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: BumandColores.NARANJA,
-                  foregroundColor: BumandColores.NEGRO,
+                  backgroundColor: BumandColores.amarilloRadiante,
+                  foregroundColor: BumandColores.azulMarinoSecundario,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 icon: const Icon(Icons.assignment_outlined),
@@ -466,7 +466,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -711,7 +711,7 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("✓ Récord e Historial Académico recibidos exitosamente."),
-        backgroundColor: Color(0xFF10B981),
+        backgroundColor: BumandColores.azulMarinoProfundo,
         duration: Duration(seconds: 3),
       ),
     );
@@ -839,7 +839,7 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                 backgroundColor: BumandColores.AZUL_DIACONIA,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               icon: _enviando
@@ -872,9 +872,9 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: archivo != null ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
+          color: archivo != null ? BumandColores.azulMarinoProfundo : const Color(0xFFCBD5E1),
         ),
       ),
       child: Row(
@@ -929,11 +929,11 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                   : const Color(0xFFF1F5F9),
               foregroundColor: archivo == null
                   ? Colors.white
-                  : const Color(0xFF063A6B),
+                  : BumandColores.azulMarinoSecundario,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
             child: Text(
@@ -1072,10 +1072,10 @@ class _ReceptorMentorModal extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: () => _abrirVerificacionSupervisor(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.NARANJA,
-                foregroundColor: BumandColores.NEGRO,
+                backgroundColor: BumandColores.amarilloRadiante,
+                  foregroundColor: BumandColores.azulMarinoSecundario,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               icon: const Icon(Icons.person_pin_circle_outlined),
@@ -1138,7 +1138,7 @@ class _DialogoVerificacionSupervisorState
     final codigo = _codigo_ctrl.text.trim();
     if (codigo.isEmpty) {
       setState(() {
-        _mensaje_error = "Ingresa el código de 6 dígitos enviado a administración.";
+        _mensaje_error = "Ingresa el código de 6 dígitos enviado a su supervisor específico.";
       });
       return;
     }
@@ -1158,7 +1158,7 @@ class _DialogoVerificacionSupervisorState
 
     if (resultado.exito && resultado.datos?['verificado'] == true) {
       final nombre =
-          resultado.datos?['supervisor_nombre']?.toString() ?? "Administración";
+          resultado.datos?['supervisor_nombre']?.toString() ?? "Supervisor Asignado";
       Navigator.of(context).pop(nombre);
     } else {
       setState(() {
@@ -1257,7 +1257,7 @@ class _DialogoVerificacionSupervisorState
             const SizedBox(height: 14),
 
             const Text(
-              "Código de 6 dígitos del Administrador",
+              "Código de 6 dígitos de su Supervisor",
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -1287,7 +1287,7 @@ class _DialogoVerificacionSupervisorState
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),
@@ -1300,7 +1300,7 @@ class _DialogoVerificacionSupervisorState
                 label: Text(
                   _enviando_codigo
                       ? "Enviando código..."
-                      : "Reenviar código a administración",
+                      : "Reenviar código al supervisor",
                   style: const TextStyle(fontSize: 11.5),
                 ),
               ),
@@ -1346,7 +1346,7 @@ class _DialogoVerificacionSupervisorState
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: const Text("Cancelar"),
@@ -1362,7 +1362,7 @@ class _DialogoVerificacionSupervisorState
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     icon: _verificando
@@ -1607,7 +1607,7 @@ class _FormularioSupervisorEvaluadorState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("✓ Evaluación del Mentor registrada exitosamente en BUMAND."),
-          backgroundColor: Color(0xFF10B981),
+          backgroundColor: BumandColores.azulMarinoProfundo,
           duration: Duration(seconds: 4),
         ),
       );
@@ -1739,7 +1739,7 @@ class _FormularioSupervisorEvaluadorState
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: Column(
@@ -1925,7 +1925,7 @@ class _FormularioSupervisorEvaluadorState
                       backgroundColor: BumandColores.AZUL_DIACONIA,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     icon: _enviando
@@ -2017,7 +2017,7 @@ class _FormularioSupervisorEvaluadorState
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
@@ -2124,7 +2124,7 @@ class _ReceptorSocioeconomicoModalState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Aún te faltan $faltantes preguntas por responder."),
-          backgroundColor: Colors.amber.shade800,
+          backgroundColor: BumandColores.amarilloRadiante,
         ),
       );
       return;
@@ -2151,7 +2151,7 @@ class _ReceptorSocioeconomicoModalState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("✓ Cuestionario de Bienestar Universitario enviado exitosamente."),
-          backgroundColor: Color(0xFF10B981),
+          backgroundColor: BumandColores.azulMarinoProfundo,
           duration: Duration(seconds: 3),
         ),
       );
@@ -2246,7 +2246,7 @@ class _ReceptorSocioeconomicoModalState
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: Column(
@@ -2293,7 +2293,7 @@ class _ReceptorSocioeconomicoModalState
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: respuesta_seleccionada != null
                           ? BumandColores.AZUL_DIACONIA.withValues(alpha: 0.5)
@@ -2312,7 +2312,7 @@ class _ReceptorSocioeconomicoModalState
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               color: respuesta_seleccionada != null
-                                  ? const Color(0xFF10B981)
+                                  ? BumandColores.azulMarinoProfundo
                                   : BumandColores.AZUL_DIACONIA,
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -2462,10 +2462,10 @@ class _ReceptorSocioeconomicoModalState
             child: ElevatedButton.icon(
               onPressed: _enviando ? null : _enviarCuestionarioBienestar,
               style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.NARANJA,
-                foregroundColor: BumandColores.NEGRO,
+                backgroundColor: BumandColores.amarilloRadiante,
+                  foregroundColor: BumandColores.azulMarinoSecundario,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               icon: _enviando

@@ -454,23 +454,24 @@ class _SolicitarJustificacionDialogoState
                         },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(
-                            color: Color(0xFF0284C7),
+                            color: BumandColores.azulCieloSuave,
                             style: BorderStyle.solid,
+                            width: 1.5,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
                         icon: const Icon(
                           Icons.camera_alt_outlined,
                           size: 16,
-                          color: Color(0xFF0284C7),
+                          color: BumandColores.azulCieloSuave,
                         ),
                         label: const Text(
                           "Adjuntar fotografía o certificado médico (PDF/IMG)",
                           style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF0284C7),
+                            color: BumandColores.azulCieloSuave,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -524,7 +525,7 @@ class _SolicitarJustificacionDialogoState
                     backgroundColor: BumandColores.AZUL_DIACONIA,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   icon: _enviando

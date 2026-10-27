@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import '../../../../nucleo/tema/colores.dart';
+
 class ElementoComando {
   final IconData icono;
   final String etiqueta;
@@ -38,7 +40,7 @@ class BarraComandosFlotante extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.88),
             borderRadius: BorderRadius.circular(24.0),
             border: Border.all(
-              color: const Color(0xFFE3DCCB),
+              color: BumandColores.grisClaro,
               width: 1.2,
             ),
             boxShadow: const [
@@ -67,12 +69,12 @@ class BarraComandosFlotante extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: esta_activo
-                        ? const Color(0x2817B4C4)
+                        ? BumandColores.azulCieloSuave.withValues(alpha: 0.16)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(16.0),
                     border: esta_activo
                         ? Border.all(
-                            color: const Color(0x6617B4C4),
+                            color: BumandColores.azulCieloSuave.withValues(alpha: 0.40),
                             width: 1.0,
                           )
                         : null,
@@ -84,8 +86,8 @@ class BarraComandosFlotante extends StatelessWidget {
                         elem.icono,
                         size: 20.0,
                         color: esta_activo
-                            ? const Color(0xFF063A6B)
-                            : const Color(0xFF8A9BA4),
+                            ? BumandColores.azulMarinoProfundo
+                            : BumandColores.grisMedio,
                       ),
                       if (esta_activo) ...[
                         const SizedBox(width: 6.0),
@@ -94,7 +96,7 @@ class BarraComandosFlotante extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 12.0,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF063A6B),
+                            color: BumandColores.azulMarinoSecundario,
                           ),
                         ),
                       ],

@@ -545,7 +545,7 @@ class _DeclararRecorridoPantallaState
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFDCFCE7)),
             ),
             child: Column(
@@ -639,7 +639,7 @@ class _DeclararRecorridoPantallaState
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFBAE6FD)),
         boxShadow: [
           BoxShadow(
@@ -1063,7 +1063,7 @@ class _DeclararRecorridoPantallaState
         _id_recorrido_ida_hoy != null);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEFF3F8),
+      backgroundColor: BumandColores.fondo,
       appBar: widget.es_pestana
           ? BarraSuperiorBumand(
               titulo: "Declarar pasajes",
@@ -1151,7 +1151,7 @@ class _DeclararRecorridoPantallaState
                   color: BumandColores.AZUL_DIACONIA,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
                 ),
               ),
@@ -1199,11 +1199,11 @@ class _DeclararRecorridoPantallaState
               child: ElevatedButton.icon(
                 onPressed: _guardando ? null : _guardarRecorridoFinal,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: BumandColores.NARANJA,
-                  foregroundColor: BumandColores.NEGRO,
+                  backgroundColor: BumandColores.amarilloRadiante,
+                  foregroundColor: BumandColores.azulMarinoSecundario,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 icon: _guardando
@@ -1275,7 +1275,7 @@ class _DeclararRecorridoPantallaState
                   color: _paso_activo == 1
                       ? BumandColores.AZUL_DIACONIA
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   "1 · Ida (Bs ${subtotal_ida.toStringAsFixed(2)})",
@@ -1298,7 +1298,7 @@ class _DeclararRecorridoPantallaState
                   color: _paso_activo == 2
                       ? BumandColores.AZUL_DIACONIA
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   "2 · Vuelta (Bs ${subtotal_vuelta.toStringAsFixed(2)})",
@@ -1459,7 +1459,7 @@ class _DeclararRecorridoPantallaState
                 backgroundColor: BumandColores.TURQUESA_DIACONIA,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               child: const Text("Siguiente: Vuelta →"),
@@ -1508,13 +1508,13 @@ class _DeclararRecorridoPantallaState
           // Botón destacado: ↺ Usar la ida en reversa
           InkWell(
             onTap: _usarIdaEnReversa,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFF59E0B)),
               ),
               child: const Row(
@@ -1632,7 +1632,7 @@ class _DeclararRecorridoPantallaState
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           padding: const EdgeInsets.all(4),
@@ -1802,7 +1802,7 @@ class _DeclararRecorridoPantallaState
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
@@ -1915,7 +1915,7 @@ class _DeclararRecorridoPantallaState
         gradient: const LinearGradient(
           colors: [
             BumandColores.AZUL_DIACONIA,
-            Color(0xFF0F4C81),
+            BumandColores.azulMarinoSecundario,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1990,14 +1990,17 @@ class _DeclararRecorridoPantallaState
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF0F294A), Color(0xFF153E6C)],
+          colors: [
+            BumandColores.AZUL_DIACONIA,
+            BumandColores.azulMarinoSecundario,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F294A).withValues(alpha: 0.2),
+            color: BumandColores.azulMarinoSecundario.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -2062,7 +2065,7 @@ class _DeclararRecorridoPantallaState
             height: 120,
             width: double.infinity,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: CustomPaint(
                 painter: _PintorMapaTrayecto(
                   paradas: nombres_paradas.isEmpty
@@ -2122,7 +2125,7 @@ class _PintorMapaTrayecto extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final fondo_paint = Paint()..color = const Color(0xFF0A1D37);
+    final fondo_paint = Paint()..color = BumandColores.azulMarinoSecundario;
     canvas.drawRect(Offset.zero & size, fondo_paint);
 
     final grilla_paint = Paint()

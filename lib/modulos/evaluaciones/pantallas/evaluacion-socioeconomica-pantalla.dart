@@ -18,11 +18,11 @@ class EvaluacionSocioeconomicaPantalla extends ConsumerStatefulWidget {
 
 class _EvaluacionSocioeconomicaPantallaState
     extends ConsumerState<EvaluacionSocioeconomicaPantalla> {
-  static const Color _AZUL_PROFUNDO = Color(0xFF063A6B);
-  static const Color _TURQUESA_INSTITUCIONAL = Color(0xFF17B4C4);
-  static const Color _DORADO_DIACONIA = Color(0xFFF8C766);
-  static const Color _FONDO_PANTALLA = Color(0xFFEFF3F8);
-  static const Color _BORDE_SUAVE = Color(0xFFE2E8F0);
+  static const Color _AZUL_PROFUNDO = BumandColores.azulMarinoProfundo;
+  static const Color _TURQUESA_INSTITUCIONAL = BumandColores.azulCieloSuave;
+  static const Color _DORADO_DIACONIA = BumandColores.amarilloRadiante;
+  static const Color _FONDO_PANTALLA = BumandColores.fondo;
+  static const Color _BORDE_SUAVE = BumandColores.grisClaro;
 
   static const List<String> _CATEGORIAS_FILTRO = [
     "Todas (26)",
@@ -197,7 +197,7 @@ class _EvaluacionSocioeconomicaPantallaState
           content: Text(
             "Por favor responde todas las preguntas. Faltan $faltantes de ${_preguntas.length}.",
           ),
-          backgroundColor: const Color(0xFFD97706),
+          backgroundColor: BumandColores.amarilloRadiante,
         ),
       );
       return;
@@ -232,7 +232,7 @@ class _EvaluacionSocioeconomicaPantallaState
           content: Text(
             "✓ Evaluación Socioeconómica (26/26) enviada exitosamente a Bienestar Universitario.",
           ),
-          backgroundColor: Color(0xFF059669),
+          backgroundColor: BumandColores.azulMarinoProfundo,
           duration: Duration(seconds: 3),
         ),
       );
@@ -344,7 +344,7 @@ class _EvaluacionSocioeconomicaPantallaState
                           : Icons.pending_actions_rounded,
                       size: 18,
                       color: completado
-                          ? const Color(0xFF059669)
+                          ? BumandColores.azulMarinoProfundo
                           : _AZUL_PROFUNDO,
                     ),
                     const SizedBox(width: 6),
@@ -445,7 +445,7 @@ class _EvaluacionSocioeconomicaPantallaState
               minHeight: 8,
               backgroundColor: const Color(0xFFE2E8F0),
               valueColor: AlwaysStoppedAnimation<Color>(
-                completado ? const Color(0xFF059669) : _TURQUESA_INSTITUCIONAL,
+                completado ? BumandColores.azulMarinoProfundo : _TURQUESA_INSTITUCIONAL,
               ),
             ),
           ),
@@ -525,7 +525,7 @@ class _EvaluacionSocioeconomicaPantallaState
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: esta_respondida
-                      ? const Color(0xFF059669)
+                      ? BumandColores.azulMarinoProfundo
                       : _AZUL_PROFUNDO,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -764,10 +764,10 @@ class _EvaluacionSocioeconomicaPantallaState
             onPressed: _enviando ? null : _enviarEvaluacionSocioeconomica,
             style: ElevatedButton.styleFrom(
               backgroundColor: _DORADO_DIACONIA,
-              foregroundColor: BumandColores.NEGRO,
+              foregroundColor: BumandColores.azulMarinoSecundario,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
             icon: _enviando

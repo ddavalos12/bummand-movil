@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+
+import '../../../../nucleo/tema/colores.dart';
 import 'package:flutter/services.dart';
 
 /// Watermelon UI — Ráfaga de Confeti y Celebración (Juicy UI)
@@ -55,12 +57,12 @@ class _RafagaCelebracionState extends State<RafagaCelebracion>
   final math.Random _random = math.Random();
 
   static const List<Color> _COLORES_BUMAND = [
-    Color(0xFFF8C766), // Dorado Diaconía
-    Color(0xFF17B4C4), // Turquesa BUMAND
-    Color(0xFF063A6B), // Azul Marino
-    Color(0xFF10B981), // Esmeralda
-    Color(0xFFE2694B), // Coral
-    Color(0xFF7FE0E6), // Cian
+    BumandColores.amarilloRadiante,     // #FFB600 - Acento cálido y radiante
+    BumandColores.azulCieloSuave,       // #00ABBD - Frescura y claridad
+    BumandColores.azulMarinoProfundo,   // #007BBE - Primario institucional
+    BumandColores.azulMarinoSecundario, // #035683 - Secundario institucional
+    BumandColores.azulPetroleo,         // #00808E - Secundario verdoso
+    BumandColores.blanco,               // #FFFFFF
   ];
 
   @override
