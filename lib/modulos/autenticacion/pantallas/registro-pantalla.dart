@@ -26,6 +26,7 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
   final _confirmar_controlador = TextEditingController();
 
   bool _ocultar_contrasena = true;
+  bool _ocultar_confirmar_contrasena = true;
   String? _error_validacion;
   late final AnimationController _animacion_controlador;
 
@@ -148,9 +149,12 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
     required String texto_marcador,
     required IconData icono,
     bool es_contrasena = false,
+    bool? ocultar_texto,
+    VoidCallback? al_alternar_visibilidad,
     bool deshabilitar_pegar = false,
     TextInputType tipo_teclado = TextInputType.text,
   }) {
+    final bool esta_oculto = ocultar_texto ?? _ocultar_contrasena;
     return Container(
       decoration: BoxDecoration(
         color: BumandColores.fondo,
@@ -162,7 +166,7 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
       ),
       child: TextField(
         controller: controlador,
-        obscureText: es_contrasena && _ocultar_contrasena,
+        obscureText: es_contrasena && esta_oculto,
         keyboardType: tipo_teclado,
         enableInteractiveSelection: !deshabilitar_pegar,
         autocorrect: false,
@@ -195,14 +199,16 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
           suffixIcon: es_contrasena
               ? IconButton(
                   icon: Icon(
-                    _ocultar_contrasena
+                    esta_oculto
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
                     color: BumandColores.grisMedio,
                     size: 20,
                   ),
-                  onPressed: () =>
-                      setState(() => _ocultar_contrasena = !_ocultar_contrasena),
+                  onPressed: al_alternar_visibilidad ??
+                      () => setState(
+                            () => _ocultar_contrasena = !_ocultar_contrasena,
+                          ),
                 )
               : null,
           border: InputBorder.none,
@@ -491,6 +497,10 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                         texto_marcador: "Elige una contraseña",
                         icono: Icons.lock_outline,
                         es_contrasena: true,
+                        ocultar_texto: _ocultar_contrasena,
+                        al_alternar_visibilidad: () => setState(
+                          () => _ocultar_contrasena = !_ocultar_contrasena,
+                        ),
                       ),
                       const SizedBox(height: 11),
                       _construirCampoTexto(
@@ -498,6 +508,11 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                         texto_marcador: "Confirma tu contraseña",
                         icono: Icons.lock_outline,
                         es_contrasena: true,
+                        ocultar_texto: _ocultar_confirmar_contrasena,
+                        al_alternar_visibilidad: () => setState(
+                          () => _ocultar_confirmar_contrasena =
+                              !_ocultar_confirmar_contrasena,
+                        ),
                       ),
                       const SizedBox(height: 14),
 

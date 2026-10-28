@@ -6,6 +6,10 @@ class UsuarioModelo {
   final String correo;
   final String rol;
   final String token;
+  final String? correo_alternativo;
+  final List<String> correos_adicionales;
+  final String modalidad_pasajes;
+  final Map<String, dynamic>? configuracion_pasajes_actividades;
 
   const UsuarioModelo({
     required this.id,
@@ -13,6 +17,10 @@ class UsuarioModelo {
     required this.correo,
     required this.rol,
     required this.token,
+    this.correo_alternativo,
+    this.correos_adicionales = const [],
+    this.modalidad_pasajes = 'ida_y_vuelta',
+    this.configuracion_pasajes_actividades,
   });
 
   factory UsuarioModelo.desdeJson(Map<String, dynamic> json) {
@@ -44,12 +52,47 @@ class UsuarioModelo {
         carga_jwt?['rol'] as String? ??
         'becario';
 
+    final correo_alternativo_valor =
+        mapa_usuario?['correo_alternativo'] as String? ??
+            mapa_usuario?['correoAlternativo'] as String? ??
+            json['correo_alternativo'] as String? ??
+            json['correoAlternativo'] as String? ??
+            carga_jwt?['correo_alternativo'] as String?;
+
+    final lista_correos_raw = mapa_usuario?['correos_adicionales'] ??
+        mapa_usuario?['correosAdicionales'] ??
+        json['correos_adicionales'] ??
+        json['correosAdicionales'] ??
+        carga_jwt?['correos_adicionales'];
+    final List<String> correos_adicionales_valor = lista_correos_raw is List
+        ? lista_correos_raw
+            .map((e) => e is Map ? (e['correo']?.toString() ?? '') : e.toString())
+            .where((c) => c.isNotEmpty)
+            .toList()
+        : const [];
+
+    final modalidad_pasajes_valor = (mapa_usuario?['modalidad_pasajes'] ??
+            json['modalidad_pasajes'] ??
+            carga_jwt?['modalidad_pasajes'] ??
+            'ida_y_vuelta')
+        .toString();
+
+    final config_pasajes_raw = mapa_usuario?['configuracion_pasajes_actividades'] ??
+        json['configuracion_pasajes_actividades'];
+    final config_pasajes_valor = config_pasajes_raw is Map<String, dynamic>
+        ? config_pasajes_raw
+        : null;
+
     return UsuarioModelo(
       id: id_valor,
       nombre: nombre_valor,
       correo: correo_valor,
       rol: rol_valor,
       token: token_valor,
+      correo_alternativo: correo_alternativo_valor,
+      correos_adicionales: correos_adicionales_valor,
+      modalidad_pasajes: modalidad_pasajes_valor,
+      configuracion_pasajes_actividades: config_pasajes_valor,
     );
   }
 
@@ -72,6 +115,10 @@ class UsuarioModelo {
       'correo': correo,
       'rol': rol,
       'token': token,
+      'correo_alternativo': correo_alternativo,
+      'correos_adicionales': correos_adicionales,
+      'modalidad_pasajes': modalidad_pasajes,
+      'configuracion_pasajes_actividades': configuracion_pasajes_actividades,
     };
   }
 
@@ -81,6 +128,10 @@ class UsuarioModelo {
     String? correo,
     String? rol,
     String? token,
+    String? correo_alternativo,
+    List<String>? correos_adicionales,
+    String? modalidad_pasajes,
+    Map<String, dynamic>? configuracion_pasajes_actividades,
   }) {
     return UsuarioModelo(
       id: id ?? this.id,
@@ -88,7 +139,20 @@ class UsuarioModelo {
       correo: correo ?? this.correo,
       rol: rol ?? this.rol,
       token: token ?? this.token,
+      correo_alternativo: correo_alternativo ?? this.correo_alternativo,
+      correos_adicionales: correos_adicionales ?? this.correos_adicionales,
+      modalidad_pasajes: modalidad_pasajes ?? this.modalidad_pasajes,
+      configuracion_pasajes_actividades: configuracion_pasajes_actividades ?? this.configuracion_pasajes_actividades,
     );
+  }
+
+  static bool _listasIguales(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   @override
@@ -100,7 +164,9 @@ class UsuarioModelo {
           nombre == other.nombre &&
           correo == other.correo &&
           rol == other.rol &&
-          token == other.token;
+          token == other.token &&
+          correo_alternativo == other.correo_alternativo &&
+          _listasIguales(correos_adicionales, other.correos_adicionales);
 
   @override
   int get hashCode =>
@@ -108,5 +174,7 @@ class UsuarioModelo {
       nombre.hashCode ^
       correo.hashCode ^
       rol.hashCode ^
-      token.hashCode;
+      token.hashCode ^
+      correo_alternativo.hashCode ^
+      Object.hashAll(correos_adicionales);
 }

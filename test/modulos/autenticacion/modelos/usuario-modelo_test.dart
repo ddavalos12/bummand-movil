@@ -91,6 +91,8 @@ void main() {
       final modificado = original.copiarCon(
         nombre: 'Modificado',
         rol: 'administrador',
+        correo_alternativo: 'alt@diaconia.bo',
+        correos_adicionales: const ['alt@diaconia.bo'],
       );
 
       expect(modificado.id, equals(1));
@@ -98,6 +100,8 @@ void main() {
       expect(modificado.correo, equals('orig@bumand.bo'));
       expect(modificado.rol, equals('administrador'));
       expect(modificado.token, equals('tok-orig'));
+      expect(modificado.correo_alternativo, equals('alt@diaconia.bo'));
+      expect(modificado.correos_adicionales, equals(['alt@diaconia.bo']));
     });
   });
 }

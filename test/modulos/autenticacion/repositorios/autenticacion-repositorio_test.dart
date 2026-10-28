@@ -209,5 +209,32 @@ void main() {
       expect(resultado.datos!['nombre'], equals('Adai Belen Huayta Cardozo'));
       expect(url_solicitada, equals('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_VERIFICAR_CI}/13696496'));
     });
+
+    test('actualizarCorreoAlternativo persiste correo alternativo y correos adicionales en SharedPreferences', () async {
+      final preferencias = await SharedPreferences.getInstance();
+      await preferencias.setString('token', 'jwt.token.valido');
+      await preferencias.setString('usuario_rol', 'supervisor');
+      await preferencias.setInt('usuario_id', 50);
+      await preferencias.setString('usuario_nombre', 'Supervisor Diaconía');
+      await preferencias.setString('usuario_correo', 'supervisor@diaconia.bo');
+
+      final cliente_simulado = MockClienteHttp((peticion) async {
+        return http.Response(
+          jsonEncode({'mensaje': 'Correo alternativo actualizado'}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      final repositorio = AutenticacionRepositorio(cliente_http: cliente_simulado);
+      final resultado = await repositorio.actualizarCorreoAlternativo('supervisor.personal@gmail.com');
+
+      expect(resultado.exito, isTrue);
+      final sesion = await repositorio.obtenerSesionActual();
+      expect(sesion, isNotNull);
+      expect(sesion!.rol, equals('supervisor'));
+      expect(sesion.correo_alternativo, equals('supervisor.personal@gmail.com'));
+      expect(sesion.correos_adicionales, contains('supervisor.personal@gmail.com'));
+    });
   });
 }

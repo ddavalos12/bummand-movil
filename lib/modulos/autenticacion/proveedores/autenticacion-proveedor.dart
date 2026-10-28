@@ -82,6 +82,33 @@ class AutenticacionNotificador extends Notifier<AutenticacionEstado> {
     }
   }
 
+  Future<Resultado<String>> actualizarCorreoAlternativo(
+    String correo_alternativo,
+  ) async {
+    final resultado = await _repositorio.actualizarCorreoAlternativo(
+      correo_alternativo,
+    );
+    if (resultado.exito) {
+      await verificarSesionExistente();
+      if (state.usuario != null) {
+        final correo_limpio = correo_alternativo.trim().toLowerCase();
+        final lista_actual = List<String>.from(
+          state.usuario!.correos_adicionales,
+        );
+        if (!lista_actual.contains(correo_limpio)) {
+          lista_actual.add(correo_limpio);
+        }
+        state = state.copiarCon(
+          usuario: state.usuario!.copiarCon(
+            correo_alternativo: correo_limpio,
+            correos_adicionales: lista_actual,
+          ),
+        );
+      }
+    }
+    return resultado;
+  }
+
   void limpiarError() {
     state = state.copiarCon(limpiar_error: true);
   }

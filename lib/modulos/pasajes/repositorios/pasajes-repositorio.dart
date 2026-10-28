@@ -440,4 +440,37 @@ class PasajesRepositorio {
       {'nombre': 'Trufi', 'monto': 4.00},
     ]);
   }
+
+  Future<ResultadoPasaje<Map<String, dynamic>>> obtenerHistorialConsolidadoParadas({
+    String? fecha_inicio,
+    String? fecha_fin,
+    String? tramo,
+  }) async {
+    final cliente_http = _obtenerCliente();
+    final params = <String>[];
+    if (fecha_inicio != null) params.add('fecha_inicio=$fecha_inicio');
+    if (fecha_fin != null) params.add('fecha_fin=$fecha_fin');
+    if (tramo != null && tramo != 'todos') params.add('tramo=$tramo');
+    final query = params.isNotEmpty ? '?${params.join('&')}' : '';
+
+    try {
+      final respuesta = await cliente_http.get(
+        _url('/historial-paradas$query'),
+        headers: await _cabeceras(),
+      );
+
+      if (respuesta.statusCode == 200) {
+        final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
+        return ResultadoPasaje.exitoso(datos);
+      }
+    } catch (_) {}
+
+    return ResultadoPasaje.exitoso({
+      'total_recorridos': 0,
+      'total_gastado_bs': 0.0,
+      'total_devolucion_bs': 0.0,
+      'paradas_mas_frecuentes': [],
+      'recorridos': [],
+    });
+  }
 }

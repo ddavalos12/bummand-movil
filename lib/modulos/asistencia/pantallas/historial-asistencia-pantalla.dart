@@ -590,6 +590,24 @@ class _HistorialAsistenciaPantallaState
   }
 
   Widget _construirTarjetaHorasSemanales(double horas_acumuladas) {
+    const double meta_mensual = 36.0;
+    final int porcentaje = ((horas_acumuladas / meta_mensual) * 100).round();
+    final double horas_extra =
+        horas_acumuladas > meta_mensual ? horas_acumuladas - meta_mensual : 0.0;
+    final String texto_meta;
+    if (horas_acumuladas > 36.0) {
+      texto_meta =
+          "Meta Superada: 36 h (+${horas_extra.toStringAsFixed(1)} h) · $porcentaje%";
+    } else if (horas_acumuladas == 36.0) {
+      texto_meta = "Meta Cumplida: 36 h (9 h/sem) · 100%";
+    } else if (horas_acumuladas >= 27.0) {
+      texto_meta =
+          "En Progreso: ${horas_acumuladas.toStringAsFixed(1)} / 36 h (9 h/sem) · $porcentaje%";
+    } else {
+      texto_meta =
+          "En Riesgo: ${horas_acumuladas.toStringAsFixed(1)} / 36 h (9 h/sem) · $porcentaje%";
+    }
+
     final barras_semanales = [
       {"dia": "03 ago", "horas": 7.5, "factor": 0.65},
       {"dia": "10 ago", "horas": 9.5, "factor": 0.85},
@@ -673,9 +691,9 @@ class _HistorialAsistenciaPantallaState
                       color: BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
-                      "Meta mensual: 40 h · 96% alcanzado",
-                      style: TextStyle(
+                    child: Text(
+                      texto_meta,
+                      style: const TextStyle(
                         color: BumandColores.TURQUESA_DIACONIA,
                         fontSize: 10.5,
                         fontWeight: FontWeight.bold,

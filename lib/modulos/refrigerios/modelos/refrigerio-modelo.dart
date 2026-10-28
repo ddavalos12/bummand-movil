@@ -103,7 +103,7 @@ const List<RefrigerioModelo> REFRIGERIOS_HISTORIAL_BECARIO = [
     responsable_entrega: 'Angel Javier Ali Paz',
     horario_distribucion: '16:00 - 17:30',
     recogido: false,
-    observaciones: 'Presentar credencial digital o firma en aplicación móvil.',
+    observaciones: 'Presentar credencial digital o confirmar recepción en la aplicación móvil.',
   ),
   RefrigerioModelo(
     id: 2,

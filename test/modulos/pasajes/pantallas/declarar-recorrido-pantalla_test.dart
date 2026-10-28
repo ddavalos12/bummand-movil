@@ -33,7 +33,7 @@ void main() {
       expect(find.text('Declarar recorrido'), findsOneWidget);
       expect(find.textContaining('1 · Ida'), findsOneWidget);
       expect(find.textContaining('2 · Vuelta'), findsOneWidget);
-      expect(find.text('📍'), findsWidgets);
+      expect(find.byIcon(Icons.location_on), findsWidgets);
       expect(find.text('Guardar recorrido del día'), findsOneWidget);
     });
   });

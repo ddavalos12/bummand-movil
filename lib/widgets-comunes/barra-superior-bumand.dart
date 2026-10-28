@@ -40,9 +40,187 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
   @override
   Size get preferredSize => const Size.fromHeight(74);
 
+  void _mostrarDialogoCorreosAlternativos(BuildContext context, WidgetRef ref) {
+    final usuario = ref.read(autenticacion_proveedor).usuario;
+    final controlador_correo = TextEditingController(
+      text: usuario?.correo_alternativo ?? '',
+    );
+    String? error_dialogo;
+    bool guardando = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, actualizarEstadoDialogo) {
+          final correos_adicionales = <String>{
+            if (usuario?.correo_alternativo != null &&
+                usuario!.correo_alternativo!.trim().isNotEmpty)
+              usuario.correo_alternativo!.trim(),
+            ...(usuario?.correos_adicionales ?? const <String>[]),
+          }.where((c) => c != (usuario?.correo ?? "")).toList();
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.alternate_email_rounded,
+                  color: BumandColores.AZUL_DIACONIA,
+                  size: 22,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Correos de Inicio de Sesión",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Puedes iniciar sesión con tu correo principal o vincular un correo alternativo (personal o institucional).",
+                    style: TextStyle(fontSize: 12.5, color: Color(0xFF475569)),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.verified_user_outlined,
+                          size: 16,
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Principal: ${usuario?.correo ?? 'becario@bumand.bo'}",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (correos_adicionales.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    for (final c in correos_adicionales)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.mark_email_read_outlined,
+                              size: 15,
+                              color: Color(0xFF0D9488),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                "Alternativo: $c",
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF0F766E),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controlador_correo,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: "Correo alternativo de acceso",
+                      hintText: "ejemplo@diaconia.bo",
+                      errorText: error_dialogo,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: guardando ? null : () => Navigator.of(ctx).pop(),
+                child: const Text("Cancelar"),
+              ),
+              FilledButton(
+                onPressed: guardando
+                    ? null
+                    : () async {
+                        actualizarEstadoDialogo(() {
+                          guardando = true;
+                          error_dialogo = null;
+                        });
+                        final res = await ref
+                            .read(autenticacion_proveedor.notifier)
+                            .actualizarCorreoAlternativo(
+                              controlador_correo.text,
+                            );
+                        if (!ctx.mounted) return;
+                        if (res.exito) {
+                          Navigator.of(ctx).pop();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  res.datos ??
+                                      "Correo alternativo actualizado",
+                                ),
+                                backgroundColor: const Color(0xFF059669),
+                              ),
+                            );
+                          }
+                        } else {
+                          actualizarEstadoDialogo(() {
+                            guardando = false;
+                            error_dialogo = res.error;
+                          });
+                        }
+                      },
+                child: const Text("Guardar correo"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _mostrarDialogoPerfil(BuildContext context, WidgetRef ref) {
     final estado_auth = ref.read(autenticacion_proveedor);
     final usuario = estado_auth.usuario;
+    final correos_alternativos = <String>{
+      if (usuario?.correo_alternativo != null &&
+          usuario!.correo_alternativo!.trim().isNotEmpty)
+        usuario.correo_alternativo!.trim(),
+      ...(usuario?.correos_adicionales ?? const <String>[]),
+    }.where((c) => c != (usuario?.correo ?? "")).toList();
 
     showModalBottomSheet(
       context: context,
@@ -115,6 +293,16 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                                 color: Colors.grey.shade600,
                               ),
                             ),
+                            if (correos_alternativos.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                "Alternativo(s): ${correos_alternativos.join(' · ')}",
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 4),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -143,6 +331,40 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                   ),
                   const SizedBox(height: 16),
                   const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: BumandColores.azulCieloSuave.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.alternate_email_rounded,
+                        color: BumandColores.AZUL_DIACONIA,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      "Correos de Inicio de Sesión",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: BumandColores.NEGRO,
+                      ),
+                    ),
+                    subtitle: Text(
+                      correos_alternativos.isNotEmpty
+                          ? "Alternativo activo: ${correos_alternativos.first}"
+                          : "Vincular correo alternativo o institucional de acceso",
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _mostrarDialogoCorreosAlternativos(context, ref);
+                    },
+                  ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Container(

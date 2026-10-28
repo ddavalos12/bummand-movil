@@ -33,6 +33,11 @@ class BumandColores {
   // Compatibilidad UPPER_SNAKE_CASE retrocompatible
   static const Color AZUL_DIACONIA = azulMarinoProfundo;
   static const Color TURQUESA_DIACONIA = azulCieloSuave;
+  static const Color AZUL_MARINO_PROFUNDO = azulMarinoProfundo;
+  static const Color AZUL_CIELO_SUAVE = azulCieloSuave;
+  static const Color AMARILLO_RADIANTE = amarilloRadiante;
+  static const Color AZUL_MARINO_SECUNDARIO = azulMarinoSecundario;
+  static const Color AZUL_PETROLEO = azulPetroleo;
   static const Color NARANJA = amarilloRadiante;
   static const Color NARANJA_OSCURO = amarilloRadiante;
   static const Color NEGRO = negro;

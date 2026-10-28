@@ -393,9 +393,9 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
               BumandColores.azulPetroleo,
             ),
             _construirPuntoPerspectiva(
-              "Firma Digital Canvas",
-              "Aprobación de horas con valor legal para auditoría interna.",
-              Icons.draw_rounded,
+              "Convalidación en Sistema",
+              "Revisión y aprobación trazable de horas y actividades institucionales.",
+              Icons.verified_user_rounded,
               BumandColores.azulMarinoProfundo,
             ),
           ] else ...[

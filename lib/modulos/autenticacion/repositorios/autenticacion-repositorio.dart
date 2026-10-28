@@ -18,6 +18,15 @@ class AutenticacionRepositorio {
   static const String _CLAVE_USUARIO_NOMBRE = 'usuario_nombre';
   static const String _CLAVE_USUARIO_CORREO = 'usuario_correo';
   static const String _CLAVE_USUARIO_ROL = 'usuario_rol';
+  static const String _CLAVE_USUARIO_CORREO_ALTERNATIVO =
+      'usuario_correo_alternativo';
+  static const String _CLAVE_USUARIO_CORREOS_ADICIONALES =
+      'usuario_correos_adicionales';
+  static const List<String> _ROLES_PERMITIDOS_MOVIL = [
+    'becario',
+    'supervisor',
+    'administrador',
+  ];
 
   Future<Resultado<UsuarioModelo>> iniciarSesion(
     String correo,
@@ -50,9 +59,10 @@ class AutenticacionRepositorio {
       }
 
       final usuario = UsuarioModelo.desdeJson(datos);
-      if (usuario.rol.toLowerCase().trim() != 'becario') {
+      final rol_normalizado = usuario.rol.toLowerCase().trim();
+      if (!_ROLES_PERMITIDOS_MOVIL.contains(rol_normalizado)) {
         return Resultado.fallido(
-          'Esta aplicación móvil es exclusiva para estudiantes becarios. Si eres Supervisor o Administrador, ingresa desde el panel web.',
+          'Tu rol actual no tiene permisos para acceder a la aplicación móvil.',
         );
       }
       await _guardarSesion(usuario);
@@ -145,6 +155,19 @@ class AutenticacionRepositorio {
     await preferencias.setString(_CLAVE_USUARIO_NOMBRE, usuario.nombre);
     await preferencias.setString(_CLAVE_USUARIO_CORREO, usuario.correo);
     await preferencias.setString(_CLAVE_USUARIO_ROL, usuario.rol);
+    if (usuario.correo_alternativo != null &&
+        usuario.correo_alternativo!.isNotEmpty) {
+      await preferencias.setString(
+        _CLAVE_USUARIO_CORREO_ALTERNATIVO,
+        usuario.correo_alternativo!,
+      );
+    } else {
+      await preferencias.remove(_CLAVE_USUARIO_CORREO_ALTERNATIVO);
+    }
+    await preferencias.setStringList(
+      _CLAVE_USUARIO_CORREOS_ADICIONALES,
+      usuario.correos_adicionales,
+    );
   }
 
   Future<void> cerrarSesion() async {
@@ -154,6 +177,8 @@ class AutenticacionRepositorio {
     await preferencias.remove(_CLAVE_USUARIO_NOMBRE);
     await preferencias.remove(_CLAVE_USUARIO_CORREO);
     await preferencias.remove(_CLAVE_USUARIO_ROL);
+    await preferencias.remove(_CLAVE_USUARIO_CORREO_ALTERNATIVO);
+    await preferencias.remove(_CLAVE_USUARIO_CORREOS_ADICIONALES);
   }
 
   Future<String?> obtenerToken() async {
@@ -175,7 +200,8 @@ class AutenticacionRepositorio {
       return null;
     }
 
-    if (rol.toLowerCase().trim() != 'becario') {
+    final rol_normalizado = rol.toLowerCase().trim();
+    if (!_ROLES_PERMITIDOS_MOVIL.contains(rol_normalizado)) {
       await cerrarSesion();
       return null;
     }
@@ -183,6 +209,11 @@ class AutenticacionRepositorio {
     final id = preferencias.getInt(_CLAVE_USUARIO_ID) ?? 0;
     final nombre = preferencias.getString(_CLAVE_USUARIO_NOMBRE) ?? '';
     final correo = preferencias.getString(_CLAVE_USUARIO_CORREO) ?? '';
+    final correo_alternativo =
+        preferencias.getString(_CLAVE_USUARIO_CORREO_ALTERNATIVO);
+    final correos_adicionales =
+        preferencias.getStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES) ??
+            const [];
 
     return UsuarioModelo(
       id: id,
@@ -190,7 +221,77 @@ class AutenticacionRepositorio {
       correo: correo,
       rol: rol,
       token: token,
+      correo_alternativo: correo_alternativo,
+      correos_adicionales: correos_adicionales,
     );
+  }
+
+  Future<Resultado<String>> actualizarCorreoAlternativo(
+    String correo_alternativo,
+  ) async {
+    final correo_limpio = correo_alternativo.trim().toLowerCase();
+    if (correo_limpio.isEmpty ||
+        !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(correo_limpio)) {
+      return Resultado.fallido(
+        'Ingresa un correo electrónico alternativo válido',
+      );
+    }
+
+    final preferencias = await SharedPreferences.getInstance();
+    final token = preferencias.getString(_CLAVE_TOKEN);
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final encabezados = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        };
+        final url_patch = Uri.parse(
+          '${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil/correo-alternativo',
+        );
+        final resp_patch = await _cliente_http.patch(
+          url_patch,
+          headers: encabezados,
+          body: jsonEncode({'correo_alternativo': correo_limpio}),
+        );
+
+        final url_post = Uri.parse(
+          '${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil/correos',
+        );
+        await _cliente_http.post(
+          url_post,
+          headers: encabezados,
+          body: jsonEncode({'correo': correo_limpio}),
+        );
+
+        if (resp_patch.statusCode >= 400 && resp_patch.statusCode != 404) {
+          final cuerpo = jsonDecode(resp_patch.body);
+          final mensaje_err = cuerpo['mensaje'] ??
+              cuerpo['message'] ??
+              'No se pudo actualizar el correo alternativo';
+          return Resultado.fallido(mensaje_err.toString());
+        }
+      } catch (_) {
+        // Permite persistencia local si el servidor no responde
+      }
+    }
+
+    await preferencias.setString(
+      _CLAVE_USUARIO_CORREO_ALTERNATIVO,
+      correo_limpio,
+    );
+    final actuales = List<String>.from(
+      preferencias.getStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES) ?? const [],
+    );
+    if (!actuales.contains(correo_limpio)) {
+      actuales.add(correo_limpio);
+    }
+    await preferencias.setStringList(
+      _CLAVE_USUARIO_CORREOS_ADICIONALES,
+      actuales,
+    );
+
+    return Resultado.exitoso('Correo alternativo actualizado correctamente');
   }
 
   Future<bool> estaAutenticado() async {

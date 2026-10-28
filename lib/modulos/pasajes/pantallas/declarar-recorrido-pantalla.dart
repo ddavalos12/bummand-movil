@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import '../../../nucleo/tema/colores.dart';
 import '../../../compartido/componentes/seleccionador_fecha.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../inicio/proveedores/inicio-proveedor.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 
 /// Modelo interno para una parada dinámica
 class _ParadaRuta {
@@ -123,6 +125,45 @@ class _DeclararRecorridoPantallaState
     'Sopocachi',
     'Teleférico',
   ];
+
+  static const Map<String, ({double lat, double lng})> COORDENADAS_PARADAS = {
+    'Oficina Central Diaconía': (lat: -16.5050, lng: -68.1290),
+    'Villa Adela, El Alto': (lat: -16.5360, lng: -68.1920),
+    'Agencia Diaconía Ceja': (lat: -16.5085, lng: -68.1630),
+    'Sede Escuela de Líderes': (lat: -16.5042, lng: -68.1315),
+    'Ceja': (lat: -16.5100, lng: -68.1625),
+    'Pérez Velasco': (lat: -16.4958, lng: -68.1372),
+    'Plaza San Francisco': (lat: -16.4965, lng: -68.1378),
+    'San Pedro': (lat: -16.5030, lng: -68.1360),
+    'Cruce Viacha': (lat: -16.5280, lng: -68.1810),
+    'Miraflores': (lat: -16.5010, lng: -68.1220),
+    'Sopocachi': (lat: -16.5120, lng: -68.1270),
+    'Teleférico': (lat: -16.5080, lng: -68.1400),
+  };
+
+  double _calcularDistanciaMetros(double lat1, double lon1, double lat2, double lon2) {
+    const double r = 6371000;
+    final double dLat = (lat2 - lat1) * (math.pi / 180.0);
+    final double dLon = (lon2 - lon1) * (math.pi / 180.0);
+    final double a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+        math.cos(lat1 * (math.pi / 180.0)) *
+            math.cos(lat2 * (math.pi / 180.0)) *
+            (math.sin(dLon / 2) * math.sin(dLon / 2));
+    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
+  }
+
+  bool get _esSoloIda {
+    final usuario = ref.watch(autenticacion_proveedor).usuario;
+    final actKey = _tipo_actividad == "Prácticas"
+        ? "practicas"
+        : _tipo_actividad == "Escuela de Líderes"
+            ? "escuela_lideres"
+            : "acciones_servicio";
+    final cfg = usuario?.configuracion_pasajes_actividades;
+    final mod = cfg?[actKey] ?? usuario?.modalidad_pasajes ?? 'ida_y_vuelta';
+    return mod == 'solo_ida';
+  }
 
   List<String> _obtenerOpcionesParadaDisponibles(
     List<_ParadaRuta> lista_paradas,
@@ -775,14 +816,29 @@ class _DeclararRecorridoPantallaState
       );
 
       if (!mounted) return;
-      setState(() {
-        parada.posicion_gps = posicion;
-        if (parada.controlador.text.trim().isEmpty) {
-          parada.controlador.text =
-              "GPS (${posicion.latitude.toStringAsFixed(4)}, ${posicion.longitude.toStringAsFixed(4)})";
+
+      // Calcular parada más cercana mediante Haversine (TAREA-05)
+      String parada_mas_cercana = "Plaza San Francisco";
+      double menor_distancia = double.infinity;
+
+      COORDENADAS_PARADAS.forEach((nombre, coords) {
+        final dist = _calcularDistanciaMetros(
+          posicion.latitude,
+          posicion.longitude,
+          coords.lat,
+          coords.lng,
+        );
+        if (dist < menor_distancia) {
+          menor_distancia = dist;
+          parada_mas_cercana = nombre;
         }
       });
-      _mensaje("📍 Ubicación fijada (±${posicion.accuracy.round()} m)");
+
+      setState(() {
+        parada.posicion_gps = posicion;
+        parada.controlador.text = parada_mas_cercana;
+      });
+      _mensaje("📍 Parada más cercana: $parada_mas_cercana (a ${menor_distancia.round()} m)");
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -867,7 +923,7 @@ class _DeclararRecorridoPantallaState
       return;
     }
 
-    if (_tieneParadasDuplicadas(_paradas_vuelta)) {
+    if (!_esSoloIda && _tieneParadasDuplicadas(_paradas_vuelta)) {
       _mensaje(
         "No puedes elegir dos veces el mismo lugar en el tramo de vuelta",
         es_error: true,
@@ -948,7 +1004,7 @@ class _DeclararRecorridoPantallaState
     }
 
     final total_vuelta = _calcularSubtotal(_tramos_vuelta);
-    if (total_vuelta > 0 && _paradas_vuelta.isNotEmpty) {
+    if (!_esSoloIda && total_vuelta > 0 && _paradas_vuelta.isNotEmpty) {
       final origen_vuelta = _paradas_vuelta.first.controlador.text.trim();
       final destino_vuelta = _paradas_vuelta.last.controlador.text.trim();
 
@@ -1290,23 +1346,30 @@ class _DeclararRecorridoPantallaState
             ),
           ),
           Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _paso_activo = 2),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: _paso_activo == 2
-                      ? BumandColores.AZUL_DIACONIA
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  "2 · Vuelta (Bs ${subtotal_vuelta.toStringAsFixed(2)})",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: _paso_activo == 2 ? Colors.white : const Color(0xFF64748B),
+            child: Opacity(
+              opacity: _esSoloIda ? 0.45 : 1.0,
+              child: GestureDetector(
+                onTap: _esSoloIda
+                    ? () => _mensaje("Esta actividad está configurada como 'Solo Ida'")
+                    : () => setState(() => _paso_activo = 2),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _paso_activo == 2
+                        ? BumandColores.AZUL_DIACONIA
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    _esSoloIda
+                        ? "2 · Vuelta (Bloqueada)"
+                        : "2 · Vuelta (Bs ${subtotal_vuelta.toStringAsFixed(2)})",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: _paso_activo == 2 ? Colors.white : const Color(0xFF64748B),
+                    ),
                   ),
                 ),
               ),
@@ -1443,27 +1506,58 @@ class _DeclararRecorridoPantallaState
 
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                if (_tieneParadasDuplicadas(_paradas_ida)) {
-                  _mensaje(
-                    "No puedes elegir dos veces el mismo lugar en el tramo de ida",
-                    es_error: true,
-                  );
-                  return;
-                }
-                HapticFeedback.lightImpact();
-                setState(() => _paso_activo = 2);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.TURQUESA_DIACONIA,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: const Text("Siguiente: Vuelta →"),
-            ),
+            child: _esSoloIda
+                ? ElevatedButton.icon(
+                    onPressed: _guardando ? null : _guardarRecorridoFinal,
+                    icon: _guardando
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.check_circle_outline),
+                    label: Text(
+                      _guardando
+                          ? "Registrando..."
+                          : "Registrar Recorrido (Solo Ida)",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: BumandColores.AZUL_DIACONIA,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  )
+                : ElevatedButton(
+                    onPressed: () {
+                      if (_tieneParadasDuplicadas(_paradas_ida)) {
+                        _mensaje(
+                          "No puedes elegir dos veces el mismo lugar en el tramo de ida",
+                          es_error: true,
+                        );
+                        return;
+                      }
+                      HapticFeedback.lightImpact();
+                      setState(() => _paso_activo = 2);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: BumandColores.TURQUESA_DIACONIA,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text("Siguiente: Vuelta →"),
+                  ),
           ),
         ],
       ),
@@ -1669,6 +1763,33 @@ class _DeclararRecorridoPantallaState
             }).toList(),
           ),
         ),
+        if (_esSoloIda) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.shield_outlined, size: 16, color: BumandColores.AZUL_DIACONIA),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Modalidad asignada por Administración: Solo Ida (80% del apoyo)",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1714,17 +1835,32 @@ class _DeclararRecorridoPantallaState
           ),
           const SizedBox(width: 8),
 
-          // Pin GPS
+          // Pin GPS (TAREA-05: Pin rojo y autoselección)
           IconButton(
-            icon: Text(
-              parada.posicion_gps != null ? "✓" : "📍",
-              style: const TextStyle(fontSize: 16),
-            ),
-            tooltip: "Fijar ubicación GPS",
+            icon: _capturando_gps_id == 'parada_${es_ida ? "ida" : "vuelta"}_$numero'
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFDC2626),
+                    ),
+                  )
+                : Icon(
+                    Icons.location_on,
+                    color: parada.posicion_gps != null
+                        ? const Color(0xFF16A34A)
+                        : const Color(0xFFDC2626),
+                    size: 22,
+                  ),
+            tooltip: "Detectar parada más cercana por GPS (Pin Rojo)",
             visualDensity: VisualDensity.compact,
             onPressed: _capturando_gps_id != null
                 ? null
-                : () => _capturarGps('parada_${es_ida ? "ida" : "vuelta"}_$numero', parada),
+                : () => _capturarGps(
+                      'parada_${es_ida ? "ida" : "vuelta"}_$numero',
+                      parada,
+                    ),
           ),
 
           // Campo dinámico con autocompletado y menú de paradas frecuentes sin duplicados

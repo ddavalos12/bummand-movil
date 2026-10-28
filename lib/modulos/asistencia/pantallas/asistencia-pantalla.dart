@@ -264,9 +264,12 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     String hora_etiqueta = '08:00';
 
     if (tipo_activo == TipoAsistencia.practicas.valor) {
-      hora_limite = 8;
-      minuto_limite = 0;
-      hora_etiqueta = '08:00';
+      setState(() {
+        _es_retraso = false;
+        _banner_alerta_puntualidad =
+            '✅ Ingreso de prácticas registrado a las $_hora_marcada_ingreso (Meta flexible: 9 h/semana · 36 h/mes)';
+      });
+      return;
     } else if (tipo_activo == TipoAsistencia.accionesServicio.valor) {
       hora_limite = 9;
       minuto_limite = 0;

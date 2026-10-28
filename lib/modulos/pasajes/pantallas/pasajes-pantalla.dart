@@ -8,6 +8,7 @@ import '../modelos/solicitud-pasaje-modelo.dart';
 import '../proveedores/pasajes-proveedor.dart';
 import '../utilidades/formato-pasajes.dart';
 import 'declarar-recorrido-pantalla.dart';
+import 'historial-paradas-pantalla.dart';
 
 class PasajesPantalla extends ConsumerStatefulWidget {
   const PasajesPantalla({super.key});
@@ -91,7 +92,7 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
         title: const Text("Enviar formulario mensual"),
         content: Text(
           "Se enviará tu formulario de ${FormatoPasajes.periodo(solicitud.periodo)} "
-          "por ${FormatoPasajes.bs(solicitud.monto_devolucion)} a tu mentor para su firma.\n\n"
+          "por ${FormatoPasajes.bs(solicitud.monto_devolucion)} a tu supervisor para su revisión.\n\n"
           "Después ya no podrás agregar recorridos de ese mes, "
           "salvo que te lo devuelvan con observaciones.",
         ),
@@ -143,6 +144,26 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
               children: [
                 if (_procesando) const LinearProgressIndicator(),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const HistorialParadasPantalla(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.history_rounded, size: 18),
+                    label: const Text('Ver historial de todas las paradas'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: BumandColores.AZUL_DIACONIA,
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
                 if (solicitudes.isEmpty)
                   const _MensajeVacio(
                     icono: Icons.directions_bus_outlined,
@@ -320,7 +341,7 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Text(
-                "● Pendiente de firma del mentor",
+                "● Pendiente de revisión del supervisor",
                 style: TextStyle(color: BumandColores.NARANJA_OSCURO),
               ),
             ),

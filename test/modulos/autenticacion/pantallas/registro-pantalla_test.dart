@@ -57,5 +57,33 @@ void main() {
 
       expect(find.textContaining('Escribe tu CI solo con números'), findsOneWidget);
     });
+
+    testWidgets('Botones de visibilidad de contraseña y confirmar contraseña operan de forma independiente', (WidgetTester probador) async {
+      await probador.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autenticacion_repositorio_proveedor.overrideWithValue(RepositorioSimuladoRegistro()),
+          ],
+          child: const MaterialApp(
+            home: RegistroPantalla(),
+          ),
+        ),
+      );
+
+      final campo_contrasena = find.byType(TextField).at(3);
+      final campo_confirmar = find.byType(TextField).at(4);
+
+      expect(probador.widget<TextField>(campo_contrasena).obscureText, isTrue);
+      expect(probador.widget<TextField>(campo_confirmar).obscureText, isTrue);
+
+      final botones_visibilidad = find.byIcon(Icons.visibility_off_outlined);
+      expect(botones_visibilidad, findsNWidgets(2));
+
+      await probador.tap(botones_visibilidad.first);
+      await probador.pump();
+
+      expect(probador.widget<TextField>(campo_contrasena).obscureText, isFalse);
+      expect(probador.widget<TextField>(campo_confirmar).obscureText, isTrue);
+    });
   });
 }
