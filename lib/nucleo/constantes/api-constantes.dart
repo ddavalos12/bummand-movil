@@ -18,6 +18,7 @@ class ApiConstantes {
   static const String PUNTO_EVENTOS = '/api/eventos';
   static const String PUNTO_JUSTIFICACIONES = '/api/justificaciones';
   static const String PUNTO_PASAJES_PARADAS = '/api/pasajes/paradas';
+  static const String PUNTO_CITAS_SEGUIMIENTO = '/api/devocionales/citas';
 
   // Rutas específicas de módulos
   static const String PUNTO_INICIO_SESION = '/autenticacion/inicio-sesion';
@@ -34,6 +35,10 @@ class ApiConstantes {
   static const String PUNTO_BIBLIA_PASAJE = '/biblia/pasaje';
   static const String PUNTO_BECARIOS_ESTADO_CONFIRMACION = '/becarios/estado-confirmacion-datos';
   static const String PUNTO_BECARIOS_CONFIRMAR_DATOS = '/becarios/confirmar-datos';
+  static const String PUNTO_USUARIOS = '/api/usuarios';
+  static const String PUNTO_USUARIOS_MI_PERFIL = '/api/usuarios/mi-perfil';
+  static const String PUNTO_USUARIOS_MI_PERFIL_CORREOS = '/api/usuarios/mi-perfil/correos';
+  static const String PUNTO_USUARIOS_MI_PERFIL_CONTRASENA = '/api/usuarios/mi-perfil/contrasena';
 
   // Alias para retrocompatibilidad
   static String get baseUrl => RUTA_BASE;

@@ -39,6 +39,7 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     String tipo, {
     Position? posicion,
     Map<String, dynamic>? lugar,
+    int? evento_id,
   }) async {
     state = const AsyncLoading();
     try {
@@ -60,7 +61,7 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
           return "Estás fuera del radio permitido para marcar ingreso";
         }
       }
-      final res = await _repo.registrarIngreso(tipo, pos);
+      final res = await _repo.registrarIngreso(tipo, pos, evento_id: evento_id);
       if (res.exito || res.error_bumand?.fueEncolado == true) {
         ref.invalidate(historial_asistencia_proveedor);
         ref.invalidate(cola_offline_conteo_proveedor);
@@ -79,6 +80,7 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     String tipo, {
     Position? posicion,
     Map<String, dynamic>? lugar,
+    int? evento_id,
   }) async {
     state = const AsyncLoading();
     try {
@@ -100,7 +102,7 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
           return "Estás fuera del radio permitido para marcar salida";
         }
       }
-      final res = await _repo.registrarSalida(tipo, pos);
+      final res = await _repo.registrarSalida(tipo, pos, evento_id: evento_id);
       if (res.exito || res.error_bumand?.fueEncolado == true) {
         ref.invalidate(historial_asistencia_proveedor);
         ref.invalidate(cola_offline_conteo_proveedor);

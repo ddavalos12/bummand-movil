@@ -142,20 +142,31 @@ class AsistenciaRepositorio {
     return distancia_m <= (radio_tolerancia_m + margen);
   }
 
-  Map<String, dynamic> _cuerpoUbicacion(Position posicion, String tipo) => {
-    "latitud": posicion.latitude,
-    "longitud": posicion.longitude,
-    "precision": posicion.accuracy,
-    "simulada": posicion.isMocked,
-    "tipo": tipo,
-  };
+  Map<String, dynamic> _cuerpoUbicacion(
+    Position posicion,
+    String tipo, {
+    int? evento_id,
+  }) {
+    final mapa = <String, dynamic>{
+      "latitud": posicion.latitude,
+      "longitud": posicion.longitude,
+      "precision": posicion.accuracy,
+      "simulada": posicion.isMocked,
+      "tipo": tipo,
+    };
+    if (evento_id != null) {
+      mapa["evento_id"] = evento_id;
+    }
+    return mapa;
+  }
 
   Future<Resultado<String>> registrarIngreso(
     String tipo,
-    Position posicion,
-  ) async {
+    Position posicion, {
+    int? evento_id,
+  }) async {
     final cliente_http = _obtenerCliente();
-    final cuerpo = _cuerpoUbicacion(posicion, tipo);
+    final cuerpo = _cuerpoUbicacion(posicion, tipo, evento_id: evento_id);
     final ruta = ApiConstantes.PUNTO_ASISTENCIA_INGRESO;
 
     try {
@@ -196,10 +207,11 @@ class AsistenciaRepositorio {
 
   Future<Resultado<String>> registrarSalida(
     String tipo,
-    Position posicion,
-  ) async {
+    Position posicion, {
+    int? evento_id,
+  }) async {
     final cliente_http = _obtenerCliente();
-    final cuerpo = _cuerpoUbicacion(posicion, tipo);
+    final cuerpo = _cuerpoUbicacion(posicion, tipo, evento_id: evento_id);
     final ruta = ApiConstantes.PUNTO_ASISTENCIA_SALIDA;
 
     try {

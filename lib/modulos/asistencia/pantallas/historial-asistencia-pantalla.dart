@@ -275,6 +275,16 @@ class _HistorialAsistenciaPantallaState
                         item["confirmado_organizador"] == true ||
                         item["confirmado"] == true;
 
+                    final tiene_permiso_aprobado =
+                        item["permiso_aprobado"] == true ||
+                        item["sin_multa"] == true ||
+                        item["exento_multa"] == true;
+
+                    final estado_raw = item["estado"]?.toString().toLowerCase();
+                    final estado_aprobacion = (estado_raw != null && estado_raw.isNotEmpty)
+                        ? estado_raw
+                        : (confirmado_organizador ? "aprobado_administracion" : "pendiente");
+
                     final es_manual = item["es_registro_manual"] == true ||
                         item["esRegistroManual"] == true ||
                         item["registro_manual"] == true ||
@@ -343,24 +353,30 @@ class _HistorialAsistenciaPantallaState
                                     ),
                                   ],
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: BumandColores.TURQUESA_DIACONIA
-                                        .withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    tipo_etiqueta,
-                                    style: const TextStyle(
-                                      color: BumandColores.AZUL_DIACONIA,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: BumandColores.TURQUESA_DIACONIA
+                                            .withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        tipo_etiqueta,
+                                        style: const TextStyle(
+                                          color: BumandColores.AZUL_DIACONIA,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 6),
+                                    _chipEstadoAsistencia(estado_aprobacion),
+                                  ],
                                 ),
                               ],
                             ),
@@ -422,49 +438,88 @@ class _HistorialAsistenciaPantallaState
                             ],
                             if (es_viernes) ...[
                               const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: confirmado_organizador
-                                      ? const Color(0xFFECFDF5)
-                                      : const Color(0xFFFEF3C7),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: confirmado_organizador
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFFF59E0B),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      confirmado_organizador
-                                          ? Icons.verified_user
-                                          : Icons.hourglass_top_rounded,
-                                      size: 14,
-                                      color: confirmado_organizador
-                                          ? const Color(0xFF047857)
-                                          : const Color(0xFFB45309),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      confirmado_organizador
-                                          ? "Viernes • Confirmada por organizador"
-                                          : "Viernes • Pendiente llamada de lista",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
+                                    decoration: BoxDecoration(
+                                      color: confirmado_organizador
+                                          ? const Color(0xFFECFDF5)
+                                          : const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
                                         color: confirmado_organizador
-                                            ? const Color(0xFF047857)
-                                            : const Color(0xFFB45309),
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFF59E0B),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          confirmado_organizador
+                                              ? Icons.verified_user
+                                              : Icons.hourglass_top_rounded,
+                                          size: 14,
+                                          color: confirmado_organizador
+                                              ? const Color(0xFF047857)
+                                              : const Color(0xFFB45309),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          confirmado_organizador
+                                              ? "Viernes • Confirmada por organizador"
+                                              : "Viernes • Pendiente llamada de lista",
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: confirmado_organizador
+                                                ? const Color(0xFF047857)
+                                                : const Color(0xFFB45309),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (tiene_permiso_aprobado)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFECFDF5),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: const Color(0xFF10B981),
+                                        ),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.verified_rounded,
+                                            size: 14,
+                                            color: Color(0xFF047857),
+                                          ),
+                                          SizedBox(width: 6),
+                                          Text(
+                                            "Sin Multa (Permiso Aprobado)",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF047857),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
                               ),
                             ],
                             const SizedBox(height: 12),
@@ -1352,7 +1407,7 @@ class _HistorialAsistenciaPantallaState
                             ),
                           ),
                           child: Text(
-                            item.estado.toUpperCase(),
+                            _etiquetaEstadoPasaje(item.estado),
                             style: TextStyle(
                               color: estado_color,
                               fontSize: 11,
@@ -1440,24 +1495,85 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
+  Widget _chipEstadoAsistencia(String estado) {
+    final (texto, color) = switch (estado.toLowerCase()) {
+      "revisado_supervisor" => ("2. Revisado por Supervisor", BumandColores.AZUL_DIACONIA),
+      "aprobado_administracion" || "aprobado" => ("✓ Aprobado por Administración", const Color(0xFF047857)),
+      _ => ("1. Pendiente", const Color(0xFFD97706)),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Color _colorEstadoPasaje(String estado) {
-    switch (estado.toUpperCase()) {
-      case "APROBADO":
-      case "PAGADO":
+    switch (estado.toLowerCase()) {
+      case "aprobado":
+      case "aprobado_administracion":
+      case "pagado":
         return const Color(0xFF10B981);
-      case "ENVIADO":
-      case "EN REVISIÓN":
+      case "revisado_supervisor":
+      case "enviado":
+      case "en revisión":
+      case "en revision":
         return BumandColores.AZUL_DIACONIA;
-      case "OBSERVADO":
-      case "RECHAZADO":
+      case "pendiente":
+        return const Color(0xFFD97706);
+      case "observado":
+      case "rechazado":
         return const Color(0xFFEF4444);
       default:
         return const Color(0xFF64748B);
     }
   }
 
+  String _etiquetaEstadoPasaje(String estado) {
+    switch (estado.toLowerCase()) {
+      case "pendiente":
+        return "1. PENDIENTE";
+      case "revisado_supervisor":
+        return "2. REVISADO SUPERVISOR";
+      case "aprobado_administracion":
+        return "✓ APROBADO ADMIN";
+      case "aprobado":
+        return "APROBADO";
+      case "pagado":
+        return "PAGADO";
+      case "rechazado":
+      case "observado":
+        return "CON OBSERVACIONES";
+      default:
+        return estado.toUpperCase();
+    }
+  }
+
   Widget _construirPestanaMultas() {
     final multas_ejemplo = [
+      {
+        "fecha": "Viernes 23/10/2026",
+        "hora_llegada": "15:00",
+        "hora_limite": "14:35",
+        "minutos_penalidad": 0,
+        "tramo": "Permiso Aprobado",
+        "monto_bs": 0.0,
+        "motivo": "Emergencia médica con receta y certificado — Aprobado por Administración",
+        "estado": "Sin Multa (Permiso Aprobado por Administración)",
+        "permiso_aprobado": true,
+      },
       {
         "fecha": "Viernes 09/10/2026",
         "hora_llegada": "14:41",
@@ -1594,14 +1710,24 @@ class _HistorialAsistenciaPantallaState
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEE2E2),
+                          color: (inc["monto_bs"] as double) == 0.0
+                              ? const Color(0xFFECFDF5)
+                              : const Color(0xFFFEE2E2),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                          border: Border.all(
+                            color: (inc["monto_bs"] as double) == 0.0
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFFCA5A5),
+                          ),
                         ),
                         child: Text(
-                          "Bs. ${(inc["monto_bs"] as double).toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: Color(0xFFB91C1C),
+                          (inc["monto_bs"] as double) == 0.0
+                              ? "Sin Multa (Permiso Aprobado)"
+                              : "Bs. ${(inc["monto_bs"] as double).toStringAsFixed(2)}",
+                          style: TextStyle(
+                            color: (inc["monto_bs"] as double) == 0.0
+                                ? const Color(0xFF047857)
+                                : const Color(0xFFB91C1C),
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),

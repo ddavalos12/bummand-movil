@@ -337,13 +337,10 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
             ],
           ),
           if (editable && s.recorridos.isNotEmpty) _botonEnviar(s),
-          if (s.estado == "pendiente")
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Text(
-                "● Pendiente de revisión del supervisor",
-                style: TextStyle(color: BumandColores.NARANJA_OSCURO),
-              ),
+          if (s.estado != "borrador")
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+              child: _LineaProgresoPasajes(estado: s.estado),
             ),
         ],
       ),
@@ -358,9 +355,10 @@ class _ChipEstado extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (texto, color) = switch (estado) {
-      "borrador" => ("En preparación", Colors.grey.shade700),
-      "pendiente" => ("En revisión", BumandColores.NARANJA_OSCURO),
-      "aprobado" => ("Aprobado", Colors.green.shade700),
+      "borrador" => ("Borrador", Colors.grey.shade700),
+      "pendiente" => ("1. Pendiente", BumandColores.NARANJA_OSCURO),
+      "revisado_supervisor" => ("2. Revisado por Supervisor", BumandColores.AZUL_DIACONIA),
+      "aprobado_administracion" || "aprobado" => ("✓ Aprobado por Administración", Colors.green.shade700),
       "rechazado" => ("Con observaciones", Colors.red.shade700),
       _ => (estado, Colors.grey.shade700),
     };
@@ -369,6 +367,7 @@ class _ChipEstado extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         texto,
@@ -379,6 +378,136 @@ class _ChipEstado extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _LineaProgresoPasajes extends StatelessWidget {
+  final String estado;
+  const _LineaProgresoPasajes({required this.estado});
+
+  @override
+  Widget build(BuildContext context) {
+    final paso1_completado = estado == 'revisado_supervisor' ||
+        estado == 'aprobado_administracion' ||
+        estado == 'aprobado';
+    final paso2_completado =
+        estado == 'aprobado_administracion' || estado == 'aprobado';
+    final es_rechazado = estado == 'rechazado';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Paso 1: Supervisor
+              Icon(
+                paso1_completado
+                    ? Icons.check_circle_rounded
+                    : (es_rechazado
+                        ? Icons.cancel_rounded
+                        : Icons.hourglass_top_rounded),
+                size: 18,
+                color: paso1_completado
+                    ? const Color(0xFF10B981)
+                    : (es_rechazado
+                        ? Colors.red
+                        : BumandColores.amarilloRadiante),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                "Paso 1: Supervisor",
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              const Spacer(),
+              const Icon(Icons.arrow_forward_rounded,
+                  size: 14, color: Color(0xFF94A3B8)),
+              const Spacer(),
+              // Paso 2: Administración
+              Icon(
+                paso2_completado
+                    ? Icons.check_circle_rounded
+                    : (es_rechazado
+                        ? Icons.cancel_rounded
+                        : (paso1_completado
+                            ? Icons.hourglass_top_rounded
+                            : Icons.radio_button_unchecked)),
+                size: 18,
+                color: paso2_completado
+                    ? const Color(0xFF10B981)
+                    : (es_rechazado
+                        ? Colors.red
+                        : (paso1_completado
+                            ? BumandColores.AZUL_DIACONIA
+                            : const Color(0xFFCBD5E1))),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                "Paso 2: Administración",
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF334155),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _etiquetaEstado(estado),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: _colorEstado(estado),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _etiquetaEstado(String estado) {
+    switch (estado) {
+      case 'pendiente':
+        return '● Paso 1 en curso: Pendiente de revisión del Supervisor';
+      case 'revisado_supervisor':
+        return '✓ Paso 1 completado: Revisado por Supervisor → Esperando aprobación final de Administración';
+      case 'aprobado_administracion':
+      case 'aprobado':
+        return '✓ Paso 2 completado: Aprobado por Administración — Planilla autorizada para desembolso';
+      case 'rechazado':
+        return '✕ Con observaciones — Corrige los tramos indicados y vuelve a enviar';
+      default:
+        return estado;
+    }
+  }
+
+  Color _colorEstado(String estado) {
+    switch (estado) {
+      case 'pendiente':
+        return const Color(0xFFD97706);
+      case 'revisado_supervisor':
+        return BumandColores.AZUL_DIACONIA;
+      case 'aprobado_administracion':
+      case 'aprobado':
+        return const Color(0xFF047857);
+      case 'rechazado':
+        return const Color(0xFFDC2626);
+      default:
+        return const Color(0xFF64748B);
+    }
   }
 }
 

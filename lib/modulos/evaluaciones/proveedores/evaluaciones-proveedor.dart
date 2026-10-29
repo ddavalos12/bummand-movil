@@ -18,3 +18,17 @@ final evaluacion_consolidada_proveedor =
 
   return repo.obtenerEvaluacionConsolidada(becario_id: becario_id);
 });
+
+final becarios_asignados_modulo3_proveedor =
+    FutureProvider.autoDispose<Resultado<List<BecarioAsignadoModulo3Modelo>>>((ref) async {
+  final repo = ref.watch(evaluaciones_repositorio_proveedor);
+  return repo.obtenerBecariosAsignadosModulo3();
+});
+
+final tareas_escuela_lideres_proveedor =
+    FutureProvider.autoDispose<Resultado<List<TareaEscuelaLideresModelo>>>((ref) async {
+  final repo = ref.watch(evaluaciones_repositorio_proveedor);
+  final auth = ref.watch(autenticacion_proveedor);
+  final becario_id = auth.usuario?.id ?? 1;
+  return repo.obtenerTareasEscuelaLideres(becario_id: becario_id);
+});

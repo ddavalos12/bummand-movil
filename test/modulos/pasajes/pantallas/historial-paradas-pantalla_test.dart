@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:bumand_movil/modulos/pasajes/pantallas/historial-paradas-pantalla.dart';
 import 'package:bumand_movil/modulos/pasajes/proveedores/pasajes-proveedor.dart';
 import 'package:bumand_movil/modulos/pasajes/repositorios/pasajes-repositorio.dart';
-import 'package:bumand_movil/nucleo/utilidades/resultado.dart';
 
 class _PasajesRepositorioFalso extends PasajesRepositorio {
   @override

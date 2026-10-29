@@ -82,6 +82,29 @@ class AutenticacionNotificador extends Notifier<AutenticacionEstado> {
     }
   }
 
+  Future<Resultado<UsuarioModelo>> actualizarMiPerfil({
+    required String nombre,
+    String? telefono,
+    String? direccion,
+    String? carrera,
+    String? semestre,
+  }) async {
+    state = state.copiarCon(cargando: true, limpiar_error: true);
+    final resultado = await _repositorio.actualizarMiPerfil(
+      nombre: nombre,
+      telefono: telefono,
+      direccion: direccion,
+      carrera: carrera,
+      semestre: semestre,
+    );
+    if (resultado.exito && resultado.datos != null) {
+      state = state.copiarCon(cargando: false, usuario: resultado.datos);
+    } else {
+      state = state.copiarCon(cargando: false, error: resultado.error);
+    }
+    return resultado;
+  }
+
   Future<Resultado<String>> actualizarCorreoAlternativo(
     String correo_alternativo,
   ) async {
@@ -109,6 +132,65 @@ class AutenticacionNotificador extends Notifier<AutenticacionEstado> {
     return resultado;
   }
 
+  Future<Resultado<Map<String, dynamic>>> vincularCorreoAlternativo({
+    required String correo,
+    String etiqueta = 'Personal',
+  }) async {
+    final resultado = await _repositorio.vincularCorreoAlternativo(
+      correo: correo,
+      etiqueta: etiqueta,
+    );
+    if (resultado.exito && state.usuario != null) {
+      final correo_limpio = correo.trim().toLowerCase();
+      final lista_actual = List<String>.from(state.usuario!.correos_adicionales);
+      if (!lista_actual.contains(correo_limpio)) {
+        lista_actual.add(correo_limpio);
+      }
+      state = state.copiarCon(
+        usuario: state.usuario!.copiarCon(
+          correo_alternativo: state.usuario!.correo_alternativo ?? correo_limpio,
+          correos_adicionales: lista_actual,
+        ),
+      );
+    }
+    return resultado;
+  }
+
+  Future<Resultado<Map<String, dynamic>>> desvincularCorreoAlternativo({
+    required int correo_id,
+    required String correo,
+  }) async {
+    final resultado = await _repositorio.desvincularCorreoAlternativo(
+      correo_id: correo_id,
+      correo: correo,
+    );
+    if (resultado.exito && state.usuario != null) {
+      final correo_limpio = correo.trim().toLowerCase();
+      final lista_actual = List<String>.from(state.usuario!.correos_adicionales);
+      lista_actual.remove(correo_limpio);
+      final alt = state.usuario!.correo_alternativo == correo_limpio
+          ? (lista_actual.isNotEmpty ? lista_actual.first : null)
+          : state.usuario!.correo_alternativo;
+      state = state.copiarCon(
+        usuario: state.usuario!.copiarCon(
+          correo_alternativo: alt,
+          correos_adicionales: lista_actual,
+        ),
+      );
+    }
+    return resultado;
+  }
+
+  Future<Resultado<String>> cambiarMiContrasena({
+    required String contrasena_actual,
+    required String nueva_contrasena,
+  }) async {
+    return _repositorio.cambiarMiContrasena(
+      contrasena_actual: contrasena_actual,
+      nueva_contrasena: nueva_contrasena,
+    );
+  }
+
   void limpiarError() {
     state = state.copiarCon(limpiar_error: true);
   }
@@ -127,3 +209,7 @@ final autenticacion_proveedor = NotifierProvider<AutenticacionNotificador, Auten
 
 final authProveedor = autenticacion_proveedor;
 
+final usuarios_admin_proveedor = FutureProvider.autoDispose.family<Resultado<List<Map<String, dynamic>>>, String?>((ref, rol) {
+  final repo = ref.watch(autenticacion_repositorio_proveedor);
+  return repo.listarUsuariosInstitucionales(rol: rol);
+});

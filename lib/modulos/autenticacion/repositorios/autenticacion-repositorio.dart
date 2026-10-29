@@ -22,6 +22,14 @@ class AutenticacionRepositorio {
       'usuario_correo_alternativo';
   static const String _CLAVE_USUARIO_CORREOS_ADICIONALES =
       'usuario_correos_adicionales';
+  static const String _CLAVE_USUARIO_TELEFONO = 'usuario_telefono';
+  static const String _CLAVE_USUARIO_DIRECCION = 'usuario_direccion';
+  static const String _CLAVE_USUARIO_CARRERA = 'usuario_carrera';
+  static const String _CLAVE_USUARIO_SEMESTRE = 'usuario_semestre';
+  static const String _CLAVE_USUARIO_CI = 'usuario_ci';
+  static const String _CLAVE_USUARIO_UNIVERSIDAD = 'usuario_universidad';
+  static const String _CLAVE_USUARIO_ESTADO = 'usuario_estado';
+
   static const List<String> _ROLES_PERMITIDOS_MOVIL = [
     'becario',
     'supervisor',
@@ -168,6 +176,25 @@ class AutenticacionRepositorio {
       _CLAVE_USUARIO_CORREOS_ADICIONALES,
       usuario.correos_adicionales,
     );
+    if (usuario.telefono != null) {
+      await preferencias.setString(_CLAVE_USUARIO_TELEFONO, usuario.telefono!);
+    }
+    if (usuario.direccion != null) {
+      await preferencias.setString(_CLAVE_USUARIO_DIRECCION, usuario.direccion!);
+    }
+    if (usuario.carrera != null) {
+      await preferencias.setString(_CLAVE_USUARIO_CARRERA, usuario.carrera!);
+    }
+    if (usuario.semestre != null) {
+      await preferencias.setString(_CLAVE_USUARIO_SEMESTRE, usuario.semestre!);
+    }
+    if (usuario.ci != null) {
+      await preferencias.setString(_CLAVE_USUARIO_CI, usuario.ci!);
+    }
+    if (usuario.universidad != null) {
+      await preferencias.setString(_CLAVE_USUARIO_UNIVERSIDAD, usuario.universidad!);
+    }
+    await preferencias.setString(_CLAVE_USUARIO_ESTADO, usuario.estado);
   }
 
   Future<void> cerrarSesion() async {
@@ -179,6 +206,13 @@ class AutenticacionRepositorio {
     await preferencias.remove(_CLAVE_USUARIO_ROL);
     await preferencias.remove(_CLAVE_USUARIO_CORREO_ALTERNATIVO);
     await preferencias.remove(_CLAVE_USUARIO_CORREOS_ADICIONALES);
+    await preferencias.remove(_CLAVE_USUARIO_TELEFONO);
+    await preferencias.remove(_CLAVE_USUARIO_DIRECCION);
+    await preferencias.remove(_CLAVE_USUARIO_CARRERA);
+    await preferencias.remove(_CLAVE_USUARIO_SEMESTRE);
+    await preferencias.remove(_CLAVE_USUARIO_CI);
+    await preferencias.remove(_CLAVE_USUARIO_UNIVERSIDAD);
+    await preferencias.remove(_CLAVE_USUARIO_ESTADO);
   }
 
   Future<String?> obtenerToken() async {
@@ -214,6 +248,13 @@ class AutenticacionRepositorio {
     final correos_adicionales =
         preferencias.getStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES) ??
             const [];
+    final telefono = preferencias.getString(_CLAVE_USUARIO_TELEFONO);
+    final direccion = preferencias.getString(_CLAVE_USUARIO_DIRECCION);
+    final carrera = preferencias.getString(_CLAVE_USUARIO_CARRERA);
+    final semestre = preferencias.getString(_CLAVE_USUARIO_SEMESTRE);
+    final ci = preferencias.getString(_CLAVE_USUARIO_CI);
+    final universidad = preferencias.getString(_CLAVE_USUARIO_UNIVERSIDAD);
+    final estado = preferencias.getString(_CLAVE_USUARIO_ESTADO) ?? 'activo';
 
     return UsuarioModelo(
       id: id,
@@ -223,7 +264,255 @@ class AutenticacionRepositorio {
       token: token,
       correo_alternativo: correo_alternativo,
       correos_adicionales: correos_adicionales,
+      telefono: telefono,
+      direccion: direccion,
+      carrera: carrera,
+      semestre: semestre,
+      ci: ci,
+      universidad: universidad,
+      estado: estado,
     );
+  }
+
+  Future<Resultado<UsuarioModelo>> actualizarMiPerfil({
+    required String nombre,
+    String? telefono,
+    String? direccion,
+    String? carrera,
+    String? semestre,
+  }) async {
+    final nombre_limpio = nombre.trim();
+    if (nombre_limpio.isEmpty) {
+      return Resultado.fallido('El nombre completo es obligatorio');
+    }
+
+    final token = await obtenerToken();
+    final sesion_actual = await obtenerSesionActual();
+
+    // Actualización local resiliente en preferencias siempre
+    final preferencias = await SharedPreferences.getInstance();
+    await preferencias.setString(_CLAVE_USUARIO_NOMBRE, nombre_limpio);
+    if (telefono != null) await preferencias.setString(_CLAVE_USUARIO_TELEFONO, telefono.trim());
+    if (direccion != null) await preferencias.setString(_CLAVE_USUARIO_DIRECCION, direccion.trim());
+    if (carrera != null) await preferencias.setString(_CLAVE_USUARIO_CARRERA, carrera.trim());
+    if (semestre != null) await preferencias.setString(_CLAVE_USUARIO_SEMESTRE, semestre.trim());
+
+    final usuario_actualizado = (sesion_actual ?? UsuarioModelo(
+      id: 0,
+      nombre: nombre_limpio,
+      correo: '',
+      rol: 'becario',
+      token: token ?? '',
+    )).copiarCon(
+      nombre: nombre_limpio,
+      telefono: telefono?.trim(),
+      direccion: direccion?.trim(),
+      carrera: carrera?.trim(),
+      semestre: semestre?.trim(),
+    );
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final encabezados = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        };
+        final cuerpo = jsonEncode({
+          'nombre': nombre_limpio,
+          if (telefono != null) 'telefono': telefono.trim(),
+          if (direccion != null) 'direccion': direccion.trim(),
+          if (carrera != null) 'carrera': carrera.trim(),
+          if (semestre != null) 'semestre': semestre.trim(),
+        });
+
+        // Intentar PATCH /api/usuarios/mi-perfil
+        final url_patch = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL}');
+        final resp = await _cliente_http.patch(url_patch, headers: encabezados, body: cuerpo);
+
+        if (resp.statusCode == 200 || resp.statusCode == 201) {
+          final datos = jsonDecode(resp.body) as Map<String, dynamic>;
+          final usuario_servidor = UsuarioModelo.desdeJson(datos).copiarCon(token: token);
+          await _guardarSesion(usuario_servidor);
+          return Resultado.exitoso(usuario_servidor);
+        } else if (resp.statusCode == 404) {
+          // Fallback
+          final url_alt = Uri.parse('${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil');
+          await _cliente_http.patch(url_alt, headers: encabezados, body: cuerpo);
+        }
+      } catch (_) {
+        // Fallback local resiliente: persiste localmente si el servidor no responde
+      }
+    }
+
+    return Resultado.exitoso(usuario_actualizado);
+  }
+
+  Future<Resultado<Map<String, dynamic>>> listarMisCorreos() async {
+    final token = await obtenerToken();
+    final usuario = await obtenerSesionActual();
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final encabezados = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        };
+        final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL_CORREOS}');
+        final resp = await _cliente_http.get(url, headers: encabezados);
+
+        if (resp.statusCode == 200) {
+          final datos = jsonDecode(resp.body) as Map<String, dynamic>;
+          return Resultado.exitoso(datos);
+        }
+      } catch (_) {
+        // Fallback offline
+      }
+    }
+
+    final mapa_local = {
+      'correo_principal': usuario?.correo ?? '',
+      'correo_alternativo': usuario?.correo_alternativo,
+      'correos_adicionales': (usuario?.correos_adicionales ?? [])
+          .asMap()
+          .entries
+          .map((e) => {'id': e.key + 1, 'correo': e.value, 'etiqueta': 'Personal'})
+          .toList(),
+    };
+    return Resultado.exitoso(mapa_local);
+  }
+
+  Future<Resultado<Map<String, dynamic>>> vincularCorreoAlternativo({
+    required String correo,
+    String etiqueta = 'Personal',
+  }) async {
+    final correo_limpio = correo.trim().toLowerCase();
+    if (!correo_limpio.contains('@') || !correo_limpio.contains('.')) {
+      return Resultado.fallido('Ingresa un correo electrónico válido');
+    }
+
+    final token = await obtenerToken();
+    final usuario = await obtenerSesionActual();
+
+    // Actualizar preferencias locales
+    final preferencias = await SharedPreferences.getInstance();
+    final actuales = List<String>.from(
+      preferencias.getStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES) ?? const [],
+    );
+    if (!actuales.contains(correo_limpio)) {
+      actuales.add(correo_limpio);
+      await preferencias.setStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES, actuales);
+    }
+    if (usuario?.correo_alternativo == null || usuario!.correo_alternativo!.isEmpty) {
+      await preferencias.setString(_CLAVE_USUARIO_CORREO_ALTERNATIVO, correo_limpio);
+    }
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final encabezados = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        };
+        final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL_CORREOS}');
+        final resp = await _cliente_http.post(
+          url,
+          headers: encabezados,
+          body: jsonEncode({'correo': correo_limpio, 'etiqueta': etiqueta}),
+        );
+        if (resp.statusCode == 200 || resp.statusCode == 201) {
+          final datos = jsonDecode(resp.body) as Map<String, dynamic>;
+          return Resultado.exitoso(datos);
+        } else {
+          final datos = jsonDecode(resp.body);
+          final mensaje = datos['mensaje'] ?? datos['message'] ?? 'Error al vincular correo';
+          return Resultado.fallido(mensaje.toString());
+        }
+      } catch (_) {
+        // Fallback local exitoso si no hay red
+      }
+    }
+
+    return Resultado.exitoso({
+      'correo_principal': usuario?.correo ?? '',
+      'correo_alternativo': correo_limpio,
+      'correos_adicionales': actuales.asMap().entries.map((e) => {'id': e.key + 1, 'correo': e.value, 'etiqueta': etiqueta}).toList(),
+    });
+  }
+
+  Future<Resultado<Map<String, dynamic>>> desvincularCorreoAlternativo({
+    required int correo_id,
+    required String correo,
+  }) async {
+    final correo_limpio = correo.trim().toLowerCase();
+    final token = await obtenerToken();
+
+    final preferencias = await SharedPreferences.getInstance();
+    final actuales = List<String>.from(
+      preferencias.getStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES) ?? const [],
+    );
+    actuales.remove(correo_limpio);
+    await preferencias.setStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES, actuales);
+
+    final alt_actual = preferencias.getString(_CLAVE_USUARIO_CORREO_ALTERNATIVO);
+    if (alt_actual == correo_limpio) {
+      if (actuales.isNotEmpty) {
+        await preferencias.setString(_CLAVE_USUARIO_CORREO_ALTERNATIVO, actuales.first);
+      } else {
+        await preferencias.remove(_CLAVE_USUARIO_CORREO_ALTERNATIVO);
+      }
+    }
+
+    if (token != null && token.isNotEmpty && correo_id > 0) {
+      try {
+        final encabezados = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        };
+        final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL_CORREOS}/$correo_id');
+        await _cliente_http.delete(url, headers: encabezados);
+      } catch (_) {}
+    }
+
+    return listarMisCorreos();
+  }
+
+  Future<Resultado<String>> cambiarMiContrasena({
+    required String contrasena_actual,
+    required String nueva_contrasena,
+  }) async {
+    if (nueva_contrasena.length < 6) {
+      return Resultado.fallido('La nueva contraseña debe tener al menos 6 caracteres');
+    }
+
+    final token = await obtenerToken();
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada');
+    }
+
+    try {
+      final encabezados = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+      final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL_CONTRASENA}');
+      final resp = await _cliente_http.patch(
+        url,
+        headers: encabezados,
+        body: jsonEncode({
+          'contrasena_actual': contrasena_actual,
+          'nueva_contrasena': nueva_contrasena,
+        }),
+      );
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        return Resultado.exitoso('Contraseña actualizada exitosamente');
+      } else {
+        final datos = jsonDecode(resp.body);
+        final mensaje = datos['mensaje'] ?? datos['message'] ?? 'Error al actualizar contraseña';
+        return Resultado.fallido(mensaje.toString());
+      }
+    } catch (e) {
+      return Resultado.fallido('Error de conexión con el servidor: $e');
+    }
   }
 
   Future<Resultado<String>> actualizarCorreoAlternativo(
@@ -292,6 +581,156 @@ class AutenticacionRepositorio {
     );
 
     return Resultado.exitoso('Correo alternativo actualizado correctamente');
+  }
+
+  // --- MÉTODOS DE ADMINISTRACIÓN DE USUARIOS ---
+
+  Future<Resultado<List<Map<String, dynamic>>>> listarUsuariosInstitucionales({String? rol}) async {
+    final token = await obtenerToken();
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada');
+    }
+
+    try {
+      final url_str = rol != null && rol.isNotEmpty
+          ? '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS}?rol=$rol'
+          : '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS}';
+      final resp = await _cliente_http.get(
+        Uri.parse(url_str),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (resp.statusCode == 200) {
+        final lista = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
+        return Resultado.exitoso(lista);
+      } else {
+        final datos = jsonDecode(resp.body);
+        return Resultado.fallido(datos['mensaje']?.toString() ?? 'Error al listar usuarios');
+      }
+    } catch (e) {
+      return Resultado.fallido('Error al conectar con el servidor: $e');
+    }
+  }
+
+  Future<Resultado<Map<String, dynamic>>> crearUsuarioInstitucional({
+    required String nombre,
+    required String correo,
+    required String contrasena,
+    required String rol,
+  }) async {
+    final token = await obtenerToken();
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada');
+    }
+
+    try {
+      final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS}');
+      final resp = await _cliente_http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'nombre': nombre.trim(),
+          'correo': correo.trim().toLowerCase(),
+          'contrasena': contrasena,
+          'rol': rol.trim().toLowerCase(),
+        }),
+      );
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final datos = jsonDecode(resp.body) as Map<String, dynamic>;
+        return Resultado.exitoso(datos);
+      } else {
+        final datos = jsonDecode(resp.body);
+        return Resultado.fallido(datos['mensaje']?.toString() ?? 'Error al crear usuario');
+      }
+    } catch (e) {
+      return Resultado.fallido('Error de conexión: $e');
+    }
+  }
+
+  Future<Resultado<Map<String, dynamic>>> actualizarUsuarioPorAdmin(
+    int id, {
+    String? nombre,
+    String? correo,
+    String? rol,
+    String? estado,
+    String? nueva_contrasena,
+  }) async {
+    final token = await obtenerToken();
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada');
+    }
+
+    try {
+      final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS}/$id');
+      final resp = await _cliente_http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          if (nombre != null) 'nombre': nombre.trim(),
+          if (correo != null) 'correo': correo.trim().toLowerCase(),
+          if (rol != null) 'rol': rol.trim().toLowerCase(),
+          if (estado != null) 'estado': estado.trim().toLowerCase(),
+          if (nueva_contrasena != null && nueva_contrasena.isNotEmpty)
+            'nueva_contrasena': nueva_contrasena,
+        }),
+      );
+
+      if (resp.statusCode == 200) {
+        final datos = jsonDecode(resp.body) as Map<String, dynamic>;
+        return Resultado.exitoso(datos);
+      } else {
+        final datos = jsonDecode(resp.body);
+        return Resultado.fallido(datos['mensaje']?.toString() ?? 'Error al actualizar usuario');
+      }
+    } catch (e) {
+      return Resultado.fallido('Error de conexión: $e');
+    }
+  }
+
+  Future<Resultado<String>> restablecerContrasenaPorAdmin(
+    int id, {
+    required String nueva_contrasena,
+  }) async {
+    if (nueva_contrasena.length < 6) {
+      return Resultado.fallido('La contraseña debe tener al menos 6 caracteres');
+    }
+
+    final token = await obtenerToken();
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada');
+    }
+
+    try {
+      final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS}/$id/contrasena');
+      final resp = await _cliente_http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'nueva_contrasena': nueva_contrasena}),
+      );
+
+      if (resp.statusCode == 200) {
+        final datos = jsonDecode(resp.body);
+        return Resultado.exitoso(datos['mensaje']?.toString() ?? 'Contraseña restablecida exitosamente');
+      } else {
+        final datos = jsonDecode(resp.body);
+        return Resultado.fallido(datos['mensaje']?.toString() ?? 'Error al restablecer contraseña');
+      }
+    } catch (e) {
+      return Resultado.fallido('Error de conexión: $e');
+    }
   }
 
   Future<bool> estaAutenticado() async {

@@ -10,6 +10,13 @@ class UsuarioModelo {
   final List<String> correos_adicionales;
   final String modalidad_pasajes;
   final Map<String, dynamic>? configuracion_pasajes_actividades;
+  final String? telefono;
+  final String? direccion;
+  final String? carrera;
+  final String? semestre;
+  final String? ci;
+  final String? universidad;
+  final String estado;
 
   const UsuarioModelo({
     required this.id,
@@ -21,6 +28,13 @@ class UsuarioModelo {
     this.correos_adicionales = const [],
     this.modalidad_pasajes = 'ida_y_vuelta',
     this.configuracion_pasajes_actividades,
+    this.telefono,
+    this.direccion,
+    this.carrera,
+    this.semestre,
+    this.ci,
+    this.universidad,
+    this.estado = 'activo',
   });
 
   factory UsuarioModelo.desdeJson(Map<String, dynamic> json) {
@@ -83,6 +97,28 @@ class UsuarioModelo {
         ? config_pasajes_raw
         : null;
 
+    final telefono_valor = mapa_usuario?['telefono'] as String? ??
+        mapa_usuario?['celular'] as String? ??
+        json['telefono'] as String? ??
+        json['celular'] as String?;
+
+    final direccion_valor = mapa_usuario?['direccion'] as String? ??
+        json['direccion'] as String?;
+
+    final carrera_valor = mapa_usuario?['carrera'] as String? ??
+        json['carrera'] as String?;
+
+    final semestre_valor = mapa_usuario?['semestre'] as String? ??
+        json['semestre'] as String?;
+
+    final ci_valor = mapa_usuario?['ci'] as String? ??
+        json['ci'] as String?;
+
+    final universidad_valor = mapa_usuario?['universidad'] as String? ??
+        json['universidad'] as String?;
+
+    final estado_valor = (mapa_usuario?['estado'] ?? json['estado'] ?? 'activo').toString();
+
     return UsuarioModelo(
       id: id_valor,
       nombre: nombre_valor,
@@ -93,6 +129,13 @@ class UsuarioModelo {
       correos_adicionales: correos_adicionales_valor,
       modalidad_pasajes: modalidad_pasajes_valor,
       configuracion_pasajes_actividades: config_pasajes_valor,
+      telefono: telefono_valor,
+      direccion: direccion_valor,
+      carrera: carrera_valor,
+      semestre: semestre_valor,
+      ci: ci_valor,
+      universidad: universidad_valor,
+      estado: estado_valor,
     );
   }
 
@@ -119,6 +162,13 @@ class UsuarioModelo {
       'correos_adicionales': correos_adicionales,
       'modalidad_pasajes': modalidad_pasajes,
       'configuracion_pasajes_actividades': configuracion_pasajes_actividades,
+      'telefono': telefono,
+      'direccion': direccion,
+      'carrera': carrera,
+      'semestre': semestre,
+      'ci': ci,
+      'universidad': universidad,
+      'estado': estado,
     };
   }
 
@@ -132,6 +182,13 @@ class UsuarioModelo {
     List<String>? correos_adicionales,
     String? modalidad_pasajes,
     Map<String, dynamic>? configuracion_pasajes_actividades,
+    String? telefono,
+    String? direccion,
+    String? carrera,
+    String? semestre,
+    String? ci,
+    String? universidad,
+    String? estado,
   }) {
     return UsuarioModelo(
       id: id ?? this.id,
@@ -143,6 +200,13 @@ class UsuarioModelo {
       correos_adicionales: correos_adicionales ?? this.correos_adicionales,
       modalidad_pasajes: modalidad_pasajes ?? this.modalidad_pasajes,
       configuracion_pasajes_actividades: configuracion_pasajes_actividades ?? this.configuracion_pasajes_actividades,
+      telefono: telefono ?? this.telefono,
+      direccion: direccion ?? this.direccion,
+      carrera: carrera ?? this.carrera,
+      semestre: semestre ?? this.semestre,
+      ci: ci ?? this.ci,
+      universidad: universidad ?? this.universidad,
+      estado: estado ?? this.estado,
     );
   }
 

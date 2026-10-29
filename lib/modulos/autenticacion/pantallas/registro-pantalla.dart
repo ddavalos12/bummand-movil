@@ -311,55 +311,63 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                               tooltip: "Volver",
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFFE2E8F0),
-                                width: 1.5,
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: BumandColores.azulMarinoSecundario
+                                          .withValues(alpha: 0.05),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Hero(
+                                        tag: 'hero-logo-bumand',
+                                        child: SvgPicture.asset(
+                                          'assets/logos/logo-bumand-oficial.svg',
+                                          height: 38,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                      Container(
+                                        height: 32,
+                                        width: 1.5,
+                                        margin:
+                                            const EdgeInsets.symmetric(horizontal: 10),
+                                        color: BumandColores.grisClaro,
+                                      ),
+                                      Hero(
+                                        tag: 'hero-logo-diaconia',
+                                        child: SvgPicture.asset(
+                                          'assets/logos/logo-diaconia-color.svg',
+                                          height: 34,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: BumandColores.azulMarinoSecundario
-                                      .withValues(alpha: 0.05),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Hero(
-                                  tag: 'hero-logo-bumand',
-                                  child: SvgPicture.asset(
-                                    'assets/logos/logo-bumand-oficial.svg',
-                                    height: 44,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                                Container(
-                                  height: 36,
-                                  width: 1.5,
-                                  margin:
-                                      const EdgeInsets.symmetric(horizontal: 12),
-                                  color: BumandColores.grisClaro,
-                                ),
-                                Hero(
-                                  tag: 'hero-logo-diaconia',
-                                  child: SvgPicture.asset(
-                                    'assets/logos/logo-diaconia-color.svg',
-                                    height: 40,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
                         ],

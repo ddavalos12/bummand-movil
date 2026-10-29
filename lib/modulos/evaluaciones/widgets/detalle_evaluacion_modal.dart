@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
 
-import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
+import '../modelos/evaluacion-modelo.dart';
 import '../modelos/pregunta-bienestar-modelo.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
 import 'formulario_f03_dialogo.dart';
@@ -101,6 +99,15 @@ class DetalleEvaluacionModal extends StatelessWidget {
     );
   }
 
+  static void mostrarReceptorLideresClassroom(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _ReceptorLideresClassroomModal(),
+    );
+  }
+
   static void mostrarReceptorSocioeconomico(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -110,12 +117,53 @@ class DetalleEvaluacionModal extends StatelessWidget {
     );
   }
 
-  static void mostrarFormularioMentor(BuildContext context) {
+  static Future<Map<String, dynamic>?> verificarIdentidadSupervisor(
+    BuildContext context, {
+    int becario_id = 1,
+    String? becario_nombre,
+  }) {
+    return showDialog<dynamic>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _DialogoVerificacionSupervisor(
+        becario_id: becario_id,
+        becario_nombre: becario_nombre,
+      ),
+    ).then((res) {
+      if (res is Map<String, dynamic>) return res;
+      if (res is Map) return Map<String, dynamic>.from(res);
+      if (res is String) {
+        return {
+          'verificado': true,
+          'supervisor_nombre': res,
+          'codigo_verificacion': '123456',
+        };
+      }
+      return null;
+    });
+  }
+
+  static void mostrarFormularioMentor(
+    BuildContext context, {
+    int becario_id = 1,
+    String becario_nombre = "María Catunta Laime",
+    String supervisor_nombre_inicial = "Lic. Carlos Mendoza",
+    String modalidad_llenado = "perfil_supervisor",
+    String? codigo_verificacion,
+    Map<String, dynamic>? evaluacion_previa,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _FormularioSupervisorEvaluador(),
+      builder: (_) => _FormularioSupervisorEvaluador(
+        becario_id: becario_id,
+        becario_nombre: becario_nombre,
+        supervisor_nombre_inicial: supervisor_nombre_inicial,
+        modalidad_llenado: modalidad_llenado,
+        codigo_verificacion: codigo_verificacion,
+        evaluacion_previa: evaluacion_previa,
+      ),
     );
   }
 
@@ -137,6 +185,10 @@ class DetalleEvaluacionModal extends StatelessWidget {
     final es_socioeconomica = numero_modulo == "05" ||
         numero_modulo == "5" ||
         titulo.toLowerCase().contains("socio");
+    final es_lideres = numero_modulo == "04" ||
+        numero_modulo == "4" ||
+        titulo.toLowerCase().contains("líder") ||
+        titulo.toLowerCase().contains("lider");
 
     return Container(
       decoration: const BoxDecoration(
@@ -436,6 +488,32 @@ class DetalleEvaluacionModal extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
+          if (es_lideres) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  DetalleEvaluacionModal.mostrarReceptorLideresClassroom(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: const Icon(Icons.school_outlined),
+                label: const Text(
+                  "Abrir Tareas Escuela de Líderes (Classroom)",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           if (es_socioeconomica) ...[
             SizedBox(
               width: double.infinity,
@@ -611,12 +689,56 @@ class _ReceptorAcademicoModal extends StatefulWidget {
 }
 
 class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
+  final _repositorio = EvaluacionesRepositorio();
   final _promedio_ctrl = TextEditingController(text: "81.5");
-  String? _archivo_record;
-  String? _archivo_historial;
-  String? _tamano_record;
-  String? _tamano_historial;
-  bool _enviando = false;
+
+  int _periodo_seleccionado_id = 2; // Semestre II - 2026
+
+  static const List<Map<String, dynamic>> PERIODOS_ACADEMICOS = [
+    {"id": 2, "nombre": "Semestre II - 2026", "activo": true},
+    {"id": 1, "nombre": "Semestre I - 2026", "activo": false},
+    {"id": 3, "nombre": "Semestre II - 2025", "activo": false},
+  ];
+
+  final Map<int, Map<String, dynamic>> _docs_por_periodo = {
+    2: {
+      "record_nombre": null,
+      "record_tamano": null,
+      "record_estado": "Pendiente de subida",
+      "historial_nombre": null,
+      "historial_tamano": null,
+      "historial_estado": "Pendiente de subida",
+    },
+    1: {
+      "record_nombre": "record_academico_semestre_1_2026.pdf",
+      "record_tamano": "1.2 MB",
+      "record_estado": "Aprobado por Administración",
+      "historial_nombre": "historial_completo_2026_s1.pdf",
+      "historial_tamano": "2.4 MB",
+      "historial_estado": "Aprobado por Administración",
+    },
+    3: {
+      "record_nombre": "record_oficial_2025_s2.pdf",
+      "record_tamano": "980 KB",
+      "record_estado": "Aprobado por Administración",
+      "historial_nombre": "historial_academico_2025.pdf",
+      "historial_tamano": "1.8 MB",
+      "historial_estado": "Aprobado por Administración",
+    },
+  };
+
+  bool _subiendo_record = false;
+  bool _subiendo_historial = false;
+
+  Map<String, dynamic> get _docActual =>
+      _docs_por_periodo[_periodo_seleccionado_id] ??= {
+        "record_nombre": null,
+        "record_tamano": null,
+        "record_estado": "Pendiente de subida",
+        "historial_nombre": null,
+        "historial_tamano": null,
+        "historial_estado": "Pendiente de subida",
+      };
 
   @override
   void dispose() {
@@ -624,7 +746,7 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
     super.dispose();
   }
 
-  Future<void> _seleccionarArchivo(bool es_record) async {
+  Future<void> _subirDocumento({required bool es_record}) async {
     try {
       final resultado = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -633,92 +755,96 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
 
       if (resultado.isNotEmpty) {
         final archivo = resultado.first;
-        final bytes = archivo.lengthSync();
-        final tamano = bytes != null
-            ? (bytes > 1024 * 1024
-                ? "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB"
-                : "${(bytes / 1024).toStringAsFixed(1)} KB")
-            : null;
+        final bytes = await archivo.readAsBytes();
+        final tamano_bytes = archivo.lengthSync() ?? bytes.length;
+        final tamano = tamano_bytes > 1024 * 1024
+            ? "${(tamano_bytes / (1024 * 1024)).toStringAsFixed(1)} MB"
+            : "${(tamano_bytes / 1024).toStringAsFixed(1)} KB";
 
         setState(() {
           if (es_record) {
-            _archivo_record = archivo.name;
-            _tamano_record = tamano;
+            _subiendo_record = true;
+            _docActual["record_nombre"] = archivo.name;
+            _docActual["record_tamano"] = tamano;
+            _docActual["record_estado"] = "Enviado a Administración";
           } else {
-            _archivo_historial = archivo.name;
-            _tamano_historial = tamano;
+            _subiendo_historial = true;
+            _docActual["historial_nombre"] = archivo.name;
+            _docActual["historial_tamano"] = tamano;
+            _docActual["historial_estado"] = "Enviado a Administración";
           }
         });
+
+        final res = await _repositorio.subirDocumentoAcademico(
+          periodo_id: _periodo_seleccionado_id,
+          tipo_documento: es_record ? 'record_academico' : 'historial_academico',
+          bytes: bytes,
+          nombre_archivo: archivo.name,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          if (es_record) {
+            _subiendo_record = false;
+            if (res.exito) {
+              _docActual["record_estado"] = "Enviado a Administración";
+            }
+          } else {
+            _subiendo_historial = false;
+            if (res.exito) {
+              _docActual["historial_estado"] = "Enviado a Administración";
+            }
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              es_record
+                  ? "✓ Récord Académico recibido para revisión directa por Administración."
+                  : "✓ Historial Académico recibido para revisión directa por Administración.",
+            ),
+            backgroundColor: BumandColores.AZUL_DIACONIA,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;
+      setState(() {
+        _subiendo_record = false;
+        _subiendo_historial = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("No se pudo seleccionar el archivo: $e"),
+          content: Text("Error al cargar documento: $e"),
           backgroundColor: const Color(0xFFDC2626),
         ),
       );
     }
   }
 
-  void _eliminarArchivo(bool es_record) {
+  void _eliminarDocumento({required bool es_record}) {
     setState(() {
       if (es_record) {
-        _archivo_record = null;
-        _tamano_record = null;
+        _docActual["record_nombre"] = null;
+        _docActual["record_tamano"] = null;
+        _docActual["record_estado"] = "Pendiente de subida";
       } else {
-        _archivo_historial = null;
-        _tamano_historial = null;
+        _docActual["historial_nombre"] = null;
+        _docActual["historial_tamano"] = null;
+        _docActual["historial_estado"] = "Pendiente de subida";
       }
     });
   }
 
-  Future<void> _enviarDocumentos() async {
-    if (_archivo_record == null || _archivo_historial == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Debes adjuntar el Récord y el Historial Académico."),
-          backgroundColor: Color(0xFFDC2626),
-        ),
-      );
-      return;
-    }
-
-    setState(() => _enviando = true);
-
-    try {
-      final ruta = '${ApiConstantes.RUTA_BASE}/api/evaluaciones/receptor/academica';
-      await http
-          .post(
-            Uri.parse(ruta),
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode({
-              "becario_id": 1,
-              "periodo": "Semestre II - 2026",
-              "promedio_semestral": double.tryParse(_promedio_ctrl.text) ?? 80.0,
-              "record_archivo": _archivo_record,
-              "historial_archivo": _archivo_historial,
-              "fecha_recepcion": DateTime.now().toIso8601String(),
-            }),
-          )
-          .timeout(const Duration(seconds: 4));
-    } catch (_) {}
-
-    if (!mounted) return;
-    setState(() => _enviando = false);
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("✓ Récord e Historial Académico recibidos exitosamente."),
-        backgroundColor: BumandColores.azulMarinoProfundo,
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final periodo_actual = PERIODOS_ACADEMICOS.firstWhere(
+      (p) => p["id"] == _periodo_seleccionado_id,
+      orElse: () => PERIODOS_ACADEMICOS.first,
+    );
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -730,215 +856,479 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
         20,
         MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFCBD5E1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Text(
-                  "Módulo 02 · Receptor Académico",
-                  style: TextStyle(
-                    color: BumandColores.AZUL_DIACONIA,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const Text(
-            "Subida de Documentos Académicos",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: BumandColores.NEGRO,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Adjunta tus 2 documentos oficiales semestrales. La convalidación y ponderación se efectúa en la plataforma web.",
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _construirSelectorDocumento(
-            etiqueta: "1. Récord Académico (Semestre II - 2026)",
-            archivo: _archivo_record,
-            tamano: _tamano_record,
-            alPresionar: () => _seleccionarArchivo(true),
-            alEliminar: () => _eliminarArchivo(true),
-          ),
-          const SizedBox(height: 10),
-          _construirSelectorDocumento(
-            etiqueta: "2. Historial Académico Completo",
-            archivo: _archivo_historial,
-            tamano: _tamano_historial,
-            alPresionar: () => _seleccionarArchivo(false),
-            alEliminar: () => _eliminarArchivo(false),
-          ),
-          const SizedBox(height: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Promedio Semestral Autodeclarado",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF334155),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _promedio_ctrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  hintText: "Ej. 82.50",
-                  suffixText: "pts",
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                  ),
+                  child: const Text(
+                    "Módulo 02 · Receptor Académico",
+                    style: TextStyle(
+                      color: BumandColores.AZUL_DIACONIA,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _enviando ? null : _enviarDocumentos,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.AZUL_DIACONIA,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
-              ),
-              icon: _enviando
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.cloud_upload_outlined),
-              label: Text(
-                _enviando ? "Enviando recepción..." : "Enviar documentos académicos",
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              ],
+            ),
+            const Text(
+              "Subida de Documentos Académicos",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: BumandColores.NEGRO,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              "Adjunta tu Récord e Historial Académico por semestre. Ambos documentos son revisados y validados de forma directa por Administración.",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Badge de Revisión Directa por Administración
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.admin_panel_settings_rounded,
+                    color: Color(0xFF1D4ED8),
+                    size: 24,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Revisión Directa por Administración",
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E40AF),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          "Los documentos se derivan directamente a Administración Académica sin convalidación previa del supervisor de prácticas.",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF3B82F6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Selector dinámico de semestre
+            const Text(
+              "Selecciona el Semestre Académico:",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF334155),
+              ),
+            ),
+            const SizedBox(height: 6),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: PERIODOS_ACADEMICOS.map((periodo) {
+                  final es_seleccionado = periodo["id"] == _periodo_seleccionado_id;
+                  final es_activo = periodo["activo"] == true;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      selected: es_seleccionado,
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            periodo["nombre"] as String,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight:
+                                  es_seleccionado ? FontWeight.bold : FontWeight.w500,
+                              color: es_seleccionado
+                                  ? Colors.white
+                                  : const Color(0xFF334155),
+                            ),
+                          ),
+                          if (es_activo) ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: es_seleccionado
+                                    ? Colors.white.withValues(alpha: 0.25)
+                                    : const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                "Activo",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: es_seleccionado
+                                      ? Colors.white
+                                      : const Color(0xFF15803D),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      selectedColor: BumandColores.AZUL_DIACONIA,
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: es_seleccionado
+                              ? BumandColores.AZUL_DIACONIA
+                              : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      onSelected: (val) {
+                        if (val) {
+                          setState(() {
+                            _periodo_seleccionado_id = periodo["id"] as int;
+                          });
+                        }
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Tarjeta 1: Subir Récord Académico
+            _construirTarjetaDocumento(
+              titulo: "1. Récord Académico",
+              subtitulo: "Calificaciones oficiales del ${periodo_actual['nombre']}",
+              nombre_archivo: _docActual["record_nombre"] as String?,
+              tamano_archivo: _docActual["record_tamano"] as String?,
+              estado: _docActual["record_estado"] as String,
+              icono: Icons.description_outlined,
+              color_icono: const Color(0xFF2563EB),
+              cargando: _subiendo_record,
+              alSubir: () => _subirDocumento(es_record: true),
+              alEliminar: () => _eliminarDocumento(es_record: true),
+              texto_boton: _docActual["record_nombre"] == null
+                  ? "Subir Récord Académico"
+                  : "Cambiar Récord",
+            ),
+            const SizedBox(height: 12),
+
+            // Tarjeta 2: Subir Historial Académico
+            _construirTarjetaDocumento(
+              titulo: "2. Historial Académico",
+              subtitulo: "Malla curricular y materias aprobadas a la fecha",
+              nombre_archivo: _docActual["historial_nombre"] as String?,
+              tamano_archivo: _docActual["historial_tamano"] as String?,
+              estado: _docActual["historial_estado"] as String,
+              icono: Icons.history_edu_outlined,
+              color_icono: const Color(0xFF0D9488),
+              cargando: _subiendo_historial,
+              alSubir: () => _subirDocumento(es_record: false),
+              alEliminar: () => _eliminarDocumento(es_record: false),
+              texto_boton: _docActual["historial_nombre"] == null
+                  ? "Subir Historial Académico"
+                  : "Cambiar Historial",
+            ),
+            const SizedBox(height: 16),
+
+            // Promedio Semestral Autodeclarado
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Promedio Semestral Autodeclarado",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _promedio_ctrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    hintText: "Ej. 82.50",
+                    suffixText: "pts",
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "✓ Documentación académica enviada para revisión por Administración.",
+                      ),
+                      backgroundColor: BumandColores.AZUL_DIACONIA,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: BumandColores.AZUL_DIACONIA,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text(
+                  "Finalizar y Confirmar Envío",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _construirSelectorDocumento({
-    required String etiqueta,
-    required String? archivo,
-    required String? tamano,
-    required VoidCallback alPresionar,
+  Widget _construirTarjetaDocumento({
+    required String titulo,
+    required String subtitulo,
+    required String? nombre_archivo,
+    required String? tamano_archivo,
+    required String estado,
+    required IconData icono,
+    required Color color_icono,
+    required bool cargando,
+    required VoidCallback alSubir,
     required VoidCallback alEliminar,
+    required String texto_boton,
   }) {
-    final es_pdf = archivo != null && archivo.toLowerCase().endsWith(".pdf");
+    final es_aprobado = estado.toLowerCase().contains("aprobado");
+    final es_enviado = estado.toLowerCase().contains("enviado");
+
+    Color color_badge_fondo = const Color(0xFFFEF3C7);
+    Color color_badge_borde = const Color(0xFFFDE68A);
+    Color color_badge_texto = const Color(0xFFB45309);
+    IconData icono_badge = Icons.hourglass_empty;
+
+    if (es_aprobado) {
+      color_badge_fondo = const Color(0xFFDCFCE7);
+      color_badge_borde = const Color(0xFF86EFAC);
+      color_badge_texto = const Color(0xFF15803D);
+      icono_badge = Icons.verified_rounded;
+    } else if (es_enviado) {
+      color_badge_fondo = const Color(0xFFEFF6FF);
+      color_badge_borde = const Color(0xFFBFDBFE);
+      color_badge_texto = const Color(0xFF1D4ED8);
+      icono_badge = Icons.schedule_send_rounded;
+    }
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: archivo != null ? BumandColores.azulMarinoProfundo : const Color(0xFFCBD5E1),
+          color: nombre_archivo != null
+              ? BumandColores.AZUL_DIACONIA
+              : const Color(0xFFCBD5E1),
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            archivo != null
-                ? (es_pdf ? Icons.picture_as_pdf : Icons.image)
-                : Icons.upload_file,
-            color: archivo != null
-                ? (es_pdf ? const Color(0xFFE11D48) : const Color(0xFF0D9488))
-                : const Color(0xFF64748B),
-            size: 24,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  etiqueta,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
-                  ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color_icono.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                Text(
-                  archivo != null
-                      ? "$archivo ${tamano != null ? '($tamano)' : ''}"
-                      : "Ningún archivo PDF o imagen seleccionado",
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: archivo != null ? const Color(0xFF047857) : Colors.grey.shade500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Icon(icono, color: color_icono, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      titulo,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    Text(
+                      subtitulo,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color_badge_fondo,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: color_badge_borde),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icono_badge, size: 12, color: color_badge_texto),
+                    const SizedBox(width: 4),
+                    Text(
+                      estado,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: color_badge_texto,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          if (archivo != null)
-            IconButton(
-              icon: const Icon(Icons.close, size: 18, color: Color(0xFF94A3B8)),
-              onPressed: alEliminar,
-              tooltip: "Eliminar archivo",
-            ),
-          ElevatedButton(
-            onPressed: alPresionar,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: archivo == null
-                  ? BumandColores.AZUL_DIACONIA
-                  : const Color(0xFFF1F5F9),
-              foregroundColor: archivo == null
-                  ? Colors.white
-                  : BumandColores.azulMarinoSecundario,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          const SizedBox(height: 10),
+          if (nombre_archivo != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.attach_file,
+                    size: 16,
+                    color: Color(0xFF64748B),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "$nombre_archivo ${tamano_archivo != null ? '($tamano_archivo)' : ''}",
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: alEliminar,
+                    tooltip: "Quitar archivo",
+                  ),
+                ],
               ),
             ),
-            child: Text(
-              archivo == null ? "Adjuntar" : "Cambiar",
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            const SizedBox(height: 8),
+          ],
+          SizedBox(
+            width: double.infinity,
+            height: 38,
+            child: ElevatedButton.icon(
+              onPressed: cargando ? null : alSubir,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: nombre_archivo == null
+                    ? BumandColores.AZUL_DIACONIA
+                    : const Color(0xFFF1F5F9),
+                foregroundColor: nombre_archivo == null
+                    ? Colors.white
+                    : BumandColores.azulMarinoSecundario,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: nombre_archivo == null
+                        ? Colors.transparent
+                        : const Color(0xFFCBD5E1),
+                  ),
+                ),
+              ),
+              icon: cargando
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : Icon(
+                      nombre_archivo == null
+                          ? Icons.cloud_upload_outlined
+                          : Icons.replay_outlined,
+                      size: 16,
+                    ),
+              label: Text(
+                cargando ? "Subiendo..." : texto_boton,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
@@ -951,14 +1341,27 @@ class _ReceptorMentorModal extends StatelessWidget {
   const _ReceptorMentorModal();
 
   void _abrirVerificacionSupervisor(BuildContext context) {
-    showDialog<String>(
+    showDialog<dynamic>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const _DialogoVerificacionSupervisor(),
-    ).then((supervisor_verificado) {
-      if (supervisor_verificado != null && context.mounted) {
+      builder: (ctx) => const _DialogoVerificacionSupervisor(
+        becario_id: 1,
+        becario_nombre: "María Catunta Laime",
+      ),
+    ).then((resultado) {
+      if (resultado != null && context.mounted) {
+        final String supervisor_nombre = resultado is Map
+            ? (resultado['supervisor_nombre']?.toString() ?? "Lic. Carlos Mendoza")
+            : resultado.toString();
+        final String? codigo_verificacion =
+            resultado is Map ? resultado['codigo_verificacion']?.toString() : null;
+
         Navigator.of(context).pop();
-        _mostrarFormularioSupervisor(context, supervisor_verificado);
+        _mostrarFormularioSupervisor(
+          context,
+          supervisor_nombre,
+          codigo_verificacion,
+        );
       }
     });
   }
@@ -966,13 +1369,18 @@ class _ReceptorMentorModal extends StatelessWidget {
   void _mostrarFormularioSupervisor(
     BuildContext context,
     String supervisor_nombre,
+    String? codigo_verificacion,
   ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _FormularioSupervisorEvaluador(
+        becario_id: 1,
+        becario_nombre: "María Catunta Laime",
         supervisor_nombre_inicial: supervisor_nombre,
+        modalidad_llenado: "celular_estudiante",
+        codigo_verificacion: codigo_verificacion,
       ),
     );
   }
@@ -1092,7 +1500,13 @@ class _ReceptorMentorModal extends StatelessWidget {
 }
 
 class _DialogoVerificacionSupervisor extends StatefulWidget {
-  const _DialogoVerificacionSupervisor();
+  final int becario_id;
+  final String? becario_nombre;
+
+  const _DialogoVerificacionSupervisor({
+    this.becario_id = 1,
+    this.becario_nombre,
+  });
 
   @override
   State<_DialogoVerificacionSupervisor> createState() =>
@@ -1126,7 +1540,7 @@ class _DialogoVerificacionSupervisorState
       _mensaje_error = null;
     });
 
-    await _repositorio.solicitarCodigoTutor(becario_id: 1);
+    await _repositorio.solicitarCodigoTutor(becario_id: widget.becario_id);
     if (!mounted) return;
 
     setState(() {
@@ -1149,7 +1563,7 @@ class _DialogoVerificacionSupervisorState
     });
 
     final resultado = await _repositorio.verificarCodigoTutor(
-      becario_id: 1,
+      becario_id: widget.becario_id,
       codigo: codigo,
     );
 
@@ -1159,7 +1573,11 @@ class _DialogoVerificacionSupervisorState
     if (resultado.exito && resultado.datos?['verificado'] == true) {
       final nombre =
           resultado.datos?['supervisor_nombre']?.toString() ?? "Supervisor Asignado";
-      Navigator.of(context).pop(nombre);
+      Navigator.of(context).pop({
+        'verificado': true,
+        'supervisor_nombre': nombre,
+        'codigo_verificacion': codigo,
+      });
     } else {
       setState(() {
         _mensaje_error =
@@ -1194,11 +1612,11 @@ class _DialogoVerificacionSupervisorState
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         "Verificación de Identidad del Tutor",
                         style: TextStyle(
                           fontSize: 15.5,
@@ -1207,8 +1625,10 @@ class _DialogoVerificacionSupervisorState
                         ),
                       ),
                       Text(
-                        "Seguridad antifraude · Módulo 03",
-                        style: TextStyle(
+                        widget.becario_nombre != null
+                            ? "Evaluando a: ${widget.becario_nombre}"
+                            : "Seguridad antifraude · Módulo 03",
+                        style: const TextStyle(
                           fontSize: 11.5,
                           color: Color(0xFF64748B),
                         ),
@@ -1396,10 +1816,20 @@ class _DialogoVerificacionSupervisorState
 }
 
 class _FormularioSupervisorEvaluador extends StatefulWidget {
+  final int becario_id;
+  final String becario_nombre;
   final String supervisor_nombre_inicial;
+  final String modalidad_llenado;
+  final String? codigo_verificacion;
+  final Map<String, dynamic>? evaluacion_previa;
 
   const _FormularioSupervisorEvaluador({
+    this.becario_id = 1,
+    this.becario_nombre = "María Catunta Laime",
     this.supervisor_nombre_inicial = "Lic. Carlos Mendoza",
+    this.modalidad_llenado = "perfil_supervisor",
+    this.codigo_verificacion,
+    this.evaluacion_previa,
   });
 
   @override
@@ -1413,8 +1843,8 @@ class _FormularioSupervisorEvaluadorState
 
   // Sección I: Datos Generales
   late final TextEditingController _mentor_ctrl;
-  final _becario_ctrl = TextEditingController(text: "María Catunta Laime");
-  final _agencia_ctrl = TextEditingController(text: "Agencia Central Diaconía");
+  late final TextEditingController _becario_ctrl;
+  late final TextEditingController _agencia_ctrl;
   final _semestre_ctrl = TextEditingController(text: "Semestre II - 2026");
   final _fecha_ctrl = TextEditingController(
     text: "${DateTime.now().day.toString().padLeft(2, '0')}/${DateTime.now().month.toString().padLeft(2, '0')}/${DateTime.now().year}",
@@ -1532,9 +1962,37 @@ class _FormularioSupervisorEvaluadorState
   void initState() {
     super.initState();
     _mentor_ctrl = TextEditingController(text: widget.supervisor_nombre_inicial);
-    _calificaciones_1_18 = {
-      for (int i = 1; i <= 18; i++) i: 10,
-    };
+    _becario_ctrl = TextEditingController(text: widget.becario_nombre);
+    _agencia_ctrl = TextEditingController(
+      text: widget.evaluacion_previa?['agencia']?.toString() ?? "Agencia Central Diaconía",
+    );
+
+    final prev_calif = widget.evaluacion_previa?['calificaciones_1_18'];
+    _calificaciones_1_18 = {};
+    for (int i = 1; i <= 18; i++) {
+      int valor = 10;
+      if (prev_calif is Map) {
+        final v = prev_calif[i] ?? prev_calif[i.toString()] ?? prev_calif['pregunta_$i'];
+        if (v != null) valor = int.tryParse(v.toString()) ?? 10;
+      } else if (prev_calif is List && prev_calif.length >= i) {
+        final v = prev_calif[i - 1];
+        if (v != null) valor = int.tryParse(v.toString()) ?? 10;
+      }
+      _calificaciones_1_18[i] = valor.clamp(1, 10);
+    }
+
+    if (widget.evaluacion_previa != null) {
+      _pregunta_19_ctrl.text = widget.evaluacion_previa!['pregunta_19_apoyo']?.toString() ??
+          widget.evaluacion_previa!['pregunta_19']?['texto']?.toString() ??
+          '';
+      _pregunta_20_ctrl.text = widget.evaluacion_previa!['pregunta_20_destacado']?.toString() ??
+          widget.evaluacion_previa!['pregunta_20']?['texto']?.toString() ??
+          '';
+      _pregunta_21_ctrl.text = widget.evaluacion_previa!['pregunta_21_sugerencias']?.toString() ??
+          widget.evaluacion_previa!['pregunta_21']?['texto']?.toString() ??
+          '';
+      _observaciones_ctrl.text = widget.evaluacion_previa!['observaciones']?.toString() ?? '';
+    }
   }
 
   @override
@@ -1571,6 +2029,9 @@ class _FormularioSupervisorEvaluadorState
       "agencia": _agencia_ctrl.text.trim(),
       "semestre": _semestre_ctrl.text.trim(),
       "fecha": _fecha_ctrl.text.trim(),
+      "modalidad_llenado": widget.modalidad_llenado,
+      if (widget.codigo_verificacion != null)
+        "codigo_verificacion": widget.codigo_verificacion,
       "calificaciones_1_18": calificaciones_map,
       "promedio_1_18": _calcularPromedio1_18(),
       "pregunta_19": {
@@ -1588,9 +2049,11 @@ class _FormularioSupervisorEvaluadorState
     };
 
     final resultado = await _repositorio.enviarEvaluacionMentorQr(
-      becario_id: 1,
+      becario_id: widget.becario_id,
       periodo_id: 1,
       supervisor_nombre: _mentor_ctrl.text.trim(),
+      modalidad_llenado: widget.modalidad_llenado,
+      codigo_verificacion: widget.codigo_verificacion,
       respuestas: respuestas_completas,
       calificaciones_1_18: calificaciones_map,
       pregunta_19_apoyo: _pregunta_19_ctrl.text.trim(),
@@ -1697,6 +2160,49 @@ class _FormularioSupervisorEvaluadorState
           Expanded(
             child: ListView(
               children: [
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: widget.modalidad_llenado == 'perfil_supervisor'
+                        ? const Color(0xFFECFDF5)
+                        : const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: widget.modalidad_llenado == 'perfil_supervisor'
+                          ? const Color(0xFF86EFAC)
+                          : const Color(0xFFFDE68A),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        widget.modalidad_llenado == 'perfil_supervisor'
+                            ? Icons.verified_user_rounded
+                            : Icons.phonelink_lock_rounded,
+                        color: widget.modalidad_llenado == 'perfil_supervisor'
+                            ? const Color(0xFF047857)
+                            : const Color(0xFFB45309),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.modalidad_llenado == 'perfil_supervisor'
+                              ? "Perfil Móvil del Supervisor · Código OTP Validado${widget.evaluacion_previa != null ? ' (Modo Edición)' : ''}"
+                              : "Celular del Estudiante · Código OTP Validado",
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: widget.modalidad_llenado == 'perfil_supervisor'
+                                ? const Color(0xFF047857)
+                                : const Color(0xFFB45309),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // SECCIÓN I: Datos Generales
                 _construirCabeceraSeccion(
                   "Sección I — Datos Generales",
@@ -2078,6 +2584,827 @@ class _FormularioSupervisorEvaluadorState
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReceptorLideresClassroomModal extends StatefulWidget {
+  const _ReceptorLideresClassroomModal();
+
+  @override
+  State<_ReceptorLideresClassroomModal> createState() =>
+      _ReceptorLideresClassroomModalState();
+}
+
+class _ReceptorLideresClassroomModalState
+    extends State<_ReceptorLideresClassroomModal> {
+  final _repositorio = EvaluacionesRepositorio();
+
+  List<TareaEscuelaLideresModelo> _tareas =
+      TareaEscuelaLideresModelo.catalogoCanonico();
+  String _filtro = "Todas";
+
+  final Map<int, Map<String, dynamic>> _evidencias_seleccionadas = {};
+  final Map<int, bool> _entregando_por_tarea = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarTareas();
+  }
+
+  Future<void> _cargarTareas() async {
+    final resultado = await _repositorio.obtenerTareasEscuelaLideres();
+    if (!mounted) return;
+    if (resultado.exito && resultado.datos != null && resultado.datos!.isNotEmpty) {
+      setState(() {
+        _tareas = resultado.datos!;
+      });
+    }
+  }
+
+  Future<void> _seleccionarEvidencia(int numero_tarea) async {
+    try {
+      final resultado = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'docx'],
+      );
+
+      if (resultado.isNotEmpty) {
+        final archivo = resultado.first;
+        final bytes = await archivo.readAsBytes();
+        final tamano_bytes = archivo.lengthSync() ?? bytes.length;
+        final tamano = tamano_bytes > 1024 * 1024
+            ? "${(tamano_bytes / (1024 * 1024)).toStringAsFixed(1)} MB"
+            : "${(tamano_bytes / 1024).toStringAsFixed(1)} KB";
+
+        setState(() {
+          _evidencias_seleccionadas[numero_tarea] = {
+            'nombre': archivo.name,
+            'tamano': tamano,
+            'bytes': bytes,
+          };
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error al seleccionar evidencia: $e"),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+    }
+  }
+
+  Future<void> _entregarTarea(int numero_tarea) async {
+    final evidencia = _evidencias_seleccionadas[numero_tarea];
+    if (evidencia == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Por favor adjunta un archivo o informe de evidencia antes de entregar."),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _entregando_por_tarea[numero_tarea] = true;
+    });
+
+    await _repositorio.subirEvidenciaTareaLideres(
+      tarea_numero: numero_tarea,
+      becario_id: 1,
+      bytes: evidencia['bytes'] as List<int>,
+      nombre_archivo: evidencia['nombre'] as String,
+    );
+
+    await _repositorio.entregarTareaLideres(
+      tarea_numero: numero_tarea,
+      becario_id: 1,
+      archivo_nombre: evidencia['nombre'] as String,
+      comentario: "Entrega semestral regular CETI",
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _entregando_por_tarea[numero_tarea] = false;
+      _evidencias_seleccionadas.remove(numero_tarea);
+
+      final index = _tareas.indexWhere((t) => t.numero == numero_tarea);
+      if (index != -1) {
+        _tareas[index] = _tareas[index].copiarCon(
+          estado: 'entregado',
+          evidencia_nombre: evidencia['nombre'] as String,
+          fecha_entrega:
+              "${DateTime.now().day.toString().padLeft(2, '0')}/${DateTime.now().month.toString().padLeft(2, '0')}/${DateTime.now().year}",
+        );
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("✓ Tarea $numero_tarea entregada exitosamente en el aula virtual CETI."),
+        backgroundColor: BumandColores.AZUL_DIACONIA,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _abrirDialogoCalificar(TareaEscuelaLideresModelo tarea) {
+    final puntaje_ctrl = TextEditingController(text: "95");
+    final retro_ctrl = TextEditingController(
+      text: "Excelente análisis teológico y aplicabilidad al servicio comunitario.",
+    );
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.rate_review_outlined, color: BumandColores.AZUL_DIACONIA),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "Calificar Tarea ${tarea.numero}",
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tarea.tema,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Puntaje (0 - 100):",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: puntaje_ctrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                hintText: "Ej. 95",
+                suffixText: "pts",
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Retroalimentación formativa:",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: retro_ctrl,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: "Observaciones teológicas y pastorales...",
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final puntaje = double.tryParse(puntaje_ctrl.text.trim()) ?? 95.0;
+              final retro = retro_ctrl.text.trim();
+              Navigator.of(ctx).pop();
+
+              await _repositorio.revisarTareaLideres(
+                tarea_numero: tarea.numero,
+                becario_id: 1,
+                puntaje: puntaje,
+                retroalimentacion: retro,
+              );
+
+              if (!mounted) return;
+              setState(() {
+                final idx = _tareas.indexWhere((t) => t.numero == tarea.numero);
+                if (idx != -1) {
+                  _tareas[idx] = _tareas[idx].copiarCon(
+                    estado: 'revisado',
+                    puntaje_obtenido: puntaje,
+                    retroalimentacion: retro,
+                  );
+                }
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("✓ Tarea ${tarea.numero} calificada y sellada como REVISADA."),
+                  backgroundColor: const Color(0xFF15803D),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: BumandColores.AZUL_DIACONIA,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text("Guardar Revisión"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tareas_filtradas = _tareas.where((t) {
+      if (_filtro == "Pendientes") return t.estado.toLowerCase().contains("pendiente");
+      if (_filtro == "Entregadas") return t.estado.toLowerCase().contains("entregad");
+      if (_filtro == "Revisadas") return t.estado.toLowerCase().contains("revisad");
+      return true;
+    }).toList();
+
+    final cantidad_revisadas =
+        _tareas.where((t) => t.estado.toLowerCase().contains("revisad")).length;
+    final cantidad_entregadas =
+        _tareas.where((t) => t.estado.toLowerCase().contains("entregad")).length;
+    final cantidad_pendientes =
+        _tareas.where((t) => t.estado.toLowerCase().contains("pendiente")).length;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.92,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  "Módulo 04 · Escuela de Líderes CETI",
+                  style: TextStyle(
+                    color: Color(0xFF6366F1),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const Text(
+            "Aula Virtual · Escuela de Líderes",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: BumandColores.NEGRO,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            "12 Tareas Formativas Semestrales · Estilo Classroom con evidencia y retroalimentación",
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 12),
+
+          // Resumen de progreso de las 12 tareas
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        "Progreso de Tareas Semestrales",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "$cantidad_revisadas de 12 revisadas",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: _tareas.isEmpty ? 0 : cantidad_revisadas / _tareas.length,
+                    minHeight: 8,
+                    backgroundColor: Colors.white.withValues(alpha: 0.25),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4ADE80)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      "• $cantidad_revisadas Revisadas",
+                      style: const TextStyle(
+                        color: Color(0xFF86EFAC),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "• $cantidad_entregadas Entregadas",
+                      style: const TextStyle(
+                        color: Color(0xFF93C5FD),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "• $cantidad_pendientes Pendientes",
+                      style: const TextStyle(
+                        color: Color(0xFFFDE68A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Chips de filtro
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _construirChipFiltro("Todas", _tareas.length),
+                const SizedBox(width: 6),
+                _construirChipFiltro("Pendientes", cantidad_pendientes),
+                const SizedBox(width: 6),
+                _construirChipFiltro("Entregadas", cantidad_entregadas),
+                const SizedBox(width: 6),
+                _construirChipFiltro("Revisadas", cantidad_revisadas),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Lista de tareas
+          Expanded(
+            child: ListView.builder(
+                    itemCount: tareas_filtradas.length,
+                    itemBuilder: (context, index) {
+                      final tarea = tareas_filtradas[index];
+                      return _construirTarjetaTarea(tarea);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirChipFiltro(String etiqueta, int cantidad) {
+    final es_activo = _filtro == etiqueta;
+    return ChoiceChip(
+      selected: es_activo,
+      label: Text(
+        "$etiqueta ($cantidad)",
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: es_activo ? FontWeight.bold : FontWeight.w500,
+          color: es_activo ? Colors.white : const Color(0xFF334155),
+        ),
+      ),
+      selectedColor: const Color(0xFF6366F1),
+      backgroundColor: const Color(0xFFF1F5F9),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: es_activo ? const Color(0xFF6366F1) : const Color(0xFFCBD5E1),
+        ),
+      ),
+      onSelected: (val) {
+        if (val) {
+          setState(() => _filtro = etiqueta);
+        }
+      },
+    );
+  }
+
+  Widget _construirTarjetaTarea(TareaEscuelaLideresModelo tarea) {
+    final es_revisado = tarea.estado.toLowerCase().contains("revisad");
+    final es_entregado = tarea.estado.toLowerCase().contains("entregad");
+
+    final evidencia_temp = _evidencias_seleccionadas[tarea.numero];
+    final esta_entregando = _entregando_por_tarea[tarea.numero] == true;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: es_revisado
+              ? const Color(0xFF86EFAC)
+              : (es_entregado ? const Color(0xFF93C5FD) : const Color(0xFFE2E8F0)),
+          width: es_revisado ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: es_revisado
+                      ? const Color(0xFF15803D)
+                      : (es_entregado ? const Color(0xFF2563EB) : const Color(0xFF64748B)),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  tarea.numero.toString().padLeft(2, '0'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tarea.tema,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Ponderación individual: ${tarea.ponderacion}%",
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              if (es_revisado)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check, size: 12, color: Color(0xFF15803D)),
+                      SizedBox(width: 3),
+                      Text(
+                        "Revisado",
+                        style: TextStyle(
+                          color: Color(0xFF15803D),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (es_entregado)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
+                  child: const Text(
+                    "Entregado",
+                    style: TextStyle(
+                      color: Color(0xFF1D4ED8),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: const Text(
+                    "Pendiente",
+                    style: TextStyle(
+                      color: Color(0xFFB45309),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tarea.descripcion,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.3),
+          ),
+          const SizedBox(height: 10),
+
+          // SELLO DESTACADO "REVISADO"
+          if (es_revisado) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified_rounded, color: Color(0xFF15803D), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "REVISADO · ${tarea.puntaje_obtenido?.toStringAsFixed(0) ?? '95'}/100 pts",
+                      style: const TextStyle(
+                        color: Color(0xFF15803D),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+                  if (tarea.fecha_entrega != null)
+                    Text(
+                      tarea.fecha_entrega!,
+                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF166534)),
+                    ),
+                ],
+              ),
+            ),
+            if (tarea.retroalimentacion != null) ...[
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.feedback_outlined, size: 15, color: Color(0xFF6366F1)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "Retroalimentación: ${tarea.retroalimentacion}",
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontStyle: FontStyle.italic,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (tarea.evidencia_nombre != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.attach_file, size: 13, color: Color(0xFF64748B)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      tarea.evidencia_nombre!,
+                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ] else if (es_entregado) ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "Evidencia: ${tarea.evidencia_nombre ?? 'informe_evidencia.pdf'} ${tarea.fecha_entrega != null ? '· ${tarea.fecha_entrega}' : ''}",
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF1E40AF),
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _abrirDialogoCalificar(tarea),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text("Calificar como Revisado", style: TextStyle(fontSize: 11)),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            if (evidencia_temp != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.attach_file, size: 16, color: BumandColores.AZUL_DIACONIA),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "${evidencia_temp['nombre']} (${evidencia_temp['tamano']})",
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        setState(() => _evidencias_seleccionadas.remove(tarea.numero));
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _seleccionarEvidencia(tarea.numero),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: Icon(
+                      evidencia_temp == null ? Icons.upload_file : Icons.replay,
+                      size: 15,
+                      color: const Color(0xFF475569),
+                    ),
+                    label: Text(
+                      evidencia_temp == null ? "Adjuntar evidencia" : "Cambiar",
+                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: esta_entregando ? null : () => _entregarTarea(tarea.numero),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: esta_entregando
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.send_rounded, size: 14),
+                    label: Text(
+                      esta_entregando ? "Enviando..." : "Entregar Tarea",
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

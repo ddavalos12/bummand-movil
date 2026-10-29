@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bumand_movil/nucleo/utilidades/resultado.dart';
 import 'package:bumand_movil/modulos/inicio/pantallas/inicio-pantalla.dart';
 import 'package:bumand_movil/modulos/asistencia/proveedores/asistencia-proveedor.dart';
+import 'package:bumand_movil/modulos/autenticacion/modelos/usuario-modelo.dart';
+import 'package:bumand_movil/modulos/autenticacion/proveedores/autenticacion-proveedor.dart';
 import 'package:bumand_movil/modulos/evaluaciones/proveedores/evaluaciones-proveedor.dart';
 import 'package:bumand_movil/modulos/evaluaciones/modelos/evaluacion-modelo.dart';
 import 'package:bumand_movil/widgets-comunes/barra-superior-bumand.dart';
@@ -12,6 +14,16 @@ import 'package:bumand_movil/widgets-comunes/barra-superior-bumand.dart';
 class _MenuAbiertoNotificador extends MenuPrincipalNotificador {
   @override
   bool build() => true;
+}
+
+class _AutenticacionNotificadorMock extends AutenticacionNotificador {
+  final UsuarioModelo _usuario;
+  _AutenticacionNotificadorMock(this._usuario);
+
+  @override
+  AutenticacionEstado build() {
+    return AutenticacionEstado(usuario: _usuario);
+  }
 }
 
 void main() {
@@ -134,6 +146,50 @@ void main() {
       expect(find.textContaining('Bienvenida a tu espacio BUMAND'), findsOneWidget);
       expect(find.text('Permisos y Justificaciones'), findsOneWidget);
       expect(find.text('Reportes médicos y de inasistencia'), findsOneWidget);
+      expect(find.text('Seguimiento y Retroalimentación'), findsOneWidget);
     });
+
+    testWidgets(
+      'Oculta ítem Seguimiento y Retroalimentación en Menú principal para rol administrador',
+      (WidgetTester probador) async {
+        probador.view.physicalSize = const Size(1080, 2400);
+        probador.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          probador.view.resetPhysicalSize();
+          probador.view.resetDevicePixelRatio();
+        });
+
+        const usuario_admin = UsuarioModelo(
+          id: 99,
+          nombre: 'Administrador General',
+          correo: 'admin@diaconia.bo',
+          rol: 'administrador',
+          token: 'token_admin',
+        );
+
+        await probador.pumpWidget(
+          ProviderScope(
+            overrides: [
+              autenticacion_proveedor.overrideWith(
+                () => _AutenticacionNotificadorMock(usuario_admin),
+              ),
+              perfil_proveedor.overrideWith((ref) async => Resultado.exitoso({
+                    'nombre': 'Administrador General',
+                    'rol': 'administrador',
+                  })),
+              menu_principal_proveedor.overrideWith(_MenuAbiertoNotificador.new),
+            ],
+            child: const MaterialApp(
+              home: InicioPantalla(),
+            ),
+          ),
+        );
+
+        await probador.pumpAndSettle();
+
+        expect(find.text('Menú principal'), findsOneWidget);
+        expect(find.text('Seguimiento y Retroalimentación'), findsNothing);
+      },
+    );
   });
 }

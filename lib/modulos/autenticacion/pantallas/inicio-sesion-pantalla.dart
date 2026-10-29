@@ -245,12 +245,12 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
                       Center(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                            horizontal: 14,
+                            vertical: 8,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(18),
                             border: Border.all(
                               color: const Color(0xFFE2E8F0),
                               width: 1.5,
@@ -263,33 +263,36 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
                               ),
                             ],
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Hero(
-                                tag: 'hero-logo-bumand',
-                                child: SvgPicture.asset(
-                                  'assets/logos/logo-bumand-oficial.svg',
-                                  height: 54,
-                                  fit: BoxFit.contain,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Hero(
+                                  tag: 'hero-logo-bumand',
+                                  child: SvgPicture.asset(
+                                    'assets/logos/logo-bumand-oficial.svg',
+                                    height: 40,
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
-                              ),
-                              Container(
-                                height: 44,
-                                width: 1.5,
-                                margin: const EdgeInsets.symmetric(horizontal: 16),
-                                color: BumandColores.grisClaro,
-                              ),
-                              Hero(
-                                tag: 'hero-logo-diaconia',
-                                child: SvgPicture.asset(
-                                  'assets/logos/logo-diaconia-color.svg',
-                                  height: 48,
-                                  fit: BoxFit.contain,
+                                Container(
+                                  height: 32,
+                                  width: 1.5,
+                                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                                  color: BumandColores.grisClaro,
                                 ),
-                              ),
-                            ],
+                                Hero(
+                                  tag: 'hero-logo-diaconia',
+                                  child: SvgPicture.asset(
+                                    'assets/logos/logo-diaconia-color.svg',
+                                    height: 36,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

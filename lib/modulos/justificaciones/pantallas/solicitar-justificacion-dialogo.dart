@@ -73,13 +73,51 @@ class _SolicitarJustificacionDialogoState
   ];
 
   String _motivo_seleccionado = MOTIVOS_DISPONIBLES.first;
+  late String _tipo_incidencia_seleccionada;
+  late DateTime _fecha_seleccionada;
   String? _archivo_adjunto;
+  List<int>? _bytes_archivo;
   bool _enviando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tipo_incidencia_seleccionada = widget.tipo_incidencia;
+    _fecha_seleccionada = DateTime.now();
+  }
 
   @override
   void dispose() {
     _descripcion_controlador.dispose();
     super.dispose();
+  }
+
+  Future<void> _seleccionarFecha() async {
+    final ahora = DateTime.now();
+    final fecha_elegida = await showDatePicker(
+      context: context,
+      initialDate: _fecha_seleccionada,
+      firstDate: ahora.subtract(const Duration(days: 30)),
+      lastDate: ahora.add(const Duration(days: 60)),
+      builder: (ctx, child) {
+        return Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: BumandColores.AZUL_DIACONIA,
+              onPrimary: Colors.white,
+              onSurface: BumandColores.NEGRO,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (fecha_elegida != null) {
+      setState(() {
+        _fecha_seleccionada = fecha_elegida;
+      });
+    }
   }
 
   Future<void> _enviar() async {
@@ -100,26 +138,46 @@ class _SolicitarJustificacionDialogoState
     setState(() => _enviando = true);
 
     final servicio = ref.read(justificaciones_servicio_proveedor);
-    final hoy = DateTime.now();
+    String? url_prueba;
+    String? nombre_prueba = _archivo_adjunto;
+
+    if (_bytes_archivo != null) {
+      final subida = await servicio.subirComprobante(
+        bytes: _bytes_archivo!,
+        nombre_archivo: _archivo_adjunto!,
+      );
+      if (subida.exito && subida.datos != null) {
+        url_prueba = subida.datos!['archivo_prueba_url']?.toString();
+        nombre_prueba =
+            subida.datos!['nombre_archivo_prueba']?.toString() ?? _archivo_adjunto;
+      }
+    } else {
+      url_prueba =
+          'https://almacenamiento.bumand.org/pruebas/$_archivo_adjunto';
+    }
+
     final fecha_str =
-        "${hoy.year.toString().padLeft(4, '0')}-${hoy.month.toString().padLeft(2, '0')}-${hoy.day.toString().padLeft(2, '0')}";
+        "${_fecha_seleccionada.year.toString().padLeft(4, '0')}-${_fecha_seleccionada.month.toString().padLeft(2, '0')}-${_fecha_seleccionada.day.toString().padLeft(2, '0')}";
 
     final detalle_texto = _descripcion_controlador.text.trim();
     final descripcion_final =
         "$detalle_texto\n\n[Prueba Justificable: $_archivo_adjunto]";
 
     final resultado = await servicio.enviarJustificacion(
-      tipo_incidencia: widget.tipo_incidencia,
+      tipo_incidencia: _tipo_incidencia_seleccionada,
       referencia_id: widget.evento_id,
       fecha_incidencia: fecha_str,
       motivo: _motivo_seleccionado,
       descripcion: descripcion_final,
+      archivo_prueba_url: url_prueba,
+      nombre_archivo_prueba: nombre_prueba,
     );
 
     if (!mounted) return;
     setState(() => _enviando = false);
 
     if (resultado.exito) {
+      ref.invalidate(mis_justificaciones_proveedor);
       final es_offline = resultado.datos?['offline'] == true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -253,6 +311,125 @@ class _SolicitarJustificacionDialogoState
                   ),
                 ),
               ],
+              const SizedBox(height: 14),
+
+              // Selector de Tipo de Actividad
+              const Text(
+                "Tipo de actividad:",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  ('asistencia_practicas', 'Prácticas'),
+                  ('escuela_lideres', 'Escuela de Líderes - Viernes'),
+                  ('asistencia_evento', 'Acciones de Servicio - Viernes'),
+                ].map((actividad) {
+                  final seleccionado = _tipo_incidencia_seleccionada == actividad.$1;
+                  return ChoiceChip(
+                    label: Text(actividad.$2),
+                    selected: seleccionado,
+                    selectedColor: BumandColores.AZUL_DIACONIA,
+                    backgroundColor: Colors.grey.shade100,
+                    labelStyle: TextStyle(
+                      color: seleccionado ? Colors.white : Colors.black87,
+                      fontSize: 11.5,
+                      fontWeight: seleccionado ? FontWeight.bold : FontWeight.w500,
+                    ),
+                    onSelected: (val) {
+                      if (val) {
+                        setState(() => _tipo_incidencia_seleccionada = actividad.$1);
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+
+              // Selector de Fecha (con soporte de fechas futuras para anticipación)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.calendar_month_rounded,
+                        color: BumandColores.AZUL_DIACONIA,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Fecha de la jornada / permiso:",
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Text(
+                                "${_fecha_seleccionada.day.toString().padLeft(2, '0')}/${_fecha_seleccionada.month.toString().padLeft(2, '0')}/${_fecha_seleccionada.year}",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: BumandColores.NEGRO,
+                                ),
+                              ),
+                              if (_fecha_seleccionada.isAfter(DateTime.now())) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFECFDF5),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF10B981)),
+                                  ),
+                                  child: const Text(
+                                    "Anticipado",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF047857),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _seleccionarFecha,
+                      icon: const Icon(Icons.edit_calendar, size: 16),
+                      label: const Text("Elegir"),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               const SizedBox(height: 16),
               const Text(
                 "Motivo del permiso o incidencia:",
@@ -438,8 +615,11 @@ class _SolicitarJustificacionDialogoState
                               allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
                             );
                             if (resultado.isNotEmpty) {
+                              final archivo = resultado.first;
+                              final bytes = await archivo.readAsBytes();
                               setState(() {
-                                _archivo_adjunto = resultado.first.name;
+                                _archivo_adjunto = archivo.name;
+                                _bytes_archivo = bytes;
                               });
                             }
                           } catch (e) {

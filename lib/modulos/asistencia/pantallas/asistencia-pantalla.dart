@@ -11,7 +11,8 @@ import '../proveedores/asistencia-proveedor.dart';
 import '../widgets/radar_geocerca_widget.dart';
 import '../../eventos/modelos/evento.dart';
 import '../../eventos/servicios/eventos-servicio.dart';
-import '../../justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
+import '../../justificaciones/pantallas/permisos-pantalla.dart';
+import '../../justificaciones/servicios/justificaciones-servicio.dart';
 
 class AsistenciaPantalla extends ConsumerStatefulWidget {
   const AsistenciaPantalla({super.key});
@@ -322,14 +323,17 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       _calcularPuntualidad(ahora, _tipo);
     }
 
+    final int? evento_id =
+        _lugar_seleccionado?['evento_id'] as int? ?? _evento_servicio_activo?.id;
+
     // Si es Acción de Servicio vinculada a un evento activo del backend
     if (_tipo == TipoAsistencia.accionesServicio.valor &&
-        _evento_servicio_activo != null &&
+        evento_id != null &&
         ingreso &&
         _posicion_actual != null) {
       try {
         await ref.read(eventos_servicio_proveedor).marcarAsistencia(
-              evento_id: _evento_servicio_activo!.id,
+              evento_id: evento_id,
               latitud: _posicion_actual!.latitude,
               longitud: _posicion_actual!.longitude,
               observaciones: 'Asistencia registrada desde módulo móvil BUMAND',
@@ -343,11 +347,13 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
             _tipo,
             posicion: _posicion_actual,
             lugar: lugar,
+            evento_id: evento_id,
           )
         : await notificador.registrarSalida(
             _tipo,
             posicion: _posicion_actual,
             lugar: lugar,
+            evento_id: evento_id,
           );
 
     if (error == null) {
@@ -462,6 +468,223 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     );
   }
 
+  void _mostrarDialogoSeleccionarLugarServicio() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.place_rounded,
+                      color: BumandColores.AZUL_DIACONIA,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Lugar de Acción de Servicio (Viernes)",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          Text(
+                            "Sincroniza tu radar con el evento o sede alternativa",
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const Divider(height: 18),
+
+                // 1. Eventos programados de servicio para el viernes
+                const Text(
+                  "ACCIONES DE SERVICIO PROGRAMADAS",
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: BumandColores.AZUL_DIACONIA,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_eventos_servicio.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      "No hay eventos programados en agenda.",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  )
+                else
+                  ..._eventos_servicio.map((ev) {
+                    final es_activo = _evento_servicio_activo?.id == ev.id;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: es_activo
+                            ? BumandColores.AZUL_DIACONIA.withValues(alpha: 0.05)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: es_activo
+                              ? BumandColores.AZUL_DIACONIA
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(
+                          Icons.event_available_rounded,
+                          color: es_activo
+                              ? BumandColores.AZUL_DIACONIA
+                              : const Color(0xFF64748B),
+                        ),
+                        title: Text(
+                          ev.titulo,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                es_activo ? FontWeight.bold : FontWeight.w600,
+                            color: es_activo
+                                ? BumandColores.AZUL_DIACONIA
+                                : BumandColores.NEGRO,
+                          ),
+                        ),
+                        subtitle: Text(
+                          "${ev.direccion_referencia} • ${ev.fecha} (${ev.hora_inicio}–${ev.hora_fin})",
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        trailing: es_activo
+                            ? const Icon(
+                                Icons.check_circle_rounded,
+                                color: BumandColores.AZUL_DIACONIA,
+                                size: 20,
+                              )
+                            : null,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _aplicarEventoServicio(ev);
+                        },
+                      ),
+                    );
+                  }),
+
+                const SizedBox(height: 12),
+
+                // 2. Catálogo de sedes e iglesias alternativas (Reubicación)
+                const Text(
+                  "SEDES DIACONALES E IGLESIAS ALTERNATIVAS (CAMBIO DE LUGAR)",
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFD97706),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ..._AGENCIAS_DIACONIA.map((ag) {
+                  final es_seleccionado = _lugar_seleccionado != null &&
+                      _lugar_seleccionado!["nombre"] == ag["nombre"];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: es_seleccionado
+                          ? const Color(0xFFFEF3C7).withValues(alpha: 0.4)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: es_seleccionado
+                            ? const Color(0xFFD97706)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(
+                        Icons.apartment_rounded,
+                        color: es_seleccionado
+                            ? const Color(0xFFD97706)
+                            : const Color(0xFF64748B),
+                      ),
+                      title: Text(
+                        ag["nombre"].toString(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: es_seleccionado
+                              ? FontWeight.bold
+                              : FontWeight.w600,
+                          color: es_seleccionado
+                              ? const Color(0xFF92400E)
+                              : BumandColores.NEGRO,
+                        ),
+                      ),
+                      subtitle: Text(
+                        ag["direccion"].toString(),
+                        style: const TextStyle(fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: es_seleccionado
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: Color(0xFFD97706),
+                              size: 20,
+                            )
+                          : null,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        final mapa_reubicado = {
+                          ...ag,
+                          if (_evento_servicio_activo != null)
+                            'evento_id': _evento_servicio_activo!.id,
+                        };
+                        setState(() {
+                          _lugar_seleccionado = mapa_reubicado;
+                        });
+                        _escanearUbicacion(lugar_param: mapa_reubicado);
+                      },
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final perfil_async = ref.watch(perfil_proveedor);
@@ -487,7 +710,12 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       nombre_lugar = "Escuela de Líderes Diaconales";
       desc_lugar = "Auditorio Central, El Alto — módulo de formación";
     } else if (_tipo == TipoAsistencia.accionesServicio.valor) {
-      if (_evento_servicio_activo != null) {
+      if (_lugar_seleccionado != null) {
+        nombre_lugar = _lugar_seleccionado!["nombre"]?.toString() ??
+            "Acción de Servicio Diaconal";
+        desc_lugar = _lugar_seleccionado!["direccion"]?.toString() ??
+            "Punto de asistencia";
+      } else if (_evento_servicio_activo != null) {
         nombre_lugar = _evento_servicio_activo!.titulo;
         desc_lugar = _evento_servicio_activo!.direccion_referencia;
       } else {
@@ -508,7 +736,27 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         (es_escuela_lideres_viernes && ahora.isAfter(limite_viernes))
             ? ahora.difference(limite_viernes).inMinutes
             : 0;
-    final multa_estimada_real = _calcularMultaViernes(minutos_retraso_actual);
+
+    final justificaciones_async = ref.watch(mis_justificaciones_proveedor);
+    final hoy_str =
+        "${ahora.year.toString().padLeft(4, '0')}-${ahora.month.toString().padLeft(2, '0')}-${ahora.day.toString().padLeft(2, '0')}";
+    final tiene_permiso_viernes_aprobado =
+        justificaciones_async.asData?.value.datos?.any((j) {
+          final fecha_j = j['fecha_incidencia']?.toString().split('T')[0];
+          final tipo_j = j['tipo_incidencia']?.toString() ?? '';
+          final estado_j = j['estado']?.toString() ?? '';
+          final es_tipo_viernes = tipo_j == 'escuela_lideres' ||
+              tipo_j == 'asistencia_evento' ||
+              ahora.weekday == DateTime.friday;
+          final aprobado = estado_j == 'aprobado_administracion' ||
+              estado_j == 'aprobada';
+          return (fecha_j == hoy_str || es_tipo_viernes) && aprobado;
+        }) ??
+        false;
+
+    final multa_estimada_real = tiene_permiso_viernes_aprobado
+        ? 0
+        : _calcularMultaViernes(minutos_retraso_actual);
 
     final puede_marcar = _dentro_de_geocerca && !estado_accion.isLoading;
 
@@ -556,7 +804,9 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   alReescanear: () => _escanearUbicacion(lugar_param: lugar),
                   alSeleccionarLugar: _tipo == TipoAsistencia.practicas.valor
                       ? _mostrarDialogoSeleccionarAgencia
-                      : null,
+                      : (_tipo == TipoAsistencia.accionesServicio.valor
+                          ? _mostrarDialogoSeleccionarLugarServicio
+                          : null),
                 ),
                 const SizedBox(height: 16),
 
@@ -568,8 +818,60 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                 ),
                 const SizedBox(height: 14),
 
-                // 4. Advertencia de multas oficiales para Escuela de Líderes (Viernes pasadas 14:35)
-                if (es_escuela_lideres_viernes && minutos_retraso_actual > 0) ...[
+                // 4. Banner institucional "Sin Multa (Permiso Aprobado)" para jornada con permiso
+                if (tiene_permiso_viernes_aprobado &&
+                    (ahora.weekday == DateTime.friday ||
+                        _tipo == TipoAsistencia.escuelaLideres.valor)) ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF10B981)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.verified_rounded,
+                          color: Color(0xFF047857),
+                          size: 24,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Sin Multa (Permiso Aprobado) — Bs 0.00",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Color(0xFF065F46),
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                "Cuentas con permiso formal aprobado por Administración para esta jornada. Quedas exento(a) de retención económica.",
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Color(0xFF047857),
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // 5. Advertencia de multas oficiales para Escuela de Líderes (Viernes pasadas 14:35 si NO tiene permiso)
+                if (es_escuela_lideres_viernes &&
+                    minutos_retraso_actual > 0 &&
+                    !tiene_permiso_viernes_aprobado) ...[
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -616,7 +918,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   const SizedBox(height: 12),
                 ],
 
-                // 5. Banner interactivo de confirmación de puntualidad
+                // 6. Banner interactivo de confirmación de puntualidad
                 if (_banner_alerta_puntualidad != null) ...[
                   Container(
                     width: double.infinity,
@@ -650,22 +952,13 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   const SizedBox(height: 12),
                 ],
 
-                // 6. Acceso directo a Permisos y Justificaciones
+                // 7. Acceso directo a Permisos y Justificaciones
                 OutlinedButton.icon(
                   onPressed: () {
-                    SolicitarJustificacionDialogo.mostrar(
-                      context,
-                      evento_id: _evento_servicio_activo?.id,
-                      titulo_evento: _tipo == TipoAsistencia.accionesServicio.valor
-                          ? _evento_servicio_activo?.titulo
-                          : (_tipo == TipoAsistencia.escuelaLideres.valor
-                              ? "Escuela de Líderes Diaconales"
-                              : "Prácticas Institucionales"),
-                      tipo_incidencia: _tipo == TipoAsistencia.escuelaLideres.valor
-                          ? "escuela_lideres"
-                          : (_tipo == TipoAsistencia.accionesServicio.valor
-                              ? "asistencia_evento"
-                              : "asistencia_practicas"),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PermisosPantalla(),
+                      ),
                     );
                   },
                   icon: const Icon(
@@ -674,7 +967,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                     color: BumandColores.AZUL_DIACONIA,
                   ),
                   label: const Text(
-                    "¿Incidencia o retraso? Solicitar Permiso / Justificación",
+                    "¿Incidencia o permiso? Permisos y Justificaciones",
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
