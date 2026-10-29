@@ -757,9 +757,13 @@ class _HistorialAsistenciaPantallaState
                   ),
                 ],
               ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: barras_semanales.map((barra) {
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.bottomRight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: barras_semanales.map((barra) {
                   final factor = barra["factor"] as double;
                   final dia = barra["dia"] as String;
                   return Padding(
@@ -788,6 +792,8 @@ class _HistorialAsistenciaPantallaState
                     ),
                   );
                 }).toList(),
+                  ),
+                ),
               ),
             ],
           ),

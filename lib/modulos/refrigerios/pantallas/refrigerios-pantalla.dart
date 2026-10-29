@@ -251,34 +251,40 @@ class RefrigeriosPantalla extends ConsumerWidget {
           // Badge Superior de Notificación Crucial
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: BumandColores.amarilloRadiante,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.stars_rounded,
-                      size: 16,
-                      color: BumandColores.azulMarinoSecundario,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: BumandColores.amarilloRadiante,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '¡ERES ENCARGADO DEL REFRIGERIO!',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        color: BumandColores.azulMarinoSecundario,
-                        letterSpacing: 0.5,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.stars_rounded,
+                          size: 16,
+                          color: BumandColores.azulMarinoSecundario,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '¡ERES ENCARGADO DEL REFRIGERIO!',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: BumandColores.azulMarinoSecundario,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(

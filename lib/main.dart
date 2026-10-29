@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'nucleo/tema/tema.dart';
 import 'modulos/autenticacion/pantallas/inicio-sesion-pantalla.dart';
+import 'modulos/justificaciones/pantallas/permisos-pantalla.dart';
+import 'modulos/devocionales/pantallas/devocionales-pantalla.dart';
 
 void main() {
   runApp(const ProviderScope(child: BumandApp()));
@@ -18,6 +20,10 @@ class BumandApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: BumandTema.temaClaro,
       home: const InicioSesionPantalla(),
+      routes: {
+        '/permisos': (context) => const PermisosPantalla(),
+        '/citas': (context) => const DevocionalesPantalla(),
+      },
     );
   }
 }

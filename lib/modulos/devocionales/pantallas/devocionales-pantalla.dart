@@ -1552,31 +1552,38 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.support_agent_rounded,
+                                    size: 16,
+                                    color: BumandColores.AZUL_DIACONIA,
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.support_agent_rounded,
-                                  size: 16,
-                                  color: BumandColores.AZUL_DIACONIA,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    c.supervisor_nombre,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                c.supervisor_nombre,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,

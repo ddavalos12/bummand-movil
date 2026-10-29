@@ -490,7 +490,10 @@ class _PermisosPantallaState extends ConsumerState<PermisosPantalla> {
       ),
       child: Column(
         children: [
-          Row(
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
             children: [
               // Paso 1: Supervisor
               Icon(
@@ -547,6 +550,7 @@ class _PermisosPantallaState extends ConsumerState<PermisosPantalla> {
                 ),
               ),
             ],
+          ),
           ),
           const SizedBox(height: 6),
           Align(
