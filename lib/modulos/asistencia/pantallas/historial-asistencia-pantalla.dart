@@ -8,7 +8,9 @@ import '../../../widgets-comunes/error-widget-personalizado.dart';
 import '../../evaluaciones/proveedores/evaluaciones-proveedor.dart';
 import '../../evaluaciones/widgets/detalle_evaluacion_modal.dart';
 import '../../evaluaciones/widgets/formulario_f03_dialogo.dart';
+import '../../pasajes/modelos/recorrido-modelo.dart';
 import '../../pasajes/modelos/solicitud-pasaje-modelo.dart';
+import '../../pasajes/pantallas/detalle-historial-pasaje-pantalla.dart';
 import '../../pasajes/proveedores/pasajes-proveedor.dart';
 import '../modelos/tipo-asistencia.dart';
 import '../proveedores/asistencia-proveedor.dart';
@@ -1266,10 +1268,99 @@ class _HistorialAsistenciaPantallaState
                     id: 101,
                     periodo: "Octubre 2026",
                     estado: "APROBADO",
-                    monto_total: 120.0,
-                    monto_devolucion: 96.0,
+                    monto_total: 28.0,
+                    monto_devolucion: 22.40,
                     observaciones: "Declaración mensual aprobada por Diaconía IFD",
-                    recorridos: [],
+                    recorridos: [
+                      RecorridoModelo(
+                        id: 1,
+                        fecha: DateTime(2026, 10, 2),
+                        tramo: "ida",
+                        origen: "Av. Buenos Aires",
+                        destino: "Oficina Central",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 2,
+                        fecha: DateTime(2026, 10, 2),
+                        tramo: "vuelta",
+                        origen: "Oficina Central",
+                        destino: "Av. Buenos Aires",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 3,
+                        fecha: DateTime(2026, 10, 4),
+                        tramo: "ida",
+                        origen: "Av. Buenos Aires",
+                        destino: "Oficina Central",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 4,
+                        fecha: DateTime(2026, 10, 4),
+                        tramo: "vuelta",
+                        origen: "Oficina Central",
+                        destino: "Av. Buenos Aires",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 5,
+                        fecha: DateTime(2026, 10, 6),
+                        tramo: "ida",
+                        origen: "Av. Buenos Aires",
+                        destino: "Oficina Central",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 6,
+                        fecha: DateTime(2026, 10, 9),
+                        tramo: "ida",
+                        origen: "Av. Buenos Aires",
+                        destino: "Oficina Central",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 7,
+                        fecha: DateTime(2026, 10, 9),
+                        tramo: "vuelta",
+                        origen: "Oficina Central",
+                        destino: "Av. Buenos Aires",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 8,
+                        fecha: DateTime(2026, 10, 11),
+                        tramo: "ida",
+                        origen: "Av. Buenos Aires",
+                        destino: "Oficina Central",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 9,
+                        fecha: DateTime(2026, 10, 11),
+                        tramo: "vuelta",
+                        origen: "Oficina Central",
+                        destino: "Av. Buenos Aires",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 10,
+                        fecha: DateTime(2026, 10, 13),
+                        tramo: "ida",
+                        origen: "Av. Buenos Aires",
+                        destino: "Oficina Central",
+                        tarifa: 2.50,
+                      ),
+                      RecorridoModelo(
+                        id: 11,
+                        fecha: DateTime(2026, 10, 16),
+                        tramo: "ida",
+                        origen: "Av. Buenos Aires",
+                        destino: "Oficina Central",
+                        tarifa: 2.50,
+                      ),
+                    ],
                   ),
                   SolicitudPasajeModelo(
                     id: 100,
@@ -1355,7 +1446,6 @@ class _HistorialAsistenciaPantallaState
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -1368,124 +1458,172 @@ class _HistorialAsistenciaPantallaState
                     ),
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: BumandColores.AZUL_DIACONIA
-                                    .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      DetalleHistorialPasajePantalla.navegar(
+                        context,
+                        solicitud: item,
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: BumandColores.AZUL_DIACONIA
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.directions_bus,
+                                      size: 16,
+                                      color: BumandColores.AZUL_DIACONIA,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    item.periodo,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: BumandColores.NEGRO,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: const Icon(
-                                Icons.directions_bus,
-                                size: 16,
-                                color: BumandColores.AZUL_DIACONIA,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: estado_color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: estado_color.withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                child: Text(
+                                  _etiquetaEstadoPasaje(item.estado),
+                                  style: TextStyle(
+                                    color: estado_color,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Total Declarado",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Bs. ${item.monto_total.toStringAsFixed(2)}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: BumandColores.NEGRO,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Devolución (80%)",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF047857),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Bs. ${item.monto_devolucion.toStringAsFixed(2)}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: Color(0xFF047857),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (item.observaciones != null &&
+                              item.observaciones!.isNotEmpty) ...[
+                            const SizedBox(height: 10),
                             Text(
-                              item.periodo,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: BumandColores.NEGRO,
+                              item.observaciones!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
                               ),
                             ),
                           ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: estado_color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: estado_color.withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: Text(
-                            _etiquetaEstadoPasaje(item.estado),
-                            style: TextStyle(
-                              color: estado_color,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          const SizedBox(height: 14),
+                          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                "Total Declarado",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.alt_route_rounded,
+                                    size: 16,
+                                    color: BumandColores.AZUL_DIACONIA,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    item.recorridos.isNotEmpty
+                                        ? "Ver paradas declaradas (${item.recorridos.length})"
+                                        : "Ver paradas declaradas",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: BumandColores.AZUL_DIACONIA,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                "Bs. ${item.monto_total.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: BumandColores.NEGRO,
-                                ),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 12,
+                                color: BumandColores.AZUL_DIACONIA,
                               ),
                             ],
                           ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "Devolución (80%)",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF047857),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                "Bs. ${item.monto_devolucion.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: Color(0xFF047857),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (item.observaciones != null &&
-                        item.observaciones!.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        item.observaciones!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
-                        ),
+                        ],
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
               );
             },

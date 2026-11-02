@@ -12,7 +12,6 @@ class AcercaDePantalla extends ConsumerStatefulWidget {
 }
 
 class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
-  int _perspectiva_seleccionada = 0; // 0: Becario, 1: Mentor, 2: Institucional
 
   @override
   Widget build(BuildContext context) {
@@ -33,31 +32,20 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
             _construirHeroInstitucional(),
             const SizedBox(height: 16),
 
-            // 2. Cifras de Impacto al 24 de Octubre de 2026
-            _construirMallaImpacto(),
-            const SizedBox(height: 16),
-
-            // 3. Selector de Perspectiva por Rol
-            _construirSelectorPerspectiva(),
-            const SizedBox(height: 16),
-
-            // 4. Misión y Visión
+            // 2. Misión y Visión
             _construirMisionVision(),
             const SizedBox(height: 16),
 
-            // 5. Los Tres Principios Diaconales
+            // 3. Los Tres Principios Diaconales
             _construirTresPrincipios(),
             const SizedBox(height: 16),
 
-            // 6. Matriz de Evaluación 360° (100 Pts)
-            _construirMatriz360(),
-            const SizedBox(height: 16),
 
-            // 7. Línea de Tiempo Histórica
+            // 4. Línea de Tiempo Histórica
             _construirLineaTiempo(),
             const SizedBox(height: 16),
 
-            // 8. Sede Central y Contacto
+            // 5. Sede Central y Contacto
             _construirSedeCentral(),
             const SizedBox(height: 24),
           ],
@@ -224,268 +212,6 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
     );
   }
 
-  Widget _construirMallaImpacto() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Cifras Institucionales (Al 24 de Octubre de 2026)",
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: BumandColores.azulMarinoSecundario,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _construirKpiCard(
-                titulo: "Sedes y Agencias",
-                valor: "72",
-                detalle: "WGS84 a nivel nacional",
-                color_acento: BumandColores.azulMarinoSecundario,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _construirKpiCard(
-                titulo: "Becarios Activos",
-                valor: "23",
-                detalle: "Gestión oficial II-2026",
-                color_acento: BumandColores.azulMarinoProfundo,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _construirKpiCard(
-                titulo: "Iglesias Aliadas",
-                valor: "17",
-                detalle: "Pastores con Formulario F-03",
-                color_acento: BumandColores.amarilloRadiante,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _construirKpiCard(
-                titulo: "Digitalización",
-                valor: "100%",
-                detalle: "+250 hojas/mes erradicadas",
-                color_acento: BumandColores.azulPetroleo,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _construirKpiCard({
-    required String titulo,
-    required String valor,
-    required String detalle,
-    required Color color_acento,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: BumandColores.grisClaro),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            titulo,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF64748B),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            valor,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: color_acento,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            detalle,
-            style: const TextStyle(
-              fontSize: 10,
-              color: Color(0xFF94A3B8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _construirSelectorPerspectiva() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: BumandColores.grisClaro),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Perspectiva por Rol Institucional",
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: BumandColores.azulMarinoSecundario,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _construirBotonPestana(0, "Becario"),
-              const SizedBox(width: 6),
-              _construirBotonPestana(1, "Supervisor"),
-              const SizedBox(width: 6),
-              _construirBotonPestana(2, "Directiva"),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_perspectiva_seleccionada == 0) ...[
-            _construirPuntoPerspectiva(
-              "Apoyo Económico Directo",
-              "Bs. 650 para nivel universitario y Bs. 250 para nivel técnico mensual.",
-              Icons.monetization_on_rounded,
-              BumandColores.azulMarinoProfundo,
-            ),
-            _construirPuntoPerspectiva(
-              "Reembolso del 80% de Pasajes",
-              "Liquidación exacta en tramos de minibús, micro y Mi Teleférico.",
-              Icons.directions_bus_rounded,
-              BumandColores.azulCieloSuave,
-            ),
-            _construirPuntoPerspectiva(
-              "Escuela de Líderes (CETI)",
-              "Talleres teológicos los viernes a las 14:30 y 12 tareas en Classroom.",
-              Icons.menu_book_rounded,
-              BumandColores.amarilloRadiante,
-            ),
-          ] else if (_perspectiva_seleccionada == 1) ...[
-            _construirPuntoPerspectiva(
-              "Rúbrica Likert 18+3",
-              "Evaluación sobre 20 pts: 18 ítems de desempeño (1-10) y 3 cualitativos.",
-              Icons.checklist_rounded,
-              BumandColores.azulMarinoSecundario,
-            ),
-            _construirPuntoPerspectiva(
-              "Trazabilidad de Pasajes 👁️",
-              "Auditoría visual de calles declaradas y paradas en campo.",
-              Icons.visibility_rounded,
-              BumandColores.azulPetroleo,
-            ),
-            _construirPuntoPerspectiva(
-              "Convalidación en Sistema",
-              "Revisión y aprobación trazable de horas y actividades institucionales.",
-              Icons.verified_user_rounded,
-              BumandColores.azulMarinoProfundo,
-            ),
-          ] else ...[
-            _construirPuntoPerspectiva(
-              "Radar Geodésico Haversine",
-              "Validación satelital con radio de 50m a 120m en 72 sedes.",
-              Icons.radar_rounded,
-              BumandColores.azulPetroleo,
-            ),
-            _construirPuntoPerspectiva(
-              "Sábana Semestral 14 Columnas",
-              "Consolidado general de los 5 módulos formativos y dictamen.",
-              Icons.table_chart_rounded,
-              BumandColores.azulMarinoSecundario,
-            ),
-            _construirPuntoPerspectiva(
-              "Bienestar Universitario (26 Preguntas)",
-              "Cuestionario psicoemocional con semáforo preventivo.",
-              Icons.favorite_rounded,
-              BumandColores.azulCieloSuave,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _construirBotonPestana(int indice, String etiqueta) {
-    final activo = _perspectiva_seleccionada == indice;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _perspectiva_seleccionada = indice),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: activo
-                ? BumandColores.azulMarinoProfundo
-                : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            etiqueta,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: activo ? Colors.white : const Color(0xFF475569),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _construirPuntoPerspectiva(
-    String titulo,
-    String desc,
-    IconData icono,
-    Color color,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icono, color: color, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF334155),
-                  height: 1.35,
-                ),
-                children: [
-                  TextSpan(
-                    text: "$titulo: ",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  TextSpan(text: desc),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _construirMisionVision() {
     return Column(
       children: [
@@ -582,7 +308,7 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
 
   Widget _construirTresPrincipios() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -591,34 +317,58 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome_rounded,
+                size: 18,
+                color: BumandColores.amarilloRadiante,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  "Los Tres Principios Diaconales",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: BumandColores.azulMarinoSecundario,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
           const Text(
-            "Los Tres Principios Diaconales",
+            "Pilares fundacionales que rigen el actuar de Diaconía FRIF-IFD y la formación del becario:",
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: BumandColores.azulMarinoSecundario,
+              fontSize: 11,
+              color: Color(0xFF64748B),
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           _construirCardPrincipio(
             "1. Compartir la Fe",
             "Comunión cristiana en congregaciones locales, devocionales y testimonio vivo.",
             BumandColores.amarilloRadiante,
             const Color(0xFFFFFBEB),
+            icono: "🕊️",
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _construirCardPrincipio(
             "2. Combatir la Pobreza",
             "Inclusión social, becas universitarias y oportunidades formativas integrales.",
             BumandColores.azulMarinoProfundo,
             const Color(0xFFF0F9FF),
+            icono: "🌱",
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _construirCardPrincipio(
             "3. Promover la Justicia",
             "Equidad, trato digno, ética transparente y servicio activo al prójimo.",
             BumandColores.azulCieloSuave,
             const Color(0xFFF0FDFA),
+            icono: "⚖️",
           ),
         ],
       ),
@@ -629,183 +379,70 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
     String titulo,
     String desc,
     Color color_borde,
-    Color fondo,
-  ) {
+    Color fondo, {
+    String? icono,
+  }) {
+    final Color color_texto = color_borde == BumandColores.amarilloRadiante
+        ? const Color(0xFFB45309)
+        : (color_borde == BumandColores.azulCieloSuave
+            ? const Color(0xFF00808E)
+            : color_borde);
+
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: fondo,
         borderRadius: BorderRadius.circular(14),
-        border: Border(
-          left: BorderSide(color: color_borde, width: 4),
-          top: const BorderSide(color: BumandColores.grisClaro),
-          right: const BorderSide(color: BumandColores.grisClaro),
-          bottom: const BorderSide(color: BumandColores.grisClaro),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            titulo,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: color_borde == BumandColores.amarilloRadiante
-                  ? const Color(0xFFB45309)
-                  : color_borde,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            desc,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF334155),
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _construirMatriz360() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: BumandColores.grisClaro),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Matriz de Evaluación 360° (100 Pts)",
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: BumandColores.azulMarinoSecundario,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _construirFilaModulo(
-            "M1: Desempeño Académico",
-            "20 pts",
-            "Kardex universitario y materias",
-            BumandColores.azulMarinoProfundo,
-          ),
-          _construirFilaModulo(
-            "M2: Liderazgo Eclesial",
-            "20 pts",
-            "Formulario F-03 pastor de iglesia",
-            BumandColores.azulCieloSuave,
-          ),
-          _construirFilaModulo(
-            "M3: Prácticas Diaconía (PP²)",
-            "20 pts",
-            "Rúbrica 18+3 del mentor laboral",
-            BumandColores.azulMarinoSecundario,
-          ),
-          _construirFilaModulo(
-            "M4: Escuela de Líderes CETI",
-            "20 pts",
-            "12 tareas y talleres de viernes",
-            BumandColores.amarilloRadiante,
-          ),
-          _construirFilaModulo(
-            "M5: Bienestar Socioeconómico",
-            "20 pts",
-            "Cuestionario de 26 preguntas",
-            BumandColores.azulPetroleo,
-          ),
-          const Divider(height: 16),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Text(
-                "≥70: Óptimo",
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF059669),
-                ),
-              ),
-              Text(
-                "51-69: Condicionado",
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFD97706),
-                ),
-              ),
-              Text(
-                "≤50: Pérdida",
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFDC2626),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _construirFilaModulo(
-    String nombre,
-    String puntos,
-    String desc,
-    Color color,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              puntos,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: color == BumandColores.amarilloRadiante
-                    ? const Color(0xFFB45309)
-                    : color,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: color_borde,
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  nombre,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        titulo,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: color_texto,
+                        ),
+                      ),
+                      if (icono != null)
+                        Text(
+                          icono,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                    ],
                   ),
-                ),
-                Text(
-                  desc,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF64748B),
+                  const SizedBox(height: 3),
+                  Text(
+                    desc,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF334155),
+                      height: 1.35,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

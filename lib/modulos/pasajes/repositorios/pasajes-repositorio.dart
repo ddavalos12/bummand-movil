@@ -204,6 +204,35 @@ class PasajesRepositorio {
     }
   }
 
+  Future<ResultadoPasaje<SolicitudPasajeModelo>> obtenerSolicitudPorId(
+    int id,
+  ) async {
+    final cliente_http = _obtenerCliente();
+    try {
+      final respuesta = await cliente_http.get(
+        _url('/$id'),
+        headers: await _cabeceras(),
+      );
+
+      if (respuesta.statusCode == 200) {
+        final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
+        return ResultadoPasaje.exitoso(
+          SolicitudPasajeModelo.desdeJson(datos),
+        );
+      }
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
+    } catch (e) {
+      return ResultadoPasaje.fallido(e.toString());
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
+  }
+
   Future<ResultadoPasaje<void>> confirmarDatos(String periodo) async {
     final cliente_http = _obtenerCliente();
     try {

@@ -17,6 +17,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
   final String? archivo_nombre;
   final String? fecha_archivo;
   final String? comentario;
+  final bool es_becario;
 
   const DetalleEvaluacionModal({
     super.key,
@@ -29,6 +30,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
     this.archivo_nombre,
     this.fecha_archivo,
     this.comentario,
+    this.es_becario = true,
   });
 
   static void mostrar(
@@ -42,6 +44,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
     String? archivo_nombre,
     String? fecha_archivo,
     String? comentario,
+    bool es_becario = true,
   }) {
     showModalBottomSheet(
       context: context,
@@ -57,6 +60,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
         archivo_nombre: archivo_nombre,
         fecha_archivo: fecha_archivo,
         comentario: comentario,
+        es_becario: es_becario,
       ),
     );
   }
@@ -99,12 +103,15 @@ class DetalleEvaluacionModal extends StatelessWidget {
     );
   }
 
-  static void mostrarReceptorLideresClassroom(BuildContext context) {
+  static void mostrarReceptorLideresClassroom(
+    BuildContext context, {
+    bool es_becario = true,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _ReceptorLideresClassroomModal(),
+      builder: (_) => _ReceptorLideresClassroomModal(es_becario: es_becario),
     );
   }
 
@@ -495,7 +502,10 @@ class DetalleEvaluacionModal extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  DetalleEvaluacionModal.mostrarReceptorLideresClassroom(context);
+                  DetalleEvaluacionModal.mostrarReceptorLideresClassroom(
+                    context,
+                    es_becario: es_becario,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6366F1),
@@ -2591,7 +2601,11 @@ class _FormularioSupervisorEvaluadorState
 }
 
 class _ReceptorLideresClassroomModal extends StatefulWidget {
-  const _ReceptorLideresClassroomModal();
+  final bool es_becario;
+
+  const _ReceptorLideresClassroomModal({
+    this.es_becario = true,
+  });
 
   @override
   State<_ReceptorLideresClassroomModal> createState() =>
@@ -3224,7 +3238,9 @@ class _ReceptorLideresClassroomModalState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "REVISADO · ${tarea.puntaje_obtenido?.toStringAsFixed(0) ?? '95'}/100 pts",
+                      widget.es_becario
+                          ? "REVISADO"
+                          : "REVISADO · ${tarea.puntaje_obtenido?.toStringAsFixed(0) ?? '95'}/100 pts",
                       style: const TextStyle(
                         color: Color(0xFF15803D),
                         fontWeight: FontWeight.bold,
@@ -3310,14 +3326,15 @@ class _ReceptorLideresClassroomModalState
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => _abrirDialogoCalificar(tarea),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      visualDensity: VisualDensity.compact,
+                  if (!widget.es_becario)
+                    TextButton(
+                      onPressed: () => _abrirDialogoCalificar(tarea),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: const Text("Calificar como Revisado", style: TextStyle(fontSize: 11)),
                     ),
-                    child: const Text("Calificar como Revisado", style: TextStyle(fontSize: 11)),
-                  ),
                 ],
               ),
             ),

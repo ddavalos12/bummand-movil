@@ -26,6 +26,7 @@ class SolicitarJustificacionDialogo extends ConsumerStatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SolicitarJustificacionDialogo(
         evento_id: evento_id,
@@ -203,12 +204,15 @@ class _SolicitarJustificacionDialogoState
   @override
   Widget build(BuildContext context) {
     final padding_inferior = MediaQuery.of(context).viewInsets.bottom;
+    final altura_maxima = MediaQuery.of(context).size.height * 0.90;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: altura_maxima),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
@@ -622,14 +626,26 @@ class _SolicitarJustificacionDialogoState
                                 _bytes_archivo = bytes;
                               });
                             }
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("No se pudo abrir el selector: $e"),
-                                backgroundColor: const Color(0xFFDC2626),
-                              ),
-                            );
+                          } catch (_) {
+                            try {
+                              final resultado = await FilePicker.pickFiles();
+                              if (resultado.isNotEmpty) {
+                                final archivo = resultado.first;
+                                final bytes = await archivo.readAsBytes();
+                                setState(() {
+                                  _archivo_adjunto = archivo.name;
+                                  _bytes_archivo = bytes;
+                                });
+                              }
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("No se pudo abrir el selector: $e"),
+                                  backgroundColor: const Color(0xFFDC2626),
+                                ),
+                              );
+                            }
                           }
                         },
                         style: OutlinedButton.styleFrom(
@@ -731,6 +747,7 @@ class _SolicitarJustificacionDialogoState
           ),
         ),
       ),
+    ),
     );
   }
 }

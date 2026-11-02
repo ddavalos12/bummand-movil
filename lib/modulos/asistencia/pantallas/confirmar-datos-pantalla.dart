@@ -109,7 +109,7 @@ class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla>
       appBar: AppBar(
         title: const Text(
           "Confirmación Mensual de Datos",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         backgroundColor: BumandColores.AZUL_DIACONIA,
         foregroundColor: Colors.white,

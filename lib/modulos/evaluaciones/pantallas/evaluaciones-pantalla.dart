@@ -52,6 +52,11 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
   }
 
   void _abrirModuloReceptor(BuildContext context, int numero) {
+    final auth = ref.read(autenticacion_proveedor);
+    final rol_usuario = auth.usuario?.rol.toLowerCase() ?? 'becario';
+    final es_supervisor_o_admin =
+        rol_usuario.contains('supervisor') || rol_usuario.contains('admin');
+
     switch (numero) {
       case 1:
         FormularioF03Dialogo.mostrar(context);
@@ -63,7 +68,10 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
         DetalleEvaluacionModal.mostrarReceptorMentor(context);
         break;
       case 4:
-        DetalleEvaluacionModal.mostrarReceptorLideresClassroom(context);
+        DetalleEvaluacionModal.mostrarReceptorLideresClassroom(
+          context,
+          es_becario: !es_supervisor_o_admin,
+        );
         break;
       case 5:
         _abrirEvaluacionSocioeconomica(context);

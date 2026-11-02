@@ -99,5 +99,54 @@ void main() {
       expect(find.text('Escuela de Líderes'), findsOneWidget);
       expect(find.text('Servicio'), findsOneWidget);
     });
+
+    testWidgets('Boton de incidencia despliega directamente formulario de solicitud con subida de archivo', (
+      WidgetTester probador,
+    ) async {
+      probador.view.physicalSize = const Size(1080, 2400);
+      probador.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        probador.view.resetPhysicalSize();
+        probador.view.resetDevicePixelRatio();
+      });
+
+      await probador.pumpWidget(
+        ProviderScope(
+          overrides: [
+            perfil_proveedor.overrideWith((ref) async => Resultado.exitoso({
+                  'nombre': 'Valeria Ramos',
+                  'lugarPractica': {
+                    'nombre': 'Oficina Central Diaconía',
+                    'latitud': -16.5000,
+                    'longitud': -68.1500,
+                    'radio_tolerancia_m': 100,
+                  },
+                })),
+            historial_asistencia_proveedor.overrideWith(
+              (ref) async => Resultado.exitoso(<Map<String, dynamic>>[]),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AsistenciaPantalla(),
+          ),
+        ),
+      );
+
+      await probador.pump();
+
+      // Debe existir el botón directo y el acceso al historial
+      final boton_incidencia = find.text('¿Incidencia o retraso? Solicitar Permiso / Justificación');
+      expect(boton_incidencia, findsOneWidget);
+      expect(find.text('Ver historial de permisos solicitados'), findsOneWidget);
+
+      // Tocar el botón debe desplegar directamente el formulario
+      await probador.tap(boton_incidencia);
+      await probador.pump(const Duration(milliseconds: 600));
+
+      // Debe desplegar el modal de solicitud con prueba justificable
+      expect(find.text('Permisos y Justificaciones'), findsOneWidget);
+      expect(find.text('Prueba Justificable (Obligatoria)'), findsOneWidget);
+      expect(find.text('Enviar Permiso / Justificación'), findsOneWidget);
+    });
   });
 }

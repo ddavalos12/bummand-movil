@@ -359,7 +359,6 @@ class RefrigeriosPantalla extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '• Modalidad actual: ${ref_item.modalidadLegible}.\n'
                   '• Devolución del 100%: Administración desembolsa el total íntegro a uno de los dos para que arreglen cuentas internamente.',
                   style: GoogleFonts.montserrat(
                     fontSize: 11,
@@ -836,26 +835,7 @@ class RefrigeriosPantalla extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: BumandColores.blanco,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: BumandColores.grisClaro),
-                  ),
-                  child: Text(
-                    item.modalidad_preparacion == 'cocina_diaconia'
-                        ? 'Cocina Diaconía'
-                        : item.modalidad_preparacion == 'traido_de_casa'
-                            ? 'Desde Casa'
-                            : 'Compra Directa',
-                    style: GoogleFonts.poppins(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      color: BumandColores.azulMarinoSecundario,
-                    ),
-                  ),
-                ),
+
               ],
             ),
           ),

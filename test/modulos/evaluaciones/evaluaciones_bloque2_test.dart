@@ -153,9 +153,10 @@ void main() {
       expect(find.textContaining('Entregadas'), findsWidgets);
       expect(find.textContaining('Revisadas'), findsWidgets);
 
-      // Tarea 1 revisada con su sello
+      // Tarea 1 revisada con su sello (sin puntos para el becario)
       expect(find.text('Liderazgo Servidor y Mayordomía Cristiana'), findsOneWidget);
-      expect(find.textContaining('REVISADO · 95/100 pts'), findsOneWidget);
+      expect(find.text('REVISADO'), findsNWidgets(6));
+      expect(find.textContaining('pts'), findsNothing);
       expect(find.textContaining('Retroalimentación:'), findsWidgets);
     });
   });

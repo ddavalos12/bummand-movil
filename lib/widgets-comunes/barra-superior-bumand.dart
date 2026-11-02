@@ -10,7 +10,6 @@ import '../modulos/asistencia/pantallas/historial-asistencia-pantalla.dart';
 import '../modulos/justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
 import '../modulos/notificaciones/pantallas/notificaciones-pantalla.dart';
 import '../modulos/inicio/pantallas/acerca-de-pantalla.dart';
-import '../modulos/refrigerios/pantallas/refrigerios-pantalla.dart';
 
 
 class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget {
@@ -503,42 +502,6 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                       );
                     },
                   ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: BumandColores.azulCieloSuave.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.restaurant_menu_rounded,
-                        color: BumandColores.azulMarinoProfundo,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      'Mis Refrigerios',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: BumandColores.NEGRO,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Registro de recojo y constancias de ración',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const RefrigeriosPantalla(),
-                        ),
-                      );
-                    },
-                  ),
                   const Divider(),
                   const SizedBox(height: 4),
                   ListTile(
@@ -607,6 +570,7 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
           Text(
             titulo,
             style: const TextStyle(
+              color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
               letterSpacing: -0.2,

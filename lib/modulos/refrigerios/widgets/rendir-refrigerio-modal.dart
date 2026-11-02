@@ -27,107 +27,54 @@ class RendirRefrigerioModal extends ConsumerStatefulWidget {
   ConsumerState<RendirRefrigerioModal> createState() => _RendirRefrigerioModalState();
 }
 
-class _ItemIngredienteEdicion {
-  final TextEditingController insumo_ctrl;
-  final TextEditingController cantidad_ctrl;
-  final TextEditingController costo_ctrl;
-  int? pagado_por_id;
-  String pagado_por_nombre;
-
-  _ItemIngredienteEdicion({
-    required String insumo,
-    required String cantidad,
-    required double costo_bs,
-    this.pagado_por_id,
-    required this.pagado_por_nombre,
-  })  : insumo_ctrl = TextEditingController(text: insumo),
-        cantidad_ctrl = TextEditingController(text: cantidad),
-        costo_ctrl = TextEditingController(
-          text: costo_bs > 0 ? costo_bs.toStringAsFixed(2) : '',
-        );
-
-  void dispose() {
-    insumo_ctrl.dispose;
-    cantidad_ctrl.dispose;
-    costo_ctrl.dispose;
-  }
-}
 
 class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
   late TextEditingController _menu_ctrl;
-  late String _modalidad_seleccionada;
-  final List<_ItemIngredienteEdicion> _items_ingredientes = [];
+  late TextEditingController _costo_total_ctrl;
+  late TextEditingController _gasto1_ctrl;
+  late TextEditingController _gasto2_ctrl;
 
   @override
   void initState() {
     super.initState();
-    _menu_ctrl = TextEditingController(text: widget.refrigerio.menu_detalle);
-    _modalidad_seleccionada = widget.refrigerio.modalidad_preparacion;
-
-    final nombre1 = widget.refrigerio.becario_encargado_1_nombre ?? 'Encargado 1';
-    final id1 = widget.refrigerio.becario_encargado_1_id ?? 1;
-
-    if (widget.refrigerio.ingredientes.isNotEmpty) {
-      for (final ing in widget.refrigerio.ingredientes) {
-        _items_ingredientes.add(
-          _ItemIngredienteEdicion(
-            insumo: ing.insumo,
-            cantidad: ing.cantidad,
-            costo_bs: ing.costo_bs,
-            pagado_por_id: ing.pagado_por_becario_id ?? id1,
-            pagado_por_nombre: ing.pagado_por_nombre ?? nombre1,
-          ),
-        );
-      }
-    } else {
-      _items_ingredientes.add(
-        _ItemIngredienteEdicion(
-          insumo: 'Huevos de granja',
-          cantidad: '1 maple (30 u)',
-          costo_bs: 38.0,
-          pagado_por_id: id1,
-          pagado_por_nombre: nombre1,
-        ),
-      );
-      _items_ingredientes.add(
-        _ItemIngredienteEdicion(
-          insumo: 'Pan de batalla',
-          cantidad: '50 unidades',
-          costo_bs: 40.0,
-          pagado_por_id: id1,
-          pagado_por_nombre: nombre1,
-        ),
-      );
-    }
+    final total_inicial = widget.refrigerio.costo_total_bs > 0
+        ? widget.refrigerio.costo_total_bs
+        : 138.0;
+    _menu_ctrl = TextEditingController(
+      text: widget.refrigerio.menu_detalle.isNotEmpty
+          ? widget.refrigerio.menu_detalle
+          : 'Refrigerio de Viernes (Escuela de Líderes)',
+    );
+    _costo_total_ctrl = TextEditingController(
+      text: total_inicial.toStringAsFixed(2),
+    );
+    _gasto1_ctrl = TextEditingController(
+      text: (total_inicial / 2).toStringAsFixed(2),
+    );
+    _gasto2_ctrl = TextEditingController(
+      text: (total_inicial / 2).toStringAsFixed(2),
+    );
   }
 
   @override
   void dispose() {
     _menu_ctrl.dispose();
-    for (final item in _items_ingredientes) {
-      item.dispose();
-    }
+    _costo_total_ctrl.dispose();
+    _gasto1_ctrl.dispose();
+    _gasto2_ctrl.dispose();
     super.dispose();
   }
 
-  double _calcularTotal() {
-    double suma = 0.0;
-    for (final item in _items_ingredientes) {
-      final val = double.tryParse(item.costo_ctrl.text.replaceAll(',', '.')) ?? 0.0;
-      suma += val;
-    }
-    return suma;
+  double _obtenerTotal() {
+    return double.tryParse(_costo_total_ctrl.text.replaceAll(',', '.')) ?? 0.0;
   }
 
-  double _calcularGastoPorNombre(String nombre) {
-    double suma = 0.0;
-    for (final item in _items_ingredientes) {
-      if (item.pagado_por_nombre.trim().toLowerCase() == nombre.trim().toLowerCase()) {
-        final val = double.tryParse(item.costo_ctrl.text.replaceAll(',', '.')) ?? 0.0;
-        suma += val;
-      }
-    }
-    return suma;
+  double _obtenerGasto1() {
+    return double.tryParse(_gasto1_ctrl.text.replaceAll(',', '.')) ?? 0.0;
+  }
+
+  double _obtenerGasto2() {
+    return double.tryParse(_gasto2_ctrl.text.replaceAll(',', '.')) ?? 0.0;
   }
 
   void _guardarRendicion() {
@@ -135,38 +82,29 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
     if (menu.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Por favor escribe el detalle del menú preparado.'),
+          content: Text('Por favor indica una referencia para el refrigerio.'),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
-    final lista_final = <IngredienteRefrigerioModelo>[];
-    for (final item in _items_ingredientes) {
-      final insumo = item.insumo_ctrl.text.trim();
-      final cantidad = item.cantidad_ctrl.text.trim();
-      final costo = double.tryParse(item.costo_ctrl.text.replaceAll(',', '.')) ?? 0.0;
-      if (insumo.isNotEmpty) {
-        lista_final.add(
-          IngredienteRefrigerioModelo(
-            insumo: insumo,
-            cantidad: cantidad,
-            costo_bs: costo,
-            pagado_por_becario_id: item.pagado_por_id,
-            pagado_por_nombre: item.pagado_por_nombre,
-          ),
-        );
-      }
+    final total = _obtenerTotal();
+    if (total <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El monto total debe ser mayor a 0 Bs.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
     }
-
-    final total = _calcularTotal();
 
     ref.read(refrigerios_proveedor.notifier).rendirRefrigerio(
           id: widget.refrigerio.id,
           menu_detalle: menu,
-          modalidad_preparacion: _modalidad_seleccionada,
-          ingredientes: lista_final,
+          modalidad_preparacion: widget.refrigerio.modalidad_preparacion,
+          ingredientes: const [],
           costo_total_bs: total,
         );
 
@@ -175,7 +113,7 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '¡Rendición guardada con éxito! Costo: Bs ${total.toStringAsFixed(2)}. Devolución solicitada al 100%.',
+          '¡Rendición registrada con éxito! Costo: Bs ${total.toStringAsFixed(2)}. Devolución solicitada al 100%.',
           style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
         ),
         backgroundColor: const Color(0xFF059669),
@@ -187,13 +125,11 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
   @override
   Widget build(BuildContext context) {
     final nombre1 = widget.refrigerio.becario_encargado_1_nombre ?? 'Becario 1';
-    final id1 = widget.refrigerio.becario_encargado_1_id ?? 1;
     final nombre2 = widget.refrigerio.becario_encargado_2_nombre ?? 'Becario 2';
-    final id2 = widget.refrigerio.becario_encargado_2_id ?? 2;
 
-    final total_actual = _calcularTotal();
-    final gasto1 = _calcularGastoPorNombre(nombre1);
-    final gasto2 = _calcularGastoPorNombre(nombre2);
+    final total_actual = _obtenerTotal();
+    final gasto1 = _obtenerGasto1();
+    final gasto2 = _obtenerGasto2();
 
     return Container(
       constraints: BoxConstraints(
@@ -354,11 +290,11 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 18),
 
-                  // Selector de modalidad
+                  // Inversión Total y Aporte de la Dupla
                   Text(
-                    'Modalidad de Preparación',
+                    'Inversión Total y Aporte de la Dupla',
                     style: GoogleFonts.montserrat(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -367,258 +303,142 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: BumandColores.fondo,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: BumandColores.grisClaro),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _modalidad_seleccionada,
-                        isExpanded: true,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 12.5,
-                          color: BumandColores.negro,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _modalidad_seleccionada = val);
-                          }
-                        },
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'cocina_diaconia',
-                            child: Text('Preparado en Cocina de Diaconía'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'traido_de_casa',
-                            child: Text('Elaborado en Casa y Traído Listo'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'compra_directa',
-                            child: Text('Compra Directa Listo para Servir'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Sección de ingredientes
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Ingredientes e Insumos Comprados',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: BumandColores.azulMarinoSecundario,
-                        ),
-                      ),
-                      TextButton.icon(
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          foregroundColor: BumandColores.azulMarinoProfundo,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _items_ingredientes.add(
-                              _ItemIngredienteEdicion(
-                                insumo: '',
-                                cantidad: '',
-                                costo_bs: 0.0,
-                                pagado_por_id: id1,
-                                pagado_por_nombre: nombre1,
-                              ),
-                            );
-                          });
-                        },
-                        icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
-                        label: Text(
-                          'Agregar',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Costo Total a Reembolsar (100% Devolución)',
                           style: GoogleFonts.montserrat(
                             fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
+                            color: BumandColores.azulMarinoSecundario,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-
-                  // Lista de items de ingredientes
-                  ...List.generate(_items_ingredientes.length, (idx) {
-                    final item = _items_ingredientes[idx];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: BumandColores.blanco,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: BumandColores.grisClaro),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Insumo #${idx + 1}',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: BumandColores.textoSecundario,
-                                ),
-                              ),
-                              const Spacer(),
-                              if (_items_ingredientes.length > 1)
-                                InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _items_ingredientes.removeAt(idx);
-                                    });
-                                  },
-                                  child: const Icon(
-                                    Icons.delete_outline_rounded,
-                                    size: 18,
-                                    color: Colors.redAccent,
-                                  ),
-                                ),
-                            ],
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _costo_total_ctrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: BumandColores.azulMarinoSecundario,
                           ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: TextField(
-                                  controller: item.insumo_ctrl,
-                                  style: GoogleFonts.montserrat(fontSize: 12),
-                                  decoration: InputDecoration(
-                                    hintText: 'Insumo (ej. Pan, Huevo)',
-                                    filled: true,
-                                    fillColor: BumandColores.fondo,
-                                    isDense: true,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(color: BumandColores.grisClaro),
-                                    ),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 2,
-                                child: TextField(
-                                  controller: item.cantidad_ctrl,
-                                  style: GoogleFonts.montserrat(fontSize: 12),
-                                  decoration: InputDecoration(
-                                    hintText: 'Cant. (ej. 50 u)',
-                                    filled: true,
-                                    fillColor: BumandColores.fondo,
-                                    isDense: true,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(color: BumandColores.grisClaro),
-                                    ),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 2,
-                                child: TextField(
-                                  controller: item.costo_ctrl,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(decimal: true),
-                                  onChanged: (_) => setState(() {}),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: 'Bs 0.00',
-                                    filled: true,
-                                    fillColor: BumandColores.fondo,
-                                    isDense: true,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(color: BumandColores.grisClaro),
-                                    ),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          onChanged: (val) {
+                            final nuevo_total = double.tryParse(val.replaceAll(',', '.')) ?? 0.0;
+                            setState(() {
+                              _gasto1_ctrl.text = (nuevo_total / 2).toStringAsFixed(2);
+                              _gasto2_ctrl.text = (nuevo_total / 2).toStringAsFixed(2);
+                            });
+                          },
+                          decoration: InputDecoration(
+                            prefixText: 'Bs ',
+                            prefixStyle: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: BumandColores.azulMarinoSecundario,
+                            ),
+                            filled: true,
+                            fillColor: BumandColores.blanco,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: BumandColores.grisClaro),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
-                          const SizedBox(height: 8),
-                          // Quién pagó este insumo
-                          Row(
-                            children: [
-                              Text(
-                                'Pagado por: ',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 10.5,
-                                  color: BumandColores.textoSecundario,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: BumandColores.fondo,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: BumandColores.grisClaro),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$nombre1 pagó:',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: BumandColores.textoSecundario,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: item.pagado_por_nombre,
+                                  const SizedBox(height: 4),
+                                  TextField(
+                                    controller: _gasto1_ctrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: InputDecoration(
+                                      prefixText: 'Bs ',
+                                      filled: true,
+                                      fillColor: BumandColores.blanco,
                                       isDense: true,
-                                      style: GoogleFonts.montserrat(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: BumandColores.azulMarinoSecundario,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: const BorderSide(color: BumandColores.grisClaro),
                                       ),
-                                      onChanged: (val) {
-                                        if (val != null) {
-                                          setState(() {
-                                            item.pagado_por_nombre = val;
-                                            item.pagado_por_id = (val == nombre1) ? id1 : id2;
-                                          });
-                                        }
-                                      },
-                                      items: [
-                                        DropdownMenuItem(
-                                          value: nombre1,
-                                          child: Text(nombre1, overflow: TextOverflow.ellipsis),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: nombre2,
-                                          child: Text(nombre2, overflow: TextOverflow.ellipsis),
-                                        ),
-                                      ],
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$nombre2 pagó:',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: BumandColores.textoSecundario,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  TextField(
+                                    controller: _gasto2_ctrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: InputDecoration(
+                                      prefixText: 'Bs ',
+                                      filled: true,
+                                      fillColor: BumandColores.blanco,
+                                      isDense: true,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: const BorderSide(color: BumandColores.grisClaro),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'ℹ️ La receta y preparación de alimentos se realiza en reserva por cada dupla. No es necesario detallar ingredientes.',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                            color: BumandColores.textoSecundario,
                           ),
-                        ],
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
 
                   // Resumen de Devolución 100% y Desglose por Becario
                   Container(

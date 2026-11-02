@@ -12,6 +12,7 @@ import '../widgets/radar_geocerca_widget.dart';
 import '../../eventos/modelos/evento.dart';
 import '../../eventos/servicios/eventos-servicio.dart';
 import '../../justificaciones/pantallas/permisos-pantalla.dart';
+import '../../justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
 import '../../justificaciones/servicios/justificaciones-servicio.dart';
 
 class AsistenciaPantalla extends ConsumerStatefulWidget {
@@ -954,12 +955,20 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
 
                 // 7. Acceso directo a Permisos y Justificaciones
                 OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PermisosPantalla(),
-                      ),
+                  onPressed: () async {
+                    final tipo_inicial = _tipo.contains('lider')
+                        ? 'escuela_lideres'
+                        : (_tipo.contains('servicio')
+                            ? 'asistencia_evento'
+                            : 'asistencia_practicas');
+                    final enviado = await SolicitarJustificacionDialogo.mostrar(
+                      context,
+                      tipo_incidencia: tipo_inicial,
                     );
+                    if (enviado == true && context.mounted) {
+                      ref.invalidate(historial_asistencia_proveedor);
+                      ref.invalidate(mis_justificaciones_proveedor);
+                    }
                   },
                   icon: const Icon(
                     Icons.assignment_late_outlined,
@@ -967,7 +976,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                     color: BumandColores.AZUL_DIACONIA,
                   ),
                   label: const Text(
-                    "¿Incidencia o permiso? Permisos y Justificaciones",
+                    "¿Incidencia o retraso? Solicitar Permiso / Justificación",
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -980,6 +989,31 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PermisosPantalla(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.history_rounded,
+                      size: 15,
+                      color: Color(0xFF64748B),
+                    ),
+                    label: const Text(
+                      "Ver historial de permisos solicitados",
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ),
                 ),
