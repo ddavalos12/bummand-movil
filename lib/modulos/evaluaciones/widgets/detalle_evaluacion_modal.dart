@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../nucleo/tema/colores.dart';
 import '../modelos/evaluacion-modelo.dart';
@@ -568,7 +569,13 @@ class DetalleEvaluacionModal extends StatelessWidget {
 
 class CodigoQrWidget extends StatelessWidget {
   final double tamano;
-  const CodigoQrWidget({super.key, this.tamano = 190});
+  final String codigo;
+
+  const CodigoQrWidget({
+    super.key,
+    this.tamano = 190,
+    required this.codigo,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -588,107 +595,24 @@ class CodigoQrWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: CustomPaint(
-        size: Size(tamano - 24, tamano - 24),
-        painter: _CodigoQrPintor(),
+      child: Center(
+        child: QrImageView(
+          data: codigo,
+          version: QrVersions.auto,
+          size: tamano - 24,
+          backgroundColor: Colors.white,
+          eyeStyle: const QrEyeStyle(
+            eyeShape: QrEyeShape.square,
+            color: Color(0xFF0F172A),
+          ),
+          dataModuleStyle: const QrDataModuleStyle(
+            dataModuleShape: QrDataModuleShape.square,
+            color: Color(0xFF0F172A),
+          ),
+        ),
       ),
     );
   }
-}
-
-class _CodigoQrPintor extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final pintura_modulo = Paint()
-      ..color = const Color(0xFF0F172A)
-      ..style = PaintingStyle.fill;
-
-    final pintura_fondo = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), pintura_fondo);
-
-    const int cuadricula = 21;
-    final ancho_celda = size.width / cuadricula;
-    final alto_celda = size.height / cuadricula;
-
-    void dibujarPatronPosicion(int col_inicio, int fila_inicio) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          col_inicio * ancho_celda,
-          fila_inicio * alto_celda,
-          7 * ancho_celda,
-          7 * alto_celda,
-        ),
-        pintura_modulo,
-      );
-      canvas.drawRect(
-        Rect.fromLTWH(
-          (col_inicio + 1) * ancho_celda,
-          (fila_inicio + 1) * alto_celda,
-          5 * ancho_celda,
-          5 * alto_celda,
-        ),
-        pintura_fondo,
-      );
-      canvas.drawRect(
-        Rect.fromLTWH(
-          (col_inicio + 2) * ancho_celda,
-          (fila_inicio + 2) * alto_celda,
-          3 * ancho_celda,
-          3 * alto_celda,
-        ),
-        pintura_modulo,
-      );
-    }
-
-    dibujarPatronPosicion(0, 0);
-    dibujarPatronPosicion(cuadricula - 7, 0);
-    dibujarPatronPosicion(0, cuadricula - 7);
-
-    for (int col = 8; col < cuadricula - 8; col++) {
-      if (col % 2 == 0) {
-        canvas.drawRect(
-          Rect.fromLTWH(col * ancho_celda, 6 * alto_celda, ancho_celda, alto_celda),
-          pintura_modulo,
-        );
-        canvas.drawRect(
-          Rect.fromLTWH(6 * ancho_celda, col * alto_celda, ancho_celda, alto_celda),
-          pintura_modulo,
-        );
-      }
-    }
-
-    for (int fila = 0; fila < cuadricula; fila++) {
-      for (int col = 0; col < cuadricula; col++) {
-        final en_posicion_tl = fila < 8 && col < 8;
-        final en_posicion_tr = fila < 8 && col >= cuadricula - 8;
-        final en_posicion_bl = fila >= cuadricula - 8 && col < 8;
-        final en_sincronia = fila == 6 || col == 6;
-
-        if (en_posicion_tl || en_posicion_tr || en_posicion_bl || en_sincronia) {
-          continue;
-        }
-
-        final hash = ((fila * 31 + col * 17 + 13) % 100);
-        if (hash < 48) {
-          canvas.drawRect(
-            Rect.fromLTWH(
-              col * ancho_celda + 0.3,
-              fila * alto_celda + 0.3,
-              ancho_celda - 0.6,
-              alto_celda - 0.6,
-            ),
-            pintura_modulo,
-          );
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ReceptorAcademicoModal extends StatefulWidget {
@@ -1347,16 +1271,44 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
   }
 }
 
-class _ReceptorMentorModal extends StatelessWidget {
+class _ReceptorMentorModal extends StatefulWidget {
   const _ReceptorMentorModal();
+
+  @override
+  State<_ReceptorMentorModal> createState() => _ReceptorMentorModalState();
+}
+
+class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
+  final _repositorio = EvaluacionesRepositorio();
+  String _codigo_activo = "831721";
+  bool _cargando_codigo = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _obtenerCodigoTutor();
+  }
+
+  Future<void> _obtenerCodigoTutor() async {
+    setState(() => _cargando_codigo = true);
+    final resultado = await _repositorio.solicitarCodigoTutor(becario_id: 1);
+    if (!mounted) return;
+    setState(() {
+      _cargando_codigo = false;
+      if (resultado.exito && resultado.datos?['codigo'] != null) {
+        _codigo_activo = resultado.datos!['codigo'].toString();
+      }
+    });
+  }
 
   void _abrirVerificacionSupervisor(BuildContext context) {
     showDialog<dynamic>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const _DialogoVerificacionSupervisor(
+      builder: (ctx) => _DialogoVerificacionSupervisor(
         becario_id: 1,
         becario_nombre: "María Catunta Laime",
+        codigo_activo: _codigo_activo,
       ),
     ).then((resultado) {
       if (resultado != null && context.mounted) {
@@ -1465,23 +1417,60 @@ class _ReceptorMentorModal extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          const Center(child: CodigoQrWidget(tamano: 200)),
+          Center(
+            child: _cargando_codigo
+                ? const SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: BumandColores.AZUL_DIACONIA,
+                      ),
+                    ),
+                  )
+                : CodigoQrWidget(tamano: 200, codigo: _codigo_activo),
+          ),
           const SizedBox(height: 12),
           Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                "token: mentor-diaconia-2026-b1",
-                style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: "monospace",
-                  color: Color(0xFF475569),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.pin_outlined,
+                        size: 18,
+                        color: BumandColores.AZUL_DIACONIA,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Código OTP: $_codigo_activo",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 3,
+                          fontFamily: "monospace",
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                const Text(
+                  "Escanea el código QR de 6 dígitos o ingrésalo manualmente",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),
@@ -1491,7 +1480,7 @@ class _ReceptorMentorModal extends StatelessWidget {
               onPressed: () => _abrirVerificacionSupervisor(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: BumandColores.amarilloRadiante,
-                  foregroundColor: BumandColores.azulMarinoSecundario,
+                foregroundColor: BumandColores.azulMarinoSecundario,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -1512,10 +1501,12 @@ class _ReceptorMentorModal extends StatelessWidget {
 class _DialogoVerificacionSupervisor extends StatefulWidget {
   final int becario_id;
   final String? becario_nombre;
+  final String? codigo_activo;
 
   const _DialogoVerificacionSupervisor({
     this.becario_id = 1,
     this.becario_nombre,
+    this.codigo_activo,
   });
 
   @override
@@ -1528,14 +1519,18 @@ class _DialogoVerificacionSupervisorState
   final _repositorio = EvaluacionesRepositorio();
   final _codigo_ctrl = TextEditingController();
 
-  bool _enviando_codigo = true;
+  bool _enviando_codigo = false;
   bool _verificando = false;
   String? _mensaje_error;
+  String? _codigo_activo_local;
 
   @override
   void initState() {
     super.initState();
-    _solicitarCodigoNotificacion();
+    _codigo_activo_local = widget.codigo_activo;
+    if (_codigo_activo_local == null) {
+      _solicitarCodigoNotificacion();
+    }
   }
 
   @override
@@ -1550,19 +1545,35 @@ class _DialogoVerificacionSupervisorState
       _mensaje_error = null;
     });
 
-    await _repositorio.solicitarCodigoTutor(becario_id: widget.becario_id);
+    final res = await _repositorio.solicitarCodigoTutor(becario_id: widget.becario_id);
     if (!mounted) return;
 
     setState(() {
       _enviando_codigo = false;
+      if (res.exito && res.datos?['codigo'] != null) {
+        _codigo_activo_local = res.datos!['codigo'].toString();
+      }
     });
   }
 
   Future<void> _verificarIdentidad() async {
-    final codigo = _codigo_ctrl.text.trim();
-    if (codigo.isEmpty) {
+    final entrada = _codigo_ctrl.text.trim();
+    if (entrada.isEmpty) {
       setState(() {
         _mensaje_error = "Ingresa el código de 6 dígitos enviado a su supervisor específico.";
+      });
+      return;
+    }
+
+    // Normalizar: quitar espacios, guiones y extraer sólo dígitos (acepta sufijos/prefijos de escaneo)
+    final solo_digitos = entrada.replaceAll(RegExp(r'\D'), '');
+    final codigo_limpio = solo_digitos.length > 6
+        ? solo_digitos.substring(0, 6)
+        : (solo_digitos.isNotEmpty ? solo_digitos : entrada);
+
+    if (codigo_limpio.length != 6) {
+      setState(() {
+        _mensaje_error = "El código de verificación debe contener exactamente 6 dígitos.";
       });
       return;
     }
@@ -1574,19 +1585,21 @@ class _DialogoVerificacionSupervisorState
 
     final resultado = await _repositorio.verificarCodigoTutor(
       becario_id: widget.becario_id,
-      codigo: codigo,
+      codigo: codigo_limpio,
     );
 
     if (!mounted) return;
     setState(() => _verificando = false);
 
-    if (resultado.exito && resultado.datos?['verificado'] == true) {
+    if (resultado.exito &&
+        (resultado.datos?['verificado'] == true ||
+            resultado.datos?['valido'] == true)) {
       final nombre =
           resultado.datos?['supervisor_nombre']?.toString() ?? "Supervisor Asignado";
       Navigator.of(context).pop({
         'verificado': true,
         'supervisor_nombre': nombre,
-        'codigo_verificacion': codigo,
+        'codigo_verificacion': codigo_limpio,
       });
     } else {
       setState(() {
@@ -1657,30 +1670,41 @@ class _DialogoVerificacionSupervisorState
 
             Container(
               alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.pin_outlined,
-                      size: 15,
-                      color: BumandColores.AZUL_DIACONIA,
-                    ),
-                    SizedBox(width: 5),
-                    Text(
-                      "Código en pantalla",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+              child: InkWell(
+                onTap: () {
+                  if (_codigo_activo_local != null) {
+                    _codigo_ctrl.text = _codigo_activo_local!;
+                    setState(() {});
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.pin_outlined,
+                        size: 15,
                         color: BumandColores.AZUL_DIACONIA,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 5),
+                      Text(
+                        _codigo_activo_local != null
+                            ? "Código activo: $_codigo_activo_local (Tocar para llenar)"
+                            : "Código en pantalla",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1697,9 +1721,18 @@ class _DialogoVerificacionSupervisorState
             const SizedBox(height: 6),
             TextField(
               controller: _codigo_ctrl,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
+              keyboardType: TextInputType.text,
+              maxLength: 12,
               textAlign: TextAlign.center,
+              onChanged: (val) {
+                final solo_digitos = val.replaceAll(RegExp(r'\D'), '');
+                if (solo_digitos.length == 6 && _codigo_ctrl.text != solo_digitos) {
+                  _codigo_ctrl.value = TextEditingValue(
+                    text: solo_digitos,
+                    selection: TextSelection.collapsed(offset: solo_digitos.length),
+                  );
+                }
+              },
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,

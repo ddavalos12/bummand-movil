@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../modelos/recorrido-modelo.dart';
@@ -789,6 +790,48 @@ class _DeclararRecorridoPantallaState
     );
   }
 
+  Future<String> _obtenerCalleGps(Position pos) async {
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.latitude}&lon=${pos.longitude}&zoom=18&addressdetails=1',
+      );
+      final respuesta = await http.get(
+        uri,
+        headers: {'User-Agent': 'BumandMovilApp/1.0'},
+      ).timeout(const Duration(seconds: 4));
+
+      if (respuesta.statusCode == 200) {
+        final dynamic datos = jsonDecode(respuesta.body);
+        if (datos is Map<String, dynamic>) {
+          final direccion = datos['address'] as Map<String, dynamic>?;
+          if (direccion != null) {
+            final calle = direccion['road'] ??
+                direccion['pedestrian'] ??
+                direccion['footway'] ??
+                direccion['path'] ??
+                direccion['residential'];
+            final zona = direccion['suburb'] ??
+                direccion['neighbourhood'] ??
+                direccion['city_district'] ??
+                direccion['quarter'] ??
+                direccion['city'];
+
+            if (calle != null && calle.toString().trim().isNotEmpty) {
+              final nombre_calle = calle.toString().trim();
+              if (zona != null && zona.toString().trim().isNotEmpty) {
+                return '$nombre_calle, ${zona.toString().trim()}';
+              }
+              return nombre_calle;
+            } else if (zona != null && zona.toString().trim().isNotEmpty) {
+              return zona.toString().trim();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return 'Ubicación GPS (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})';
+  }
+
   Future<void> _capturarGps(String identificador, _ParadaRuta parada) async {
     setState(() => _capturando_gps_id = identificador);
     HapticFeedback.selectionClick();
@@ -817,7 +860,7 @@ class _DeclararRecorridoPantallaState
 
       if (!mounted) return;
 
-      // Calcular parada más cercana mediante Haversine (TAREA-05)
+      // Calcular distancia Haversine a paradas oficiales de COORDENADAS_PARADAS
       String parada_mas_cercana = "Plaza San Francisco";
       double menor_distancia = double.infinity;
 
@@ -834,19 +877,27 @@ class _DeclararRecorridoPantallaState
         }
       });
 
-      setState(() {
-        parada.posicion_gps = posicion;
-        parada.controlador.text = parada_mas_cercana;
-      });
-      _mensaje("📍 Parada más cercana: $parada_mas_cercana (a ${menor_distancia.round()} m)");
+      if (menor_distancia <= 150) {
+        final nombre_asignado = "Parada $parada_mas_cercana";
+        setState(() {
+          parada.posicion_gps = posicion;
+          parada.controlador.text = nombre_asignado;
+        });
+        _mensaje(
+          "📍 Parada oficial detectada: $parada_mas_cercana (a ${menor_distancia.round()} m)",
+        );
+      } else {
+        final calle_detectada = await _obtenerCalleGps(posicion);
+        if (!mounted) return;
+        setState(() {
+          parada.posicion_gps = posicion;
+          parada.controlador.text = calle_detectada;
+        });
+        _mensaje("📍 Ubicación GPS: $calle_detectada");
+      }
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        if (parada.controlador.text.trim().isEmpty) {
-          parada.controlador.text = "Villa Adela, El Alto";
-        }
-      });
-      _mensaje("📍 Ubicación fijada por aproximación local");
+      _mensaje("No se pudo obtener la ubicación GPS", es_error: true);
     } finally {
       if (mounted) setState(() => _capturando_gps_id = null);
     }
@@ -915,6 +966,26 @@ class _DeclararRecorridoPantallaState
       return;
     }
 
+    if (origen.toLowerCase() == destino.toLowerCase()) {
+      _mensaje(
+        "El punto de partida y llegada no pueden ser la misma ubicación",
+        es_error: true,
+      );
+      return;
+    }
+
+    for (int i = 0; i < _paradas_ida.length - 1; i++) {
+      final p1 = _paradas_ida[i].controlador.text.trim().toLowerCase();
+      final p2 = _paradas_ida[i + 1].controlador.text.trim().toLowerCase();
+      if (p1.isNotEmpty && p1 == p2) {
+        _mensaje(
+          "El punto de partida y llegada no pueden ser la misma ubicación",
+          es_error: true,
+        );
+        return;
+      }
+    }
+
     if (_tieneParadasDuplicadas(_paradas_ida)) {
       _mensaje(
         "No puedes elegir dos veces el mismo lugar en el tramo de ida",
@@ -923,12 +994,43 @@ class _DeclararRecorridoPantallaState
       return;
     }
 
-    if (!_esSoloIda && _tieneParadasDuplicadas(_paradas_vuelta)) {
-      _mensaje(
-        "No puedes elegir dos veces el mismo lugar en el tramo de vuelta",
-        es_error: true,
-      );
-      return;
+    if (!_esSoloIda) {
+      final origen_vuelta = _paradas_vuelta.isNotEmpty
+          ? _paradas_vuelta.first.controlador.text.trim()
+          : "";
+      final destino_vuelta = _paradas_vuelta.length > 1
+          ? _paradas_vuelta.last.controlador.text.trim()
+          : "";
+
+      if (origen_vuelta.isNotEmpty &&
+          destino_vuelta.isNotEmpty &&
+          origen_vuelta.toLowerCase() == destino_vuelta.toLowerCase()) {
+        _mensaje(
+          "El punto de partida y llegada no pueden ser la misma ubicación",
+          es_error: true,
+        );
+        return;
+      }
+
+      for (int i = 0; i < _paradas_vuelta.length - 1; i++) {
+        final p1 = _paradas_vuelta[i].controlador.text.trim().toLowerCase();
+        final p2 = _paradas_vuelta[i + 1].controlador.text.trim().toLowerCase();
+        if (p1.isNotEmpty && p1 == p2) {
+          _mensaje(
+            "El punto de partida y llegada no pueden ser la misma ubicación",
+            es_error: true,
+          );
+          return;
+        }
+      }
+
+      if (_tieneParadasDuplicadas(_paradas_vuelta)) {
+        _mensaje(
+          "No puedes elegir dos veces el mismo lugar en el tramo de vuelta",
+          es_error: true,
+        );
+        return;
+      }
     }
 
     final total_ida = _calcularSubtotal(_tramos_ida);
@@ -1539,6 +1641,32 @@ class _DeclararRecorridoPantallaState
                   )
                 : ElevatedButton(
                     onPressed: () {
+                      final origen = _paradas_ida.isNotEmpty
+                          ? _paradas_ida.first.controlador.text.trim()
+                          : "";
+                      final destino = _paradas_ida.length > 1
+                          ? _paradas_ida.last.controlador.text.trim()
+                          : "";
+                      if (origen.isNotEmpty &&
+                          destino.isNotEmpty &&
+                          origen.toLowerCase() == destino.toLowerCase()) {
+                        _mensaje(
+                          "El punto de partida y llegada no pueden ser la misma ubicación",
+                          es_error: true,
+                        );
+                        return;
+                      }
+                      for (int i = 0; i < _paradas_ida.length - 1; i++) {
+                        final p1 = _paradas_ida[i].controlador.text.trim().toLowerCase();
+                        final p2 = _paradas_ida[i + 1].controlador.text.trim().toLowerCase();
+                        if (p1.isNotEmpty && p1 == p2) {
+                          _mensaje(
+                            "El punto de partida y llegada no pueden ser la misma ubicación",
+                            es_error: true,
+                          );
+                          return;
+                        }
+                      }
                       if (_tieneParadasDuplicadas(_paradas_ida)) {
                         _mensaje(
                           "No puedes elegir dos veces el mismo lugar en el tramo de ida",
@@ -1882,9 +2010,35 @@ class _DeclararRecorridoPantallaState
           // Botón Confirmar / ✓ En esta parada
           GestureDetector(
             onTap: () {
-              if (parada.controlador.text.trim().isEmpty) {
+              final texto_actual = parada.controlador.text.trim();
+              if (texto_actual.isEmpty) {
                 _mensaje("Ingresa el nombre o fija el GPS de la parada");
                 return;
+              }
+              final indice = numero - 1;
+              if (indice > 0) {
+                final anterior =
+                    lista_paradas[indice - 1].controlador.text.trim();
+                if (anterior.isNotEmpty &&
+                    anterior.toLowerCase() == texto_actual.toLowerCase()) {
+                  _mensaje(
+                    "El punto de partida y llegada no pueden ser la misma ubicación",
+                    es_error: true,
+                  );
+                  return;
+                }
+              }
+              if (indice < lista_paradas.length - 1) {
+                final siguiente =
+                    lista_paradas[indice + 1].controlador.text.trim();
+                if (siguiente.isNotEmpty &&
+                    siguiente.toLowerCase() == texto_actual.toLowerCase()) {
+                  _mensaje(
+                    "El punto de partida y llegada no pueden ser la misma ubicación",
+                    es_error: true,
+                  );
+                  return;
+                }
               }
               HapticFeedback.lightImpact();
               setState(() {

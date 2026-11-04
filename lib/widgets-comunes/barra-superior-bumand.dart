@@ -6,8 +6,6 @@ import '../nucleo/tema/colores.dart';
 import '../modulos/autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modulos/autenticacion/pantallas/inicio-sesion-pantalla.dart';
 import '../modulos/evaluaciones/pantallas/evaluaciones-pantalla.dart';
-import '../modulos/asistencia/pantallas/historial-asistencia-pantalla.dart';
-import '../modulos/justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
 import '../modulos/notificaciones/pantallas/notificaciones-pantalla.dart';
 import '../modulos/inicio/pantallas/acerca-de-pantalla.dart';
 
@@ -224,21 +222,24 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      constraints: const BoxConstraints(
+        maxWidth: 580,
+      ),
       builder: (ctx) => ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(ctx).size.height * 0.88,
         ),
-        child: Container(
+        child: Padding(
           padding: EdgeInsets.fromLTRB(
             24,
             16,
             24,
             MediaQuery.of(ctx).viewInsets.bottom + 16,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: SafeArea(
             top: false,
@@ -396,74 +397,6 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const EvaluacionesPantalla()),
                       );
-                    },
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.history_rounded,
-                        color: BumandColores.AZUL_DIACONIA,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      "Historial de Asistencias",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: BumandColores.NEGRO,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      "Marcaciones de ingreso y salida con GPS",
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const HistorialAsistenciaPantalla(),
-                        ),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.assignment_late_outlined,
-                        color: Color(0xFFD97706),
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      "Permisos y Justificaciones",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: BumandColores.NEGRO,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      "Reportes médicos y de incidencias con prueba",
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      SolicitarJustificacionDialogo.mostrar(context);
                     },
                   ),
                   ListTile(

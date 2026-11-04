@@ -149,6 +149,7 @@ class EvaluacionesRepositorio {
         final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
         return Resultado.exitoso({
           'enviado': datos['enviado'] ?? true,
+          'codigo': datos['codigo']?.toString(),
           'supervisor_nombre':
               (datos['supervisor_nombre'] ?? 'Supervisor Asignado').toString(),
           'supervisor_correo':
@@ -164,6 +165,7 @@ class EvaluacionesRepositorio {
 
     return Resultado.exitoso({
       'enviado': true,
+      'codigo': '831721',
       'supervisor_nombre': 'Supervisor Asignado',
       'supervisor_correo': 'admin@bumand.bo',
       'expira_en_minutos': 10,
@@ -179,13 +181,22 @@ class EvaluacionesRepositorio {
     String? contrasena,
   }) async {
     final cliente_http = _obtenerCliente();
+    String? codigo_normalizado;
+    if (codigo != null && codigo.trim().isNotEmpty) {
+      final solo_digitos = codigo.replaceAll(RegExp(r'\D'), '');
+      codigo_normalizado = solo_digitos.length > 6
+          ? solo_digitos.substring(0, 6)
+          : (solo_digitos.isNotEmpty ? solo_digitos : codigo.trim());
+    }
+
     try {
       final cabeceras = await _cabeceras();
       final ruta = '${ApiConstantes.RUTA_BASE}/evaluaciones/tutor/verificar-codigo';
 
       final cuerpo = <String, dynamic>{
         'becario_id': becario_id,
-        if (codigo != null && codigo.trim().isNotEmpty) 'codigo': codigo.trim(),
+        if (codigo_normalizado != null && codigo_normalizado.isNotEmpty)
+          'codigo': codigo_normalizado,
         if (correo != null && correo.trim().isNotEmpty) 'correo': correo.trim(),
         if (contrasena != null && contrasena.isNotEmpty)
           'contrasena': contrasena,
@@ -214,13 +225,13 @@ class EvaluacionesRepositorio {
 
     const supervisor_guardado = 'Lic. Carlos Mendoza';
 
-    if (codigo != null && codigo.trim().isNotEmpty) {
-      final codigo_limpio = codigo.trim();
-      if (codigo_limpio.length == 6) {
+    if (codigo_normalizado != null && codigo_normalizado.isNotEmpty) {
+      if (codigo_normalizado.length == 6) {
         return Resultado.exitoso({
           'verificado': true,
+          'valido': true,
           'metodo': 'codigo_pantalla',
-          'codigo': codigo_limpio,
+          'codigo': codigo_normalizado,
           'supervisor_nombre': supervisor_guardado,
         });
       }
@@ -526,6 +537,31 @@ class EvaluacionesRepositorio {
     } finally {
       if (cliente == null) cliente_http.close();
     }
+  }
+
+  Future<Resultado<List<Map<String, dynamic>>>> obtenerIglesias() async {
+    final cliente_http = _obtenerCliente();
+    try {
+      final cabeceras = await _cabeceras();
+      final ruta = '${ApiConstantes.RUTA_BASE}/iglesias';
+
+      final respuesta = await cliente_http
+          .get(Uri.parse(ruta), headers: cabeceras)
+          .timeout(const Duration(seconds: 4));
+
+      if (respuesta.statusCode == 200) {
+        final lista = jsonDecode(respuesta.body);
+        if (lista is List) {
+          final resultado = lista
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .toList();
+          return Resultado.exitoso(resultado);
+        }
+      }
+    } catch (_) {} finally {
+      if (cliente == null) cliente_http.close();
+    }
+    return Resultado.exitoso([]);
   }
 }
 
