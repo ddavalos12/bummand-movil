@@ -28,6 +28,9 @@ class _ParadaRuta {
     this.confirmada = false,
   });
 
+  double? get lat => posicion_gps?.latitude;
+  double? get lng => posicion_gps?.longitude;
+
   void dispose() {
     controlador.dispose();
   }
@@ -113,33 +116,79 @@ class _DeclararRecorridoPantallaState
   ];
 
   static const List<String> PARADAS_FRECUENTES = [
-    'Oficina Central Diaconía',
+    'Oficina Central Diaconía (Av. Juan Pablo II, El Alto)',
+    'Agencia Diaconía Ceja (El Alto)',
+    'Sede Escuela de Líderes (La Paz)',
+    'La Ceja — Calle 1 / Puente Distribuidor (El Alto)',
+    'Cruce Villa Adela (El Alto)',
     'Villa Adela, El Alto',
-    'Agencia Diaconía Ceja',
-    'Sede Escuela de Líderes',
-    'Ceja',
-    'Pérez Velasco',
-    'Plaza San Francisco',
-    'San Pedro',
-    'Cruce Viacha',
-    'Miraflores',
-    'Sopocachi',
-    'Teleférico',
+    'Cruce Viacha (El Alto)',
+    'Ex Tranca Río Seco (El Alto)',
+    'Extranca Senkata — Av. 6 de Marzo (El Alto)',
+    'Ciudad Satélite — Plaza del Tinku (El Alto)',
+    'Ballivián / Faro Murillo (El Alto)',
+    'UPEA — Villa Esperanza (El Alto)',
+    'Terminal Metropolitana El Alto',
+    'Puente Vela / Ventilla (El Alto)',
+    'Pérez Velasco / Héroes del Pacífico (La Paz)',
+    'Plaza San Francisco (La Paz)',
+    'San Pedro — Plaza Sucre (La Paz)',
+    'El Prado / Obelisco (La Paz)',
+    'UMSA — Monoblock Central (La Paz)',
+    'Sopocachi — Plaza Abaroa (La Paz)',
+    'Miraflores — Estadio Hernando Siles (La Paz)',
+    'Miraflores — Plaza Triangular / Hospital de Clínicas (La Paz)',
+    'Terminal de Buses La Paz / Plaza Antofagasta',
+    'Cementerio General / Ajayuni (La Paz)',
+    'Periférica — Av. Vásquez / Autopista (La Paz)',
+    'Chuquiaguillo / Salida Yungas (La Paz)',
+    'Villa Fátima — Plaza del Maestro / Minasa (La Paz)',
+    'Obrajes — Calle 17 (Zona Sur, La Paz)',
+    'Calacoto — Calle 21 (Zona Sur, La Paz)',
+    'Chasquipampa — Calle 53 (Zona Sur, La Paz)',
+    'Teleférico Línea Roja (Estación Central / 16 de Julio)',
+    'Teleférico Línea Amarilla (Mirador / Sopocachi / Libertador)',
+    'Teleférico Línea Morada (Faro Murillo / San José)',
+    'Teleférico Línea Azul (Río Seco / UPEA / 16 de Julio)',
+    'Teleférico Línea Blanca (Plaza Villarroel / Busch)',
   ];
 
   static const Map<String, ({double lat, double lng})> COORDENADAS_PARADAS = {
-    'Oficina Central Diaconía': (lat: -16.5050, lng: -68.1290),
+    'Oficina Central Diaconía (Av. Juan Pablo II, El Alto)': (lat: -16.50005, lng: -68.17345),
+    'Agencia Diaconía Ceja (El Alto)': (lat: -16.5085, lng: -68.1630),
+    'Sede Escuela de Líderes (La Paz)': (lat: -16.5042, lng: -68.1315),
+    'La Ceja — Calle 1 / Puente Distribuidor (El Alto)': (lat: -16.5088, lng: -68.1627),
+    'Cruce Villa Adela (El Alto)': (lat: -16.5245, lng: -68.1885),
     'Villa Adela, El Alto': (lat: -16.5360, lng: -68.1920),
-    'Agencia Diaconía Ceja': (lat: -16.5085, lng: -68.1630),
-    'Sede Escuela de Líderes': (lat: -16.5042, lng: -68.1315),
-    'Ceja': (lat: -16.5100, lng: -68.1625),
-    'Pérez Velasco': (lat: -16.4958, lng: -68.1372),
-    'Plaza San Francisco': (lat: -16.4965, lng: -68.1378),
-    'San Pedro': (lat: -16.5030, lng: -68.1360),
-    'Cruce Viacha': (lat: -16.5280, lng: -68.1810),
-    'Miraflores': (lat: -16.5010, lng: -68.1220),
-    'Sopocachi': (lat: -16.5120, lng: -68.1270),
-    'Teleférico': (lat: -16.5080, lng: -68.1400),
+    'Cruce Viacha (El Alto)': (lat: -16.5178, lng: -68.1695),
+    'Ex Tranca Río Seco (El Alto)': (lat: -16.4912, lng: -68.2105),
+    'Extranca Senkata — Av. 6 de Marzo (El Alto)': (lat: -16.5655, lng: -68.1872),
+    'Ciudad Satélite — Plaza del Tinku (El Alto)': (lat: -16.5195, lng: -68.1510),
+    'Ballivián / Faro Murillo (El Alto)': (lat: -16.5055, lng: -68.1525),
+    'UPEA — Villa Esperanza (El Alto)': (lat: -16.4935, lng: -68.1940),
+    'Terminal Metropolitana El Alto': (lat: -16.5152, lng: -68.1720),
+    'Puente Vela / Ventilla (El Alto)': (lat: -16.5520, lng: -68.1960),
+    'Pérez Velasco / Héroes del Pacífico (La Paz)': (lat: -16.4958, lng: -68.1372),
+    'Plaza San Francisco (La Paz)': (lat: -16.4965, lng: -68.1378),
+    'San Pedro — Plaza Sucre (La Paz)': (lat: -16.5030, lng: -68.1360),
+    'El Prado / Obelisco (La Paz)': (lat: -16.4988, lng: -68.1340),
+    'UMSA — Monoblock Central (La Paz)': (lat: -16.5048, lng: -68.1298),
+    'Sopocachi — Plaza Abaroa (La Paz)': (lat: -16.5112, lng: -68.1268),
+    'Miraflores — Estadio Hernando Siles (La Paz)': (lat: -16.4995, lng: -68.1228),
+    'Miraflores — Plaza Triangular / Hospital de Clínicas (La Paz)': (lat: -16.5052, lng: -68.1211),
+    'Terminal de Buses La Paz / Plaza Antofagasta': (lat: -16.4895, lng: -68.1415),
+    'Cementerio General / Ajayuni (La Paz)': (lat: -16.4920, lng: -68.1515),
+    'Periférica — Av. Vásquez / Autopista (La Paz)': (lat: -16.4840, lng: -68.1425),
+    'Chuquiaguillo / Salida Yungas (La Paz)': (lat: -16.4620, lng: -68.1050),
+    'Villa Fátima — Plaza del Maestro / Minasa (La Paz)': (lat: -16.4815, lng: -68.1189),
+    'Obrajes — Calle 17 (Zona Sur, La Paz)': (lat: -16.5275, lng: -68.1085),
+    'Calacoto — Calle 21 (Zona Sur, La Paz)': (lat: -16.5398, lng: -68.0865),
+    'Chasquipampa — Calle 53 (Zona Sur, La Paz)': (lat: -16.5440, lng: -68.0530),
+    'Teleférico Línea Roja (Estación Central / 16 de Julio)': (lat: -16.4918, lng: -68.1452),
+    'Teleférico Línea Amarilla (Mirador / Sopocachi / Libertador)': (lat: -16.5172, lng: -68.1338),
+    'Teleférico Línea Morada (Faro Murillo / San José)': (lat: -16.5015, lng: -68.1355),
+    'Teleférico Línea Azul (Río Seco / UPEA / 16 de Julio)': (lat: -16.4960, lng: -68.1820),
+    'Teleférico Línea Blanca (Plaza Villarroel / Busch)': (lat: -16.4930, lng: -68.1195),
   };
 
   double _calcularDistanciaMetros(double lat1, double lon1, double lat2, double lon2) {
@@ -213,7 +262,7 @@ class _DeclararRecorridoPantallaState
     final destino_base =
         (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty)
             ? widget.destino_inicial!
-            : "Oficina Central Diaconía";
+            : "Oficina Central Diaconía (Av. Juan Pablo II, El Alto)";
 
     // Inicializar paradas mínimas de Ida
     _paradas_ida.add(
@@ -252,6 +301,37 @@ class _DeclararRecorridoPantallaState
     );
 
     _cargarUltimoRecorrido();
+    _autoDetectarUbicacionInicial();
+  }
+
+  Future<void> _autoDetectarUbicacionInicial() async {
+    try {
+      final habilitado = await Geolocator.isLocationServiceEnabled();
+      if (!habilitado) return;
+      final permiso = await Geolocator.checkPermission();
+      if (permiso == LocationPermission.denied || permiso == LocationPermission.deniedForever) return;
+
+      final posicion = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 4),
+        ),
+      );
+      if (!mounted) return;
+
+      final nombre_calle = await _obtenerCalleGps(posicion);
+      if (!mounted) return;
+
+      setState(() {
+        if (_paradas_ida.isNotEmpty) {
+          _paradas_ida[0].posicion_gps = posicion;
+          _paradas_ida[0].controlador.text = nombre_calle;
+        }
+        if (_paradas_vuelta.length > 1) {
+          _paradas_vuelta.last.controlador.text = nombre_calle;
+        }
+      });
+    } catch (_) {}
   }
 
   @override
@@ -767,14 +847,31 @@ class _DeclararRecorridoPantallaState
     final destino = preferencias.getString(_CLAVE_DESTINO);
     if (!mounted) return;
     setState(() {
+      final destino_base =
+          (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty)
+              ? widget.destino_inicial!
+              : "Oficina Central Diaconía (Av. Juan Pablo II, El Alto)";
+
       if (origen != null && origen.isNotEmpty && _paradas_ida.isNotEmpty) {
         _paradas_ida[0].controlador.text = origen;
+        if (_paradas_vuelta.length > 1) {
+          _paradas_vuelta.last.controlador.text = origen;
+        }
       }
-      if ((widget.destino_inicial == null || widget.destino_inicial!.isEmpty) &&
-          destino != null &&
-          destino.isNotEmpty &&
-          _paradas_ida.length > 1) {
-        _paradas_ida[1].controlador.text = destino;
+      if (_paradas_ida.length > 1) {
+        if (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty) {
+          _paradas_ida[1].controlador.text = widget.destino_inicial!;
+        } else if (destino != null &&
+            destino.isNotEmpty &&
+            (origen == null || destino.trim().toLowerCase() != origen.trim().toLowerCase())) {
+          _paradas_ida[1].controlador.text = destino;
+        } else {
+          _paradas_ida[1].controlador.text = destino_base;
+        }
+      }
+      if (_paradas_vuelta.isNotEmpty) {
+        _paradas_vuelta[0].controlador.text =
+            _paradas_ida.length > 1 ? _paradas_ida[1].controlador.text : destino_base;
       }
     });
   }
@@ -791,13 +888,24 @@ class _DeclararRecorridoPantallaState
   }
 
   Future<String> _obtenerCalleGps(Position pos) async {
+    // Buscar la parada estratégica más cercana de COORDENADAS_PARADAS
+    String parada_ref = "Oficina Central Diaconía (Av. Juan Pablo II, El Alto)";
+    double menor_dist = double.infinity;
+    COORDENADAS_PARADAS.forEach((nombre, coords) {
+      final d = _calcularDistanciaMetros(pos.latitude, pos.longitude, coords.lat, coords.lng);
+      if (d < menor_dist) {
+        menor_dist = d;
+        parada_ref = nombre;
+      }
+    });
+
     try {
       final uri = Uri.parse(
         'https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.latitude}&lon=${pos.longitude}&zoom=18&addressdetails=1',
       );
       final respuesta = await http.get(
         uri,
-        headers: {'User-Agent': 'BumandMovilApp/1.0'},
+        headers: {'User-Agent': 'BumandMovilApp/1.0', 'Accept-Language': 'es'},
       ).timeout(const Duration(seconds: 4));
 
       if (respuesta.statusCode == 200) {
@@ -805,34 +913,57 @@ class _DeclararRecorridoPantallaState
         if (datos is Map<String, dynamic>) {
           final direccion = datos['address'] as Map<String, dynamic>?;
           if (direccion != null) {
-            final calle = direccion['road'] ??
+            final dynamic calle_obj = direccion['road'] ??
                 direccion['pedestrian'] ??
                 direccion['footway'] ??
                 direccion['path'] ??
-                direccion['residential'];
-            final zona = direccion['suburb'] ??
-                direccion['neighbourhood'] ??
-                direccion['city_district'] ??
-                direccion['quarter'] ??
-                direccion['city'];
+                direccion['residential'] ??
+                direccion['amenity'] ??
+                direccion['building'];
 
-            if (calle != null && calle.toString().trim().isNotEmpty) {
-              final nombre_calle = calle.toString().trim();
-              if (zona != null && zona.toString().trim().isNotEmpty) {
-                return '$nombre_calle, ${zona.toString().trim()}';
+            final dynamic barrio_obj = direccion['neighbourhood'] ??
+                direccion['quarter'] ??
+                direccion['suburb'];
+
+            final dynamic distrito_obj = direccion['city_district'] ??
+                direccion['city'] ??
+                direccion['town'];
+
+            final calle = calle_obj?.toString().trim();
+            final barrio = barrio_obj?.toString().trim();
+            final distrito = distrito_obj?.toString().trim();
+
+            if (calle != null && calle.isNotEmpty) {
+              if (barrio != null && barrio.isNotEmpty) {
+                return '$calle, $barrio';
+              } else if (distrito != null && distrito.isNotEmpty) {
+                return '$calle, $distrito';
               }
-              return nombre_calle;
-            } else if (zona != null && zona.toString().trim().isNotEmpty) {
-              return zona.toString().trim();
+              return calle;
+            } else {
+              final zona = (barrio != null && barrio.isNotEmpty)
+                  ? barrio
+                  : (distrito != null && distrito.isNotEmpty)
+                      ? distrito
+                      : null;
+              if (zona != null) {
+                return 'Zona $zona · Ref. $parada_ref';
+              }
+              return 'Ref. $parada_ref';
             }
           }
         }
       }
     } catch (_) {}
-    return 'Ubicación GPS (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})';
+    return 'Ubicación GPS (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}) · Ref. $parada_ref';
   }
 
-  Future<void> _capturarGps(String identificador, _ParadaRuta parada) async {
+  Future<void> _capturarGps(
+    String identificador,
+    _ParadaRuta parada, {
+    bool? es_ida,
+    int? indice,
+  }) async {
     setState(() => _capturando_gps_id = identificador);
     HapticFeedback.selectionClick();
     try {
@@ -861,7 +992,7 @@ class _DeclararRecorridoPantallaState
       if (!mounted) return;
 
       // Calcular distancia Haversine a paradas oficiales de COORDENADAS_PARADAS
-      String parada_mas_cercana = "Plaza San Francisco";
+      String parada_mas_cercana = "Oficina Central Diaconía (Av. Juan Pablo II, El Alto)";
       double menor_distancia = double.infinity;
 
       COORDENADAS_PARADAS.forEach((nombre, coords) {
@@ -882,6 +1013,7 @@ class _DeclararRecorridoPantallaState
         setState(() {
           parada.posicion_gps = posicion;
           parada.controlador.text = nombre_asignado;
+          parada.confirmada = true;
         });
         _mensaje(
           "📍 Parada oficial detectada: $parada_mas_cercana (a ${menor_distancia.round()} m)",
@@ -892,6 +1024,7 @@ class _DeclararRecorridoPantallaState
         setState(() {
           parada.posicion_gps = posicion;
           parada.controlador.text = calle_detectada;
+          parada.confirmada = true;
         });
         _mensaje("📍 Ubicación GPS: $calle_detectada");
       }
@@ -2007,42 +2140,71 @@ class _DeclararRecorridoPantallaState
           ),
           const SizedBox(width: 6),
 
-          // Botón Confirmar / ✓ En esta parada
+          // Botón Confirmar / ✓ Ubicación fijada / 📍 Fijar aquí
           GestureDetector(
-            onTap: () {
+            onTap: () async {
+              final indice = numero - 1;
+              final anterior = indice > 0
+                  ? lista_paradas[indice - 1].controlador.text.trim()
+                  : null;
+              final siguiente = indice < lista_paradas.length - 1
+                  ? lista_paradas[indice + 1].controlador.text.trim()
+                  : null;
               final texto_actual = parada.controlador.text.trim();
-              if (texto_actual.isEmpty) {
-                _mensaje("Ingresa el nombre o fija el GPS de la parada");
+
+              if (parada.confirmada) {
+                HapticFeedback.selectionClick();
+                setState(() {
+                  parada.confirmada = false;
+                });
                 return;
               }
-              final indice = numero - 1;
-              if (indice > 0) {
-                final anterior =
-                    lista_paradas[indice - 1].controlador.text.trim();
-                if (anterior.isNotEmpty &&
-                    anterior.toLowerCase() == texto_actual.toLowerCase()) {
-                  _mensaje(
-                    "El punto de partida y llegada no pueden ser la misma ubicación",
-                    es_error: true,
-                  );
-                  return;
-                }
+
+              final es_igual_al_anterior = anterior != null &&
+                  anterior.isNotEmpty &&
+                  anterior.toLowerCase() == texto_actual.toLowerCase();
+              final necesita_gps = parada.lat == null ||
+                  texto_actual.isEmpty ||
+                  es_igual_al_anterior;
+
+              if (necesita_gps) {
+                await _capturarGps(
+                  'parada_${es_ida ? "ida" : "vuelta"}_$numero',
+                  parada,
+                  es_ida: es_ida,
+                  indice: indice,
+                );
               }
-              if (indice < lista_paradas.length - 1) {
-                final siguiente =
-                    lista_paradas[indice + 1].controlador.text.trim();
-                if (siguiente.isNotEmpty &&
-                    siguiente.toLowerCase() == texto_actual.toLowerCase()) {
-                  _mensaje(
-                    "El punto de partida y llegada no pueden ser la misma ubicación",
-                    es_error: true,
-                  );
-                  return;
-                }
+
+              final texto_final = parada.controlador.text.trim();
+              if (texto_final.isEmpty) {
+                _mensaje("Ingresa el nombre o fija el GPS de la parada", es_error: true);
+                return;
               }
+
+              if (anterior != null &&
+                  anterior.isNotEmpty &&
+                  anterior.toLowerCase() == texto_final.toLowerCase()) {
+                _mensaje(
+                  "El punto de partida y llegada no pueden ser la misma ubicación",
+                  es_error: true,
+                );
+                return;
+              }
+
+              if (siguiente != null &&
+                  siguiente.isNotEmpty &&
+                  siguiente.toLowerCase() == texto_final.toLowerCase()) {
+                _mensaje(
+                  "El punto de partida y llegada no pueden ser la misma ubicación",
+                  es_error: true,
+                );
+                return;
+              }
+
               HapticFeedback.lightImpact();
               setState(() {
-                parada.confirmada = !parada.confirmada;
+                parada.confirmada = true;
               });
             },
             child: AnimatedContainer(
@@ -2060,7 +2222,14 @@ class _DeclararRecorridoPantallaState
                 ),
               ),
               child: Text(
-                parada.confirmada ? "✓ En esta parada" : "Confirmar",
+                parada.confirmada
+                    ? "✓ Ubicación fijada"
+                    : (parada.controlador.text.trim().isEmpty ||
+                            (numero > 1 &&
+                                parada.controlador.text.trim().toLowerCase() ==
+                                    lista_paradas[numero - 2].controlador.text.trim().toLowerCase()))
+                        ? "📍 Fijar aquí"
+                        : "Confirmar",
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
