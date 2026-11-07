@@ -29,6 +29,30 @@ final historial_asistencia_proveedor = FutureProvider((ref) {
 
 final historialAsistenciaProveedor = historial_asistencia_proveedor;
 
+final extractos_mensuales_proveedor =
+    FutureProvider<List<ExtractoMensualAsistencia>>((ref) async {
+  final repo = ref.read(asistencia_repositorio_proveedor);
+  final resultado = await repo.obtenerExtractosMensuales();
+  if (resultado.exito && resultado.datos != null) {
+    return resultado.datos!;
+  }
+  return repo.generarExtractosLocales();
+});
+
+final extractosMensualesProveedor = extractos_mensuales_proveedor;
+
+final extracto_mensual_proveedor =
+    FutureProvider.family<ExtractoMensualAsistencia, String>((ref, mes) async {
+  final repo = ref.read(asistencia_repositorio_proveedor);
+  final resultado = await repo.obtenerExtractoMensual(mes: mes);
+  if (resultado.exito && resultado.datos != null) {
+    return resultado.datos!;
+  }
+  return repo.obtenerExtractoLocalPorMes(mes);
+});
+
+final extractoMensualProveedor = extracto_mensual_proveedor;
+
 class AsistenciaNotificador extends AsyncNotifier<void> {
   AsistenciaRepositorio get _repo => ref.read(asistencia_repositorio_proveedor);
 

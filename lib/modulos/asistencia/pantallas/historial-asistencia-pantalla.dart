@@ -12,9 +12,10 @@ import '../../pasajes/modelos/recorrido-modelo.dart';
 import '../../pasajes/modelos/solicitud-pasaje-modelo.dart';
 import '../../pasajes/pantallas/detalle-historial-pasaje-pantalla.dart';
 import '../../pasajes/proveedores/pasajes-proveedor.dart';
-import '../modelos/tipo-asistencia.dart';
 import '../proveedores/asistencia-proveedor.dart';
 import '../widgets/detalle_asistencia_modal.dart';
+import '../repositorios/asistencia-repositorio.dart';
+import 'detalle-extracto-asistencia-pantalla.dart';
 
 class HistorialAsistenciaPantalla extends ConsumerStatefulWidget {
   const HistorialAsistenciaPantalla({super.key});
@@ -31,7 +32,10 @@ class _HistorialAsistenciaPantallaState
   static const _BORDE = BumandColores.grisClaro;
 
   late final TabController _controlador_tabs;
-  String _filtro_tipo = "todas";
+  final TextEditingController _controlador_busqueda_asistencia =
+      TextEditingController();
+  String _mes_seleccionado_asistencia = "todos";
+  String _filtro_actividad_inline = "todos";
   String _subseccion_evaluacion = "todas";
 
   @override
@@ -42,26 +46,11 @@ class _HistorialAsistenciaPantallaState
 
   @override
   void dispose() {
+    _controlador_busqueda_asistencia.dispose();
     _controlador_tabs.dispose();
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _filtrar(List<Map<String, dynamic>> lista) {
-    if (_filtro_tipo == "todas") return lista;
-    return lista.where((r) {
-      final tipo = r["tipo"]?.toString().toLowerCase() ?? "";
-      if (_filtro_tipo == "liderazgo" || _filtro_tipo == "escuela_lideres") {
-        return tipo == "liderazgo" || tipo == "escuela_lideres" || tipo.contains("lider");
-      }
-      if (_filtro_tipo == "servicio" || _filtro_tipo == "acciones_servicio") {
-        return tipo == "servicio" || tipo == "acciones_servicio" || tipo.contains("servicio");
-      }
-      if (_filtro_tipo == "practicas") {
-        return tipo == "practicas" || tipo.contains("practica");
-      }
-      return tipo == _filtro_tipo;
-    }).toList();
-  }
 
   double _calcularMultaPorMinutos(int minutos) {
     if (minutos <= 0) return 0.0;
@@ -84,6 +73,7 @@ class _HistorialAsistenciaPantallaState
             tooltip: "Actualizar",
             onPressed: () {
               ref.invalidate(historial_asistencia_proveedor);
+              ref.invalidate(extractos_mensuales_proveedor);
               ref.invalidate(solicitudes_pasajes_proveedor);
               ref.invalidate(evaluacion_consolidada_proveedor);
             },
@@ -147,497 +137,295 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
+  static const List<String> _MESES_DISPONIBLES = [
+    "todos",
+    "Noviembre",
+    "Octubre",
+    "Septiembre",
+    "Agosto",
+    "Julio",
+    "Junio",
+    "Mayo",
+    "Abril",
+    "Marzo",
+  ];
+
   Widget _construirPestanaAsistencias() {
-    final historial_async = ref.watch(historial_asistencia_proveedor);
+    final extractos_async = ref.watch(extractos_mensuales_proveedor);
 
     return RefreshIndicator(
       color: BumandColores.NARANJA_OSCURO,
       backgroundColor: BumandColores.AZUL_DIACONIA,
-      onRefresh: () async => ref.invalidate(historial_asistencia_proveedor),
+      onRefresh: () async {
+        ref.invalidate(historial_asistencia_proveedor);
+        ref.invalidate(extractos_mensuales_proveedor);
+      },
       child: Column(
         children: [
+          // 1. Buscador tecleable superior
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _BORDE),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _controlador_busqueda_asistencia,
+              decoration: InputDecoration(
+                hintText: "Teclea un mes (ej. Mayo, Junio, Octubre)...",
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: BumandColores.AZUL_DIACONIA,
+                  size: 20,
+                ),
+                suffixIcon: _controlador_busqueda_asistencia.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        onPressed: () {
+                          _controlador_busqueda_asistencia.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+
+          // 2. Píldoras horizontales seleccionables de meses
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: [
-                  _chipFiltro("todas", "Todas"),
-                  const SizedBox(width: 8),
-                  _chipFiltro("practicas", "Prácticas Diaconía"),
-                  const SizedBox(width: 8),
-                  _chipFiltro("liderazgo", "Escuela de Líderes"),
-                  const SizedBox(width: 8),
-                  _chipFiltro("servicio", "Acciones de Servicio"),
-                  const SizedBox(width: 8),
-                  _chipFiltro("devocional", "Devocionales"),
-                ],
+                children: _MESES_DISPONIBLES.map((mes) {
+                  final seleccionado =
+                      _mes_seleccionado_asistencia.toLowerCase() ==
+                          mes.toLowerCase();
+                  final etiqueta = mes == "todos" ? "Todos los meses" : mes;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(etiqueta),
+                      selected: seleccionado,
+                      onSelected: (_) {
+                        setState(() {
+                          _mes_seleccionado_asistencia = mes;
+                          if (mes != "todos") {
+                            _controlador_busqueda_asistencia.clear();
+                          }
+                        });
+                      },
+                      selectedColor: BumandColores.AZUL_DIACONIA,
+                      backgroundColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color:
+                            seleccionado ? Colors.white : const Color(0xFF475569),
+                        fontWeight:
+                            seleccionado ? FontWeight.bold : FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: seleccionado
+                              ? BumandColores.AZUL_DIACONIA
+                              : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ),
+
+          // 3. Contenido según filtro
           Expanded(
-            child: historial_async.when(
-              data: (resultado) {
-                final registros = resultado.datos ?? [];
-                final filtrados = _filtrar(registros);
+            child: extractos_async.when(
+              data: (lista_extractos) {
+                final todos = lista_extractos.isNotEmpty
+                    ? lista_extractos
+                    : ref.read(asistencia_repositorio_proveedor).generarExtractosLocales();
 
-                final total_horas = filtrados.fold<double>(0.0, (acc, r) {
-                  final ingreso = r["horaIngreso"]?.toString();
-                  final salida = r["horaSalida"]?.toString();
-                  if (ingreso != null &&
-                      salida != null &&
-                      ingreso.contains(":") &&
-                      salida.contains(":")) {
-                    final p_in = ingreso.split(":");
-                    final p_out = salida.split(":");
-                    final h_in = int.tryParse(p_in[0]) ?? 0;
-                    final m_in = int.tryParse(p_in[1]) ?? 0;
-                    final h_out = int.tryParse(p_out[0]) ?? 0;
-                    final m_out = int.tryParse(p_out[1]) ?? 0;
-                    final diff_min = (h_out * 60 + m_out) - (h_in * 60 + m_in);
-                    if (diff_min > 0) return acc + (diff_min / 60.0);
-                  }
-                  return acc + 4.0;
-                });
+                final query = _controlador_busqueda_asistencia.text.trim().toLowerCase();
 
-                final horas_mostrar = total_horas > 0 ? total_horas : 38.5;
+                List<ExtractoMensualAsistencia> filtrados;
+                if (query.isNotEmpty) {
+                  filtrados = todos.where((e) {
+                    return e.mes_nombre.toLowerCase().contains(query) ||
+                        e.mes_corto.toLowerCase().contains(query);
+                  }).toList();
+                } else if (_mes_seleccionado_asistencia != "todos") {
+                  filtrados = todos.where((e) {
+                    return e.mes_corto.toLowerCase() ==
+                        _mes_seleccionado_asistencia.toLowerCase();
+                  }).toList();
+                } else {
+                  filtrados = todos;
+                }
+
+                // Caso A: Sin resultados de búsqueda
+                if (filtrados.isEmpty) {
+                  return ListView(
+                    padding: const EdgeInsets.all(32),
+                    children: [
+                      const SizedBox(height: 20),
+                      Icon(
+                        Icons.search_off_rounded,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: Text(
+                          "No se encontraron registros para '$query'",
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Center(
+                        child: Text(
+                          "Verifica el nombre del mes o selecciona 'Todos los meses'.",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            _controlador_busqueda_asistencia.clear();
+                            setState(() => _mes_seleccionado_asistencia = "todos");
+                          },
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text("Ver todos los meses"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: BumandColores.AZUL_DIACONIA,
+                            side: const BorderSide(
+                              color: BumandColores.AZUL_DIACONIA,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                // Caso B: Mes Único Seleccionado o Tecleado (ej. Mayo) -> Extracto bancario completo en pantalla
+                if (filtrados.length == 1 &&
+                    (_mes_seleccionado_asistencia != "todos" || query.isNotEmpty)) {
+                  return _construirVistaMesUnicoConExtracto(filtrados.first);
+                }
+
+                // Caso C: Lista de Meses (Todos los meses o coincidencia múltiple)
+                final total_horas_gestion = todos.fold<double>(
+                  0.0,
+                  (acc, e) => acc + e.horas_totales,
+                );
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: filtrados.length + 2,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return _construirTarjetaHorasSemanales(horas_mostrar);
-                    }
-
-                    if (index == 1) {
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  itemCount: filtrados.length + 1,
+                  itemBuilder: (context, i) {
+                    if (i == 0) {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: _BORDE),
+                          gradient: const LinearGradient(
+                            colors: [
+                              BumandColores.AZUL_DIACONIA,
+                              BumandColores.azulMarinoSecundario,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: BumandColores.AZUL_DIACONIA
+                                  .withValues(alpha: 0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _kpiMetricaColor(
-                              "${filtrados.length}",
-                              "Marcaciones",
-                              Icons.check_circle_outline,
-                              BumandColores.AZUL_DIACONIA,
-                            ),
-                            Container(
-                              height: 32,
-                              width: 1,
-                              color: const Color(0xFFE2E8F0),
-                            ),
-                            _kpiMetricaColor(
-                              "${horas_mostrar.toStringAsFixed(1)} h",
-                              "Horas de servicio",
+                            _kpiMetricaBlanco(
+                              "${total_horas_gestion.toStringAsFixed(1)} h",
+                              "Horas Gestión",
                               Icons.timer_outlined,
-                              const Color(0xFF0D9488),
                             ),
                             Container(
-                              height: 32,
+                              height: 36,
                               width: 1,
-                              color: const Color(0xFFE2E8F0),
+                              color: Colors.white.withValues(alpha: 0.3),
                             ),
-                            _kpiMetricaColor(
-                              "100%",
-                              "Geocerca GPS",
-                              Icons.location_on_outlined,
-                              const Color(0xFF059669),
+                            _kpiMetricaBlanco(
+                              "36.00 h",
+                              "Meta Mensual",
+                              Icons.verified_outlined,
+                            ),
+                            Container(
+                              height: 36,
+                              width: 1,
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
+                            _kpiMetricaBlanco(
+                              "${todos.length} meses",
+                              "Meses Registrados",
+                              Icons.calendar_month_outlined,
                             ),
                           ],
                         ),
                       );
                     }
 
-                    final item = filtrados[index - 2];
-                    final tipo_raw = item["tipo"]?.toString().toLowerCase() ?? "";
-                    final tipo_etiqueta = TipoAsistencia.etiquetaDe(tipo_raw);
-                    final fecha = item["fecha"]?.toString() ?? "Sin fecha";
-                    final hora_in = item["horaIngreso"]?.toString() ?? "--:--";
-                    final hora_out = item["horaSalida"]?.toString() ?? "--:--";
-                    final horas_texto = item["horasTrabajadas"]?.toString() ??
-                        item["horas"]?.toString() ??
-                        "4h 30m";
-                    final bloque = item["bloque"]?.toString() ??
-                        (tipo_raw.contains("lider")
-                            ? "Bloque Norte (Auditorio Principal)"
-                            : "Bloque Central (Oficina Diaconía)");
-
-                    final es_viernes = item["es_viernes"] == true ||
-                        tipo_raw.contains("lider") ||
-                        fecha.toLowerCase().contains("vie");
-
-                    final confirmado_organizador =
-                        item["confirmado_organizador"] == true ||
-                        item["confirmado"] == true;
-
-                    final tiene_permiso_aprobado =
-                        item["permiso_aprobado"] == true ||
-                        item["sin_multa"] == true ||
-                        item["exento_multa"] == true;
-
-                    final estado_raw = item["estado"]?.toString().toLowerCase();
-                    final estado_aprobacion = (estado_raw != null && estado_raw.isNotEmpty)
-                        ? estado_raw
-                        : (confirmado_organizador ? "aprobado_administracion" : "pendiente");
-
-                    final es_manual = item["es_registro_manual"] == true ||
-                        item["esRegistroManual"] == true ||
-                        item["registro_manual"] == true ||
-                        item["manual"] == true;
-
-                    return GestureDetector(
-                      onTap: () {
-                        DetalleAsistenciaModal.mostrar(
-                          context,
-                          titulo: fecha,
-                          subtitulo: "Registro de $tipo_etiqueta",
-                          tipo_registro: tipo_etiqueta,
-                          lugar: item["lugar"]?.toString() ??
-                              "Iglesia Bautista Central",
-                          ingreso: hora_in,
-                          salida: hora_out,
-                          horas_trabajadas: horas_texto,
-                          distancia: "${item["distancia"] ?? 38} m",
-                          dentro_geocerca: true,
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: _BORDE),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: BumandColores.AZUL_DIACONIA
-                                            .withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(
-                                        Icons.calendar_today_outlined,
-                                        size: 16,
-                                        color: BumandColores.AZUL_DIACONIA,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      fecha,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        color: BumandColores.NEGRO,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: BumandColores.TURQUESA_DIACONIA
-                                            .withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        tipo_etiqueta,
-                                        style: const TextStyle(
-                                          color: BumandColores.AZUL_DIACONIA,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    _chipEstadoAsistencia(estado_aprobacion),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.apartment,
-                                  size: 15,
-                                  color: Color(0xFF64748B),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    "Bloque detectado: $bloque",
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF475569),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (es_manual) ...[
-                              const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEEF2FF),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: const Color(0xFF6366F1),
-                                  ),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.admin_panel_settings_outlined,
-                                      size: 14,
-                                      color: Color(0xFF4F46E5),
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      "Registrado por Administración",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF4F46E5),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            if (es_viernes) ...[
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 4,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: confirmado_organizador
-                                          ? const Color(0xFFECFDF5)
-                                          : const Color(0xFFFEF3C7),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: confirmado_organizador
-                                            ? const Color(0xFF10B981)
-                                            : const Color(0xFFF59E0B),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          confirmado_organizador
-                                              ? Icons.verified_user
-                                              : Icons.hourglass_top_rounded,
-                                          size: 14,
-                                          color: confirmado_organizador
-                                              ? const Color(0xFF047857)
-                                              : const Color(0xFFB45309),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          confirmado_organizador
-                                              ? "Viernes • Confirmada por organizador"
-                                              : "Viernes • Pendiente llamada de lista",
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: confirmado_organizador
-                                                ? const Color(0xFF047857)
-                                                : const Color(0xFFB45309),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (tiene_permiso_aprobado)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFECFDF5),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: const Color(0xFF10B981),
-                                        ),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.verified_rounded,
-                                            size: 14,
-                                            color: Color(0xFF047857),
-                                          ),
-                                          SizedBox(width: 6),
-                                          Text(
-                                            "Sin Multa (Permiso Aprobado)",
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF047857),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.login,
-                                        size: 16,
-                                        color: Color(0xFF10B981),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "Ingreso",
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          Text(
-                                            hora_in,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.logout,
-                                        size: 16,
-                                        color: BumandColores.NARANJA_OSCURO,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "Salida",
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          Text(
-                                            hora_out,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade50,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: Colors.green.shade200,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.verified,
-                                        size: 12,
-                                        color: Colors.green.shade700,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "GPS Verificado",
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green.shade800,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+                    final item = filtrados[i - 1];
+                    return _construirTarjetaMensualAsistencia(item);
                   },
                 );
               },
-              loading: () => CargandoSkeleton.lista(cantidad: 5, alto_item: 94),
-              error: (error, _) => ErrorWidgetPersonalizado(
-                mensaje: "Error al cargar historial de asistencias",
-                detalles: [error.toString()],
-                alReintentar: () =>
-                    ref.invalidate(historial_asistencia_proveedor),
+              loading: () => CargandoSkeleton.lista(cantidad: 4, alto_item: 120),
+              error: (err, _) => ErrorWidgetPersonalizado(
+                mensaje: "Error al cargar extractos mensuales",
+                detalles: [err.toString()],
+                alReintentar: () => ref.invalidate(extractos_mensuales_proveedor),
               ),
             ),
           ),
@@ -646,158 +434,902 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Widget _construirTarjetaHorasSemanales(double horas_acumuladas) {
-    const double meta_mensual = 36.0;
-    final int porcentaje = ((horas_acumuladas / meta_mensual) * 100).round();
-    final double horas_extra =
-        horas_acumuladas > meta_mensual ? horas_acumuladas - meta_mensual : 0.0;
-    final String texto_meta;
-    if (horas_acumuladas > 36.0) {
-      texto_meta =
-          "Meta Superada: 36 h (+${horas_extra.toStringAsFixed(1)} h) · $porcentaje%";
-    } else if (horas_acumuladas == 36.0) {
-      texto_meta = "Meta Cumplida: 36 h (9 h/sem) · 100%";
-    } else if (horas_acumuladas >= 27.0) {
-      texto_meta =
-          "En Progreso: ${horas_acumuladas.toStringAsFixed(1)} / 36 h (9 h/sem) · $porcentaje%";
-    } else {
-      texto_meta =
-          "En Riesgo: ${horas_acumuladas.toStringAsFixed(1)} / 36 h (9 h/sem) · $porcentaje%";
+  /// Despliega directamente el extracto bancario completo del mes seleccionado
+  Widget _construirVistaMesUnicoConExtracto(ExtractoMensualAsistencia extracto) {
+    List<MovimientoExtractoAsistencia> movimientos = extracto.movimientos;
+    if (_filtro_actividad_inline != "todos") {
+      movimientos = movimientos.where((m) {
+        if (_filtro_actividad_inline == "practicas") {
+          return m.tipo == "practicas" || m.actividad.toLowerCase().contains("práctica");
+        }
+        if (_filtro_actividad_inline == "liderazgo") {
+          return m.tipo == "liderazgo" || m.actividad.toLowerCase().contains("líder");
+        }
+        if (_filtro_actividad_inline == "servicio") {
+          return m.tipo == "servicio" || m.actividad.toLowerCase().contains("servicio");
+        }
+        return m.tipo == _filtro_actividad_inline;
+      }).toList();
     }
 
-    final barras_semanales = [
-      {"dia": "03 ago", "horas": 7.5, "factor": 0.65},
-      {"dia": "10 ago", "horas": 9.5, "factor": 0.85},
-      {"dia": "17 ago", "horas": 8.0, "factor": 0.70},
-      {"dia": "24 ago", "horas": 8.5, "factor": 0.75},
-      {"dia": "31 ago", "horas": 5.0, "factor": 0.45},
-    ];
+    final horas = extracto.horas_totales;
+    const meta = 36.0;
+    final cumplio = horas >= meta;
+    final diferencia = horas - meta;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: BumandColores.azulMarinoSecundario,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: BumandColores.azulMarinoSecundario.withValues(alpha: 0.3),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.access_time_rounded,
-                color: Color(0xFF93C5FD),
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                "Horas acumuladas este mes",
-                style: TextStyle(
-                  color: Color(0xFFE2E8F0),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  "Agosto 2026",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+      children: [
+        // Tarjeta Resumen Principal del Mes
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                BumandColores.azulMarinoSecundario,
+                BumandColores.AZUL_DIACONIA,
+                BumandColores.TURQUESA_DIACONIA,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: BumandColores.azulMarinoSecundario.withValues(alpha: 0.3),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "${horas_acumuladas.toStringAsFixed(1)} h",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                    ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        extracto.mes_nombre,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: BumandColores.TURQUESA_DIACONIA.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
+                      color: Colors.white.withValues(alpha: 0.20),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      texto_meta,
-                      style: const TextStyle(
-                        color: BumandColores.TURQUESA_DIACONIA,
-                        fontSize: 10.5,
+                      extracto.estado,
+                      style: TextStyle(
+                        color: cumplio
+                            ? const Color(0xFF6EE7B7)
+                            : BumandColores.AMARILLO_RADIANTE,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 0.4,
                       ),
                     ),
                   ),
                 ],
               ),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.bottomRight,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: barras_semanales.map((barra) {
-                  final factor = barra["factor"] as double;
-                  final dia = barra["dia"] as String;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+              const SizedBox(height: 14),
+              Text(
+                "TOTAL DE HORAS REALIZADAS EN EL MES",
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "${horas.toStringAsFixed(2)} hrs",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Divider(
+                color: Colors.white.withValues(alpha: 0.25),
+                height: 1,
+                thickness: 1,
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 14,
-                          height: 52 * factor,
-                          decoration: BoxDecoration(
-                            color: BumandColores.TURQUESA_DIACONIA,
-                            borderRadius: BorderRadius.circular(4),
+                        Text(
+                          "META MENSUAL REGLAMENTARIA (36.00 hrs)",
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 3),
                         Text(
-                          dia,
+                          cumplio
+                              ? "+${diferencia.toStringAsFixed(2)} hrs · ${extracto.porcentaje_cumplido}% Cumplido"
+                              : "En progreso · Faltan ${(meta - horas).toStringAsFixed(2)} hrs",
                           style: const TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w500,
+                            color: BumandColores.AMARILLO_RADIANTE,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
-                  );
-                }).toList(),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "${extracto.jornadas_totales} días",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "${extracto.tasa_puntualidad}% punt.",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Barra de encabezado del extracto diario ("encimita nomás")
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Extracto diario de entradas y salidas",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                Text(
+                  "Mostrando ${movimientos.length} de ${extracto.jornadas_totales} jornadas",
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () {
+                DetalleExtractoAsistenciaPantalla.navegar(
+                  context,
+                  extracto: extracto,
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "Pantalla completa",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: BumandColores.AZUL_DIACONIA,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.open_in_new_rounded,
+                      size: 13,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        // Filtros por actividad inline
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              {"id": "todos", "etiqueta": "Todos"},
+              {"id": "practicas", "etiqueta": "Prácticas"},
+              {"id": "liderazgo", "etiqueta": "Escuela de Líderes"},
+              {"id": "servicio", "etiqueta": "Servicio"},
+            ].map((op) {
+              final sel = _filtro_actividad_inline == op["id"];
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(
+                  label: Text(op["etiqueta"]!),
+                  selected: sel,
+                  onSelected: (_) {
+                    setState(() => _filtro_actividad_inline = op["id"]!);
+                  },
+                  selectedColor: BumandColores.AZUL_DIACONIA,
+                  backgroundColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: sel ? Colors.white : const Color(0xFF475569),
+                    fontWeight: sel ? FontWeight.bold : FontWeight.w600,
+                    fontSize: 11.5,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(
+                      color: sel
+                          ? BumandColores.AZUL_DIACONIA
+                          : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // Tabla de movimientos bancaria
+        _construirTablaMovimientosInline(movimientos),
+      ],
+    );
+  }
+
+  /// Tabla / Lista bancaria de movimientos diarios del mes
+  Widget _construirTablaMovimientosInline(
+    List<MovimientoExtractoAsistencia> movimientos,
+  ) {
+    if (movimientos.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.event_busy_outlined,
+              size: 36,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Sin registros para este filtro",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Color(0xFF475569),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          children: [
+            // Cabecera bancaria
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF1F5F9),
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 50,
+                    child: Text(
+                      "FECHA",
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "DETALLE Y HORARIO (ENTRADA → SALIDA)",
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  SizedBox(
+                    width: 82,
+                    child: Text(
+                      "HORAS / ACUM.",
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Filas diarias
+            for (int i = 0; i < movimientos.length; i++) ...[
+              if (i > 0)
+                const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Color(0xFFF1F5F9),
+                  indent: 12,
+                  endIndent: 12,
+                ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    DetalleAsistenciaModal.mostrar(
+                      context,
+                      titulo:
+                          "Jornada ${movimientos[i].fecha_formateada} · ${movimientos[i].dia_semana}",
+                      subtitulo: movimientos[i].actividad,
+                      tipo_registro: movimientos[i].actividad,
+                      lugar: movimientos[i].lugar,
+                      ingreso: movimientos[i].hora_entrada,
+                      salida: movimientos[i].hora_salida,
+                      horas_trabajadas:
+                          "${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
+                      distancia:
+                          "${movimientos[i].distancia_gps.toInt()} m",
+                      dentro_geocerca: movimientos[i].dentro_geocerca,
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        // Columna 1: Badge de fecha
+                        Container(
+                          width: 50,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                movimientos[i].fecha_formateada,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                              Text(
+                                movimientos[i].dia_semana,
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // Columna 2: Actividad, sede y píldora de horario
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                movimientos[i].actividad,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                movimientos[i].lugar,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  color: Color(0xFF64748B),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.circle,
+                                      size: 6,
+                                      color: Color(0xFF10B981),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      movimientos[i].hora_entrada,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF334155),
+                                      ),
+                                    ),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      child: Text(
+                                        "→",
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF94A3B8),
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.circle,
+                                      size: 6,
+                                      color: BumandColores.AMARILLO_RADIANTE,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      movimientos[i].hora_salida,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF334155),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: 6),
+
+                        // Columna 3: Horas y Acumulado
+                        SizedBox(
+                          width: 82,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                "+${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: BumandColores.AZUL_DIACONIA,
+                                ),
+                              ),
+                              Text(
+                                "Acum: ${movimientos[i].horas_acumuladas.toStringAsFixed(2)} h",
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Tarjeta mensual de resumen cuando se listan todos los meses
+  Widget _construirTarjetaMensualAsistencia(ExtractoMensualAsistencia item) {
+    final previas = item.movimientos.take(2).toList();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _BORDE),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            DetalleExtractoAsistenciaPantalla.navegar(
+              context,
+              extracto: item,
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: BumandColores.AZUL_DIACONIA
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 16,
+                            color: BumandColores.AZUL_DIACONIA,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          item.mes_nombre,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15.5,
+                            color: BumandColores.NEGRO,
+                          ),
+                        ),
+                      ],
+                    ),
+                    _chipEstadoMes(item.estado),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Total de Horas",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "${item.horas_totales.toStringAsFixed(2)} hrs",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: BumandColores.AZUL_DIACONIA,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Días Asistidos",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "${item.jornadas_totales} jornadas",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Puntualidad",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "${item.tasa_puntualidad}%",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Color(0xFF047857),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (previas.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  const SizedBox(height: 10),
+                  Text(
+                    "ÚLTIMAS JORNADAS DEL MES",
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade500,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  for (final mov in previas)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "${mov.fecha_formateada} ${mov.dia_semana}",
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              mov.actividad,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "${mov.hora_entrada} → ${mov.hora_salida}",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "+${mov.horas_dia.toStringAsFixed(1)}h",
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: BumandColores.AZUL_DIACONIA,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.receipt_long_rounded,
+                          size: 16,
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "Ver extracto completo de entradas y salidas (${item.jornadas_totales} días)",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: BumandColores.AZUL_DIACONIA,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 12,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chipEstadoMes(String estado) {
+    final cumplida = estado.toUpperCase().contains("CUMPLIDA");
+    final color_fondo =
+        cumplida ? const Color(0xFFECFDF5) : const Color(0xFFFEF3C7);
+    final color_borde =
+        cumplida ? const Color(0xFF10B981) : BumandColores.AMARILLO_RADIANTE;
+    final color_texto =
+        cumplida ? const Color(0xFF047857) : const Color(0xFF92400E);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color_fondo,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color_borde),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            cumplida ? Icons.check_circle_rounded : Icons.pending_rounded,
+            size: 12,
+            color: color_texto,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            estado,
+            style: TextStyle(
+              color: color_texto,
+              fontSize: 10.5,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -1639,30 +2171,6 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Widget _chipEstadoAsistencia(String estado) {
-    final (texto, color) = switch (estado.toLowerCase()) {
-      "revisado_supervisor" => ("2. Revisado por Supervisor", BumandColores.AZUL_DIACONIA),
-      "aprobado_administracion" || "aprobado" => ("✓ Aprobado por Administración", const Color(0xFF047857)),
-      _ => ("1. Pendiente", const Color(0xFFD97706)),
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        texto,
-        style: TextStyle(
-          color: color,
-          fontSize: 10.5,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
 
   Color _colorEstadoPasaje(String estado) {
     switch (estado.toLowerCase()) {
@@ -1937,28 +2445,6 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Widget _chipFiltro(String clave, String etiqueta) {
-    final seleccionado = _filtro_tipo == clave ||
-        ((clave == "liderazgo" || clave == "escuela_lideres") &&
-            (_filtro_tipo == "liderazgo" || _filtro_tipo == "escuela_lideres")) ||
-        ((clave == "servicio" || clave == "acciones_servicio") &&
-            (_filtro_tipo == "servicio" || _filtro_tipo == "acciones_servicio"));
-    return ChoiceChip(
-      label: Text(etiqueta),
-      selected: seleccionado,
-      onSelected: (_) => setState(() => _filtro_tipo = clave),
-      selectedColor: BumandColores.AZUL_DIACONIA,
-      backgroundColor: Colors.white,
-      labelStyle: TextStyle(
-        color: seleccionado ? Colors.white : BumandColores.NEGRO,
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-      ),
-      side: BorderSide(
-        color: seleccionado ? BumandColores.AZUL_DIACONIA : _BORDE,
-      ),
-    );
-  }
 
   Widget _kpiMetricaBlanco(String valor, String etiqueta, IconData icono) {
     return Column(
@@ -1984,32 +2470,4 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Widget _kpiMetricaColor(
-    String valor,
-    String etiqueta,
-    IconData icono,
-    Color color_tema,
-  ) {
-    return Column(
-      children: [
-        Icon(icono, color: color_tema, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          valor,
-          style: TextStyle(
-            color: color_tema,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          etiqueta,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 10.5,
-          ),
-        ),
-      ],
-    );
-  }
 }
