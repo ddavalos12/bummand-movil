@@ -11,7 +11,6 @@ import '../proveedores/asistencia-proveedor.dart';
 import '../widgets/radar_geocerca_widget.dart';
 import '../../eventos/modelos/evento.dart';
 import '../../eventos/servicios/eventos-servicio.dart';
-import '../../justificaciones/pantallas/permisos-pantalla.dart';
 import '../../justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
 import '../../justificaciones/servicios/justificaciones-servicio.dart';
 

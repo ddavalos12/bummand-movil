@@ -1,3 +1,4 @@
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -133,6 +134,38 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Identidad Institucional: Logos oficiales BUMAND y Diaconía FRIF-IFD
+          Row(
+            children: [
+              SvgPicture.asset(
+                'assets/logos/logo-bumand-dorado-blanco.svg',
+                height: 38,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: SvgPicture.asset(
+                  'assets/logos/logo-diaconia-color.svg',
+                  height: 22,
+                  fit: BoxFit.contain,
                 ),
               ),
             ],
