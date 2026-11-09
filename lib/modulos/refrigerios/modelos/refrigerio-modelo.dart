@@ -1,3 +1,17 @@
+double _parsearDouble(dynamic val, [double def = 0.0]) {
+  if (val == null) return def;
+  if (val is num) return val.toDouble();
+  return double.tryParse(val.toString()) ?? def;
+}
+
+int _parsearInt(dynamic val, [int def = 0]) {
+  if (val == null) return def;
+  if (val is int) return val;
+  if (val is num) return val.toInt();
+  final d = double.tryParse(val.toString());
+  return d != null ? d.toInt() : def;
+}
+
 class IngredienteRefrigerioModelo {
   final String insumo;
   final String cantidad;
@@ -33,12 +47,10 @@ class IngredienteRefrigerioModelo {
     return IngredienteRefrigerioModelo(
       insumo: json['insumo']?.toString() ?? '',
       cantidad: json['cantidad']?.toString() ?? '',
-      costo_bs: (json['costo_bs'] as num?)?.toDouble() ??
-          double.tryParse(json['costo_bs']?.toString() ?? '0') ??
-          0.0,
-      pagado_por_becario_id: json['pagado_por_becario_id'] is int
-          ? json['pagado_por_becario_id']
-          : int.tryParse(json['pagado_por_becario_id']?.toString() ?? ''),
+      costo_bs: _parsearDouble(json['costo_bs'], 0.0),
+      pagado_por_becario_id: json['pagado_por_becario_id'] != null
+          ? _parsearInt(json['pagado_por_becario_id'])
+          : null,
       pagado_por_nombre: json['pagado_por_nombre']?.toString(),
     );
   }
@@ -296,27 +308,19 @@ class RefrigerioModelo {
         [];
 
     final lista_ingredientes = lista_ingredientes_raw
-        .whereType<Map<String, dynamic>>()
-        .map((elem) => IngredienteRefrigerioModelo.desdeJson(elem))
+        .where((elem) => elem is Map)
+        .map((elem) => IngredienteRefrigerioModelo.desdeJson(Map<String, dynamic>.from(elem as Map)))
         .toList();
 
     final firmas_raw = json['firmas_conformidad'] as List<dynamic>? ?? [];
     final lista_firmas = firmas_raw
-        .whereType<Map<String, dynamic>>()
-        .map((f) => Map<String, dynamic>.from(f))
+        .where((f) => f is Map)
+        .map((f) => Map<String, dynamic>.from(f as Map))
         .toList();
 
-    final cantidad = json['cantidad_raciones'] is int
-        ? json['cantidad_raciones'] as int
-        : int.tryParse(json['cantidad_raciones']?.toString() ?? '23') ?? 23;
-
-    final unitario = (json['costo_unitario_bs'] as num?)?.toDouble() ??
-        double.tryParse(json['costo_unitario_bs']?.toString() ?? '5.0') ??
-        5.0;
-
-    final costo_total = (json['costo_total_bs'] as num?)?.toDouble() ??
-        double.tryParse(json['costo_total_bs']?.toString() ?? '') ??
-        (cantidad * unitario);
+    final cantidad = _parsearInt(json['cantidad_raciones'], 23);
+    final unitario = _parsearDouble(json['costo_unitario_bs'], 5.0);
+    final costo_total = _parsearDouble(json['costo_total_bs'], (cantidad * unitario));
 
     // Mapear fecha en formato YYYY-MM-DD
     String fecha_limpia = json['fecha']?.toString() ?? '';
@@ -365,7 +369,7 @@ class RefrigerioModelo {
     }
 
     return RefrigerioModelo(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: _parsearInt(json['id']),
       fecha: fecha_limpia,
       evento_o_jornada: evento_o_jornada,
       menu_detalle: menu_detalle,
@@ -377,13 +381,13 @@ class RefrigerioModelo {
       hora_recojo: hora_rec,
       codigo_constancia: constancia_rec,
       observaciones: json['observaciones']?.toString(),
-      becario_encargado_1_id: json['becario_encargado_1_id'] is int
-          ? json['becario_encargado_1_id']
-          : int.tryParse(json['becario_encargado_1_id']?.toString() ?? ''),
+      becario_encargado_1_id: json['becario_encargado_1_id'] != null
+          ? _parsearInt(json['becario_encargado_1_id'])
+          : null,
       becario_encargado_1_nombre: json['becario_encargado_1_nombre']?.toString(),
-      becario_encargado_2_id: json['becario_encargado_2_id'] is int
-          ? json['becario_encargado_2_id']
-          : int.tryParse(json['becario_encargado_2_id']?.toString() ?? ''),
+      becario_encargado_2_id: json['becario_encargado_2_id'] != null
+          ? _parsearInt(json['becario_encargado_2_id'])
+          : null,
       becario_encargado_2_nombre: json['becario_encargado_2_nombre']?.toString(),
       modalidad_preparacion:
           json['modalidad_preparacion']?.toString() ?? 'cocina_diaconia',
@@ -391,16 +395,12 @@ class RefrigerioModelo {
       cantidad_raciones: cantidad,
       costo_unitario_bs: unitario,
       costo_total_bs: costo_total,
-      porcentaje_devolucion: json['porcentaje_devolucion'] is int
-          ? json['porcentaje_devolucion']
-          : int.tryParse(json['porcentaje_devolucion']?.toString() ?? '100') ?? 100,
-      monto_devolucion_bs: (json['monto_devolucion_bs'] as num?)?.toDouble() ??
-          double.tryParse(json['monto_devolucion_bs']?.toString() ?? costo_total.toString()) ??
-          costo_total,
+      porcentaje_devolucion: _parsearInt(json['porcentaje_devolucion'], 100),
+      monto_devolucion_bs: _parsearDouble(json['monto_devolucion_bs'], costo_total),
       estado: estado,
-      becario_receptor_devolucion_id: json['becario_receptor_devolucion_id'] is int
-          ? json['becario_receptor_devolucion_id']
-          : int.tryParse(json['becario_receptor_devolucion_id']?.toString() ?? ''),
+      becario_receptor_devolucion_id: json['becario_receptor_devolucion_id'] != null
+          ? _parsearInt(json['becario_receptor_devolucion_id'])
+          : null,
       becario_receptor_devolucion_nombre:
           json['becario_receptor_devolucion_nombre']?.toString(),
       fecha_entrega_devolucion: json['fecha_entrega_devolucion']?.toString(),

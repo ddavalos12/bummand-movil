@@ -21,20 +21,20 @@ class ApiConstantes {
   static const String PUNTO_CITAS_SEGUIMIENTO = '/api/devocionales/citas';
 
   // Rutas específicas de módulos
-  static const String PUNTO_INICIO_SESION = '/autenticacion/inicio-sesion';
-  static const String PUNTO_REGISTRO = '/autenticacion/registro';
-  static const String PUNTO_VERIFICAR_CI = '/autenticacion/verificar-ci';
-  static const String PUNTO_ASISTENCIA_INGRESO = '/asistencia/ingreso';
-  static const String PUNTO_ASISTENCIA_SALIDA = '/asistencia/salida';
-  static const String PUNTO_ASISTENCIA_HISTORIAL = '/asistencia';
-  static const String PUNTO_PASAJES_CONFIRMAR = '/pasajes/confirmar-datos';
-  static const String PUNTO_NOTIFICACIONES = '/notificaciones/mis-notificaciones';
-  static const String PUNTO_NOTIFICACIONES_CONTEO = '/notificaciones/no-leidas/conteo';
-  static const String PUNTO_BIBLIA_VERSICULO = '/biblia/versiculo-diario';
-  static const String PUNTO_BIBLIA_OFFLINE = '/biblia/paquete-offline';
-  static const String PUNTO_BIBLIA_PASAJE = '/biblia/pasaje';
-  static const String PUNTO_BECARIOS_ESTADO_CONFIRMACION = '/becarios/estado-confirmacion-datos';
-  static const String PUNTO_BECARIOS_CONFIRMAR_DATOS = '/becarios/confirmar-datos';
+  static const String PUNTO_INICIO_SESION = '/api/autenticacion/inicio-sesion';
+  static const String PUNTO_REGISTRO = '/api/autenticacion/registro';
+  static const String PUNTO_VERIFICAR_CI = '/api/autenticacion/verificar-ci';
+  static const String PUNTO_ASISTENCIA_INGRESO = '/api/asistencia/ingreso';
+  static const String PUNTO_ASISTENCIA_SALIDA = '/api/asistencia/salida';
+  static const String PUNTO_ASISTENCIA_HISTORIAL = '/api/asistencia';
+  static const String PUNTO_PASAJES_CONFIRMAR = '/api/pasajes/confirmar-datos';
+  static const String PUNTO_NOTIFICACIONES = '/api/notificaciones/mis-notificaciones';
+  static const String PUNTO_NOTIFICACIONES_CONTEO = '/api/notificaciones/no-leidas/conteo';
+  static const String PUNTO_BIBLIA_VERSICULO = '/api/biblia/versiculo-diario';
+  static const String PUNTO_BIBLIA_OFFLINE = '/api/biblia/paquete-offline';
+  static const String PUNTO_BIBLIA_PASAJE = '/api/biblia/pasaje';
+  static const String PUNTO_BECARIOS_ESTADO_CONFIRMACION = '/api/becarios/estado-confirmacion-datos';
+  static const String PUNTO_BECARIOS_CONFIRMAR_DATOS = '/api/becarios/confirmar-datos';
   static const String PUNTO_USUARIOS = '/api/usuarios';
   static const String PUNTO_USUARIOS_MI_PERFIL = '/api/usuarios/mi-perfil';
   static const String PUNTO_USUARIOS_MI_PERFIL_CORREOS = '/api/usuarios/mi-perfil/correos';

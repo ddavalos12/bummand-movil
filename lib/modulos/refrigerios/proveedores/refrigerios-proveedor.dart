@@ -25,6 +25,7 @@ const List<String> BECARIOS_OFICIALES_REFRIGERIO = [
 class BecariosRefrigeriosNotificador extends Notifier<List<String>> {
   @override
   List<String> build() {
+    ref.watch(autenticacion_proveedor);
     Future.microtask(() => cargarBecarios());
     return BECARIOS_OFICIALES_REFRIGERIO;
   }
@@ -34,7 +35,7 @@ class BecariosRefrigeriosNotificador extends Notifier<List<String>> {
       final preferencias = await SharedPreferences.getInstance();
       final token = preferencias.getString('token');
 
-      final url = '${ApiConstantes.RUTA_BASE}/becarios';
+      final url = '${ApiConstantes.RUTA_BASE}/api/becarios';
       final respuesta = await http.get(
         Uri.parse(url),
         headers: {
@@ -47,14 +48,13 @@ class BecariosRefrigeriosNotificador extends Notifier<List<String>> {
         final dinamico = jsonDecode(respuesta.body);
         if (dinamico is List && dinamico.isNotEmpty) {
           final nombres = dinamico
+              .where((b) => b is Map)
               .map((b) {
-                if (b is Map<String, dynamic>) {
-                  final nom = b['nombres'] ?? b['nombre'] ?? '';
-                  final ape = b['apellidos'] ?? b['apellido'] ?? '';
-                  final nombre_completo = '$nom $ape'.trim();
-                  return nombre_completo.isNotEmpty ? nombre_completo : null;
-                }
-                return null;
+                final bm = Map<String, dynamic>.from(b as Map);
+                final nom = bm['nombres'] ?? bm['nombre'] ?? '';
+                final ape = bm['apellidos'] ?? bm['apellido'] ?? '';
+                final nombre_completo = '$nom $ape'.trim();
+                return nombre_completo.isNotEmpty ? nombre_completo : null;
               })
               .whereType<String>()
               .toList();
@@ -78,11 +78,14 @@ final lista_becarios_refrigerios_proveedor =
 class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
   @override
   List<RefrigerioModelo> build() {
+    ref.watch(autenticacion_proveedor);
     Future.microtask(() => cargarRefrigerios());
     return const [];
   }
 
   Future<String?> _obtenerToken() async {
+    final token_memoria = ref.read(autenticacion_proveedor).usuario?.token;
+    if (token_memoria != null && token_memoria.isNotEmpty) return token_memoria;
     final preferencias = await SharedPreferences.getInstance();
     return preferencias.getString('token');
   }
@@ -99,7 +102,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
   Future<void> cargarRefrigerios() async {
     try {
       final cabeceras = await _obtenerCabeceras();
-      final url = '${ApiConstantes.RUTA_BASE}/refrigerios';
+      final url = '${ApiConstantes.RUTA_BASE}/api/refrigerios';
       final respuesta = await http
           .get(Uri.parse(url), headers: cabeceras)
           .timeout(const Duration(seconds: 5));
@@ -108,8 +111,8 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
         final cuerpo = jsonDecode(respuesta.body);
         if (cuerpo is List) {
           final lista = cuerpo
-              .whereType<Map<String, dynamic>>()
-              .map((r) => RefrigerioModelo.desdeJson(r))
+              .where((r) => r is Map)
+              .map((r) => RefrigerioModelo.desdeJson(Map<String, dynamic>.from(r as Map)))
               .toList();
 
           // Ordenar por fecha descendente
@@ -123,11 +126,11 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
     }
   }
 
-  /// Registra una nueva rendición o raciones de refrigerio en el backend (POST /refrigerios)
+  /// Registra una nueva rendición o raciones de refrigerio en el backend (POST /api/refrigerios)
   Future<bool> registrarRacionesRefrigerio(Map<String, dynamic> datos) async {
     try {
       final cabeceras = await _obtenerCabeceras();
-      final url = '${ApiConstantes.RUTA_BASE}/refrigerios';
+      final url = '${ApiConstantes.RUTA_BASE}/api/refrigerios';
 
       final respuesta = await http
           .post(
@@ -181,7 +184,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
     return true;
   }
 
-  /// Confirma el recojo individual del refrigerio mediante PATCH /refrigerios/:id/confirmar-recojo
+  /// Confirma el recojo individual del refrigerio mediante PATCH /api/refrigerios/:id/confirmar-recojo
   Future<void> confirmarRecojo(int id_refrigerio, {String? comentario}) async {
     final ahora = DateTime.now();
     final hora_str =
@@ -221,7 +224,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
     try {
       final cabeceras = await _obtenerCabeceras();
       final url_patch =
-          '${ApiConstantes.RUTA_BASE}/refrigerios/$id_refrigerio/confirmar-recojo';
+          '${ApiConstantes.RUTA_BASE}/api/refrigerios/$id_refrigerio/confirmar-recojo';
 
       final respuesta = await http
           .patch(
@@ -240,10 +243,10 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
         return;
       }
 
-      // Si el endpoint específico responde 404, intentar actualizar firmas mediante PUT /refrigerios/:id
+      // Si el endpoint específico responde 404, intentar actualizar firmas mediante PUT /api/refrigerios/:id
       if (respuesta.statusCode == 404) {
         final refrigerio_actual = state.firstWhere((r) => r.id == id_refrigerio);
-        final url_put = '${ApiConstantes.RUTA_BASE}/refrigerios/$id_refrigerio';
+        final url_put = '${ApiConstantes.RUTA_BASE}/api/refrigerios/$id_refrigerio';
         await http.put(
           Uri.parse(url_put),
           headers: cabeceras,
@@ -257,7 +260,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
     }
   }
 
-  /// Registra la rendición del menú e insumos en el backend (PATCH /refrigerios/:id/rendir)
+  /// Registra la rendición del menú e insumos en el backend (PATCH /api/refrigerios/:id/rendir)
   Future<bool> rendirRefrigerio({
     required int id,
     required String menu_detalle,
@@ -284,7 +287,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
 
     try {
       final cabeceras = await _obtenerCabeceras();
-      final url = '${ApiConstantes.RUTA_BASE}/refrigerios/$id/rendir';
+      final url = '${ApiConstantes.RUTA_BASE}/api/refrigerios/$id/rendir';
 
       final Map<String, dynamic> cuerpo = {
         'menu_detalle': menu_detalle,

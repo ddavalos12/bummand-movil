@@ -311,10 +311,9 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                               tooltip: "Volver",
                             ),
                           ),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Container(
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 14,
                                   vertical: 8,
@@ -369,7 +368,6 @@ class _RegistroPantallaState extends ConsumerState<RegistroPantalla>
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 14),

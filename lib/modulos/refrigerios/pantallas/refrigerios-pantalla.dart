@@ -30,23 +30,6 @@ class RefrigeriosPantalla extends ConsumerWidget {
         subtitulo: 'Sorteo de Duplas, Rendición 100% y Recojo',
         mostrar_perfil: false,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: BumandColores.amarilloRadiante,
-        foregroundColor: BumandColores.azulMarinoSecundario,
-        elevation: 3,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        onPressed: () => RendirRefrigerioModal.mostrar(context),
-        icon: const Icon(Icons.soup_kitchen_rounded, size: 20),
-        label: Text(
-          'Registrar Raciones',
-          style: GoogleFonts.montserrat(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(refrigerios_proveedor.notifier).cargarRefrigerios();

@@ -370,12 +370,16 @@ class AsistenciaRepositorio {
 
       if (respuesta.statusCode == 200) {
         final decodificado = jsonDecode(respuesta.body);
+        List<dynamic> listaRaw = [];
         if (decodificado is List) {
-          final lista = decodificado
-              .map((e) => ExtractoMensualAsistencia.desdeMapa(e as Map<String, dynamic>))
-              .toList();
-          return Resultado.exitoso(lista);
+          listaRaw = decodificado;
+        } else if (decodificado is Map<String, dynamic> && decodificado['extractos'] is List) {
+          listaRaw = decodificado['extractos'] as List<dynamic>;
         }
+        final lista = listaRaw
+            .map((e) => ExtractoMensualAsistencia.desdeMapa(e as Map<String, dynamic>))
+            .toList();
+        return Resultado.exitoso(lista);
       }
       return Resultado.fallido('No se pudieron obtener los extractos mensuales (${respuesta.statusCode})');
     } catch (e) {
@@ -514,9 +518,9 @@ class MovimientoExtractoAsistencia {
       fecha: fecha_dt,
       fecha_formateada: "$dia-$mes",
       dia_semana: dia_sem,
-      actividad: mapa["actividad"]?.toString() ?? mapa["titulo"]?.toString() ?? "Prácticas Diaconía",
+      actividad: mapa["actividad"]?.toString() ?? mapa["tipo_etiqueta"]?.toString() ?? mapa["titulo"]?.toString() ?? "Prácticas Diaconía",
       tipo: mapa["tipo"]?.toString().toLowerCase() ?? "practicas",
-      lugar: mapa["lugar"]?.toString() ?? "Oficina Central Diaconía IFD",
+      lugar: mapa["lugar"]?.toString() ?? mapa["sede"]?.toString() ?? "Oficina Central Diaconía IFD",
       hora_entrada: h_in,
       hora_salida: h_out,
       horas_dia: horas,
@@ -593,23 +597,28 @@ class ExtractoMensualAsistencia {
     }
 
     final double total = double.tryParse(mapa["horas_totales"]?.toString() ?? "") ??
+        double.tryParse(mapa["horas_acumuladas"]?.toString() ?? "") ??
         (movs.isNotEmpty ? movs.last.horas_acumuladas : 0.0);
-    const double meta = 36.0;
+    final double meta = double.tryParse(mapa["meta_horas"]?.toString() ?? "") ?? 36.0;
     final double diff = total - meta;
     final int pct = ((total / meta) * 100).round();
+    final mesNom = mapa["mes_nombre"]?.toString() ?? "Noviembre 2026";
+    final mesCorto = mapa["mes_corto"]?.toString() ?? mesNom.split(" ")[0];
 
     return ExtractoMensualAsistencia(
-      mes_id: mapa["mes_id"]?.toString() ?? "2026-05",
-      mes_nombre: mapa["mes_nombre"]?.toString() ?? "Mayo 2026",
-      mes_corto: mapa["mes_corto"]?.toString() ?? "Mayo",
-      anio: int.tryParse(mapa["anio"]?.toString() ?? "2026") ?? 2026,
-      mes_numero: int.tryParse(mapa["mes_numero"]?.toString() ?? "5") ?? 5,
+      mes_id: mapa["mes_id"]?.toString() ?? mapa["periodo"]?.toString() ?? "2026-11",
+      mes_nombre: mesNom,
+      mes_corto: mesCorto,
+      anio: int.tryParse(mapa["anio"]?.toString() ?? "") ??
+          (mapa["periodo"] != null ? int.tryParse(mapa["periodo"].toString().split("-")[0]) ?? 2026 : 2026),
+      mes_numero: int.tryParse(mapa["mes_numero"]?.toString() ?? "") ??
+          (mapa["periodo"] != null ? int.tryParse(mapa["periodo"].toString().split("-")[1]) ?? 11 : 11),
       horas_totales: total,
       meta_mensual: meta,
       diferencia_horas: diff,
       porcentaje_cumplido: pct,
       estado: total >= meta ? "META CUMPLIDA" : "EN PROGRESO",
-      jornadas_totales: movs.length,
+      jornadas_totales: int.tryParse(mapa["jornadas_totales"]?.toString() ?? "") ?? movs.length,
       tasa_puntualidad: int.tryParse(mapa["tasa_puntualidad"]?.toString() ?? "100") ?? 100,
       movimientos: movs,
     );
