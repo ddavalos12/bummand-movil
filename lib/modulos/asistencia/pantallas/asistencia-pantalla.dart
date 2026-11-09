@@ -992,31 +992,6 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const PermisosPantalla(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.history_rounded,
-                      size: 15,
-                      color: Color(0xFF64748B),
-                    ),
-                    label: const Text(
-                      "Ver historial de permisos solicitados",
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF64748B),
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 16),
               ],
             ),

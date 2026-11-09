@@ -14,6 +14,7 @@ import '../../../nucleo/tema/colores.dart';
 import '../../../compartido/componentes/seleccionador_fecha.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
+import '../../refrigerios/pantallas/refrigerios-pantalla.dart';
 
 /// Modelo interno para una parada dinámica
 class _ParadaRuta {
@@ -1540,6 +1541,43 @@ class _DeclararRecorridoPantallaState
               ),
             ),
 
+            if (_tipo_actividad == "Escuela de Líderes") ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const RefrigeriosPantalla(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.restaurant_menu_rounded,
+                    size: 20,
+                    color: BumandColores.AZUL_DIACONIA,
+                  ),
+                  label: const Text(
+                    "Refrigerios de Escuela de Líderes (Confirmar recojo / Rendir)",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(color: BumandColores.AZUL_DIACONIA, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 24),
           ],
         ),
@@ -1985,51 +2023,44 @@ class _DeclararRecorridoPantallaState
         ),
         const SizedBox(height: 6),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.school_rounded,
-                  color: BumandColores.AZUL_DIACONIA,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Escuela de Líderes (Viernes Formativo)",
+            children: TIPOS_ACTIVIDAD.map((opcion) {
+              final seleccionado = _tipo_actividad == opcion;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _tipo_actividad = opcion;
+                      if (_esSoloIda && _paso_activo == 2) _paso_activo = 1;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: seleccionado ? BumandColores.AZUL_DIACONIA : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      opcion,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                        color: BumandColores.AZUL_DIACONIA,
+                        fontSize: 12,
+                        fontWeight: seleccionado ? FontWeight.bold : FontWeight.w500,
+                        color: seleccionado ? Colors.white : const Color(0xFF475569),
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      "El apoyo económico de pasajes aplica exclusivamente para los talleres de viernes",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
         ),
         if (_esSoloIda) ...[
