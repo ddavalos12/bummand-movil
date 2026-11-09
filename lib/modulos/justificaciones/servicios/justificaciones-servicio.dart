@@ -31,6 +31,12 @@ class JustificacionesServicio {
 
   http.Client _obtenerCliente() => cliente ?? http.Client();
 
+  Future<Resultado<Map<String, dynamic>>> subirArchivoJustificativo(
+    List<int> bytes,
+    String nombre_archivo,
+  ) =>
+      subirComprobante(bytes: bytes, nombre_archivo: nombre_archivo);
+
   Future<Resultado<Map<String, dynamic>>> subirComprobante({
     required List<int> bytes,
     required String nombre_archivo,
@@ -72,12 +78,7 @@ class JustificacionesServicio {
       } catch (_) {}
     }
 
-    // Fallback offline en caso de que no haya conexión con el servidor
-    return Resultado.exitoso({
-      'archivo_prueba_url': 'https://almacenamiento.bumand.org/pruebas/$nombre_archivo',
-      'nombre_archivo_prueba': nombre_archivo,
-      'offline': true,
-    });
+    return Resultado.fallido('No se pudo subir el archivo probatorio al servidor');
   }
 
   Future<Resultado<Map<String, dynamic>>> enviarJustificacion({
@@ -195,61 +196,13 @@ class JustificacionesServicio {
         } catch (_) {}
       }
 
-      return Resultado.exitoso(_justificacionesEjemplo);
+      return Resultado.exitoso([]);
     } catch (e) {
-      return Resultado.exitoso(_justificacionesEjemplo);
+      return Resultado.fallido('Error al obtener justificaciones: $e');
     } finally {
       if (cliente == null) cliente_http.close();
     }
   }
-
-  static const List<Map<String, dynamic>> _justificacionesEjemplo = [
-    {
-      "id": 101,
-      "tipo_incidencia": "escuela_lideres",
-      "fecha_incidencia": "2026-10-23",
-      "motivo": "Emergencia médica / Receta",
-      "descripcion": "Atención de urgencia odontológica en centro de salud diaconal.",
-      "nombre_archivo_prueba": "Certificado_Odontologico_Octubre.pdf",
-      "archivo_prueba_url": "https://almacenamiento.bumand.org/pruebas/Certificado_Odontologico_Octubre.pdf",
-      "estado": "aprobado_administracion",
-      "observacion_supervisor": "Verificado con carnet de salud y respaldo de atención.",
-      "fecha_revision_supervisor": "2026-10-23 16:30",
-      "observacion_admin": "Aprobado sin multa de viernes conforme a reglamento institucional.",
-      "fecha_aprobacion_admin": "2026-10-24 09:15",
-      "created_at": "2026-10-23 15:10",
-    },
-    {
-      "id": 102,
-      "tipo_incidencia": "asistencia_practicas",
-      "fecha_incidencia": "2026-10-26",
-      "motivo": "Trámite académico / Examen",
-      "descripcion": "Defensa de perfil de grado en la universidad.",
-      "nombre_archivo_prueba": "Boleta_Tramite_Universitario.pdf",
-      "archivo_prueba_url": "https://almacenamiento.bumand.org/pruebas/Boleta_Tramite_Universitario.pdf",
-      "estado": "revisado_supervisor",
-      "observacion_supervisor": "Pasa a administración para convalidación de horario flexible.",
-      "fecha_revision_supervisor": "2026-10-26 18:00",
-      "observacion_admin": null,
-      "fecha_aprobacion_admin": null,
-      "created_at": "2026-10-26 08:30",
-    },
-    {
-      "id": 103,
-      "tipo_incidencia": "asistencia_evento",
-      "fecha_incidencia": "2026-10-30",
-      "motivo": "Asunto pastoral / Institucional",
-      "descripcion": "Solicitud de permiso anticipado para acción de servicio viernes 30.",
-      "nombre_archivo_prueba": "Carta_Pastoral_Respaldo.jpg",
-      "archivo_prueba_url": "https://almacenamiento.bumand.org/pruebas/Carta_Pastoral_Respaldo.jpg",
-      "estado": "pendiente",
-      "observacion_supervisor": null,
-      "fecha_revision_supervisor": null,
-      "observacion_admin": null,
-      "fecha_aprobacion_admin": null,
-      "created_at": "2026-10-27 10:00",
-    },
-  ];
 }
 
 final justificaciones_servicio_proveedor =

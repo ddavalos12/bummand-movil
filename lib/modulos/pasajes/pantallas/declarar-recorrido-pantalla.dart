@@ -13,7 +13,6 @@ import '../utilidades/formato-pasajes.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../../../compartido/componentes/seleccionador_fecha.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
-import '../../inicio/proveedores/inicio-proveedor.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 
 /// Modelo interno para una parada dinámica
@@ -86,7 +85,8 @@ class _DeclararRecorridoPantallaState
   int _paso_activo = 1; // 1 = Ida, 2 = Vuelta
   bool _guardando = false;
   String? _capturando_gps_id;
-  String _tipo_actividad = "Prácticas";
+  String _tipo_actividad = "Escuela de Líderes";
+  String get tipo_actividad_seleccionado => _tipo_actividad;
   bool _formulario_inicializado_con_hoy = false;
   int? _id_recorrido_ida_hoy;
   int? _id_recorrido_vuelta_hoy;
@@ -105,15 +105,15 @@ class _DeclararRecorridoPantallaState
   final List<_TramoTarifa> _tramos_ida = [];
   final List<_TramoTarifa> _tramos_vuelta = [];
 
-  static const List<Map<String, dynamic>> TARIFAS_PREDEFINIDAS = [
+  List<Map<String, dynamic>> _tarifas = [
     {"nombre": "Minibús (dentro de El Alto)", "monto": 2.0},
     {"nombre": "Micro (dentro de El Alto)", "monto": 1.5},
     {"nombre": "Minibús (Centro La Paz – Ceja)", "monto": 3.5},
     {"nombre": "Minibús (UMSA – Ceja)", "monto": 4.0},
     {"nombre": "Teleférico (línea regular)", "monto": 3.0},
-    {"nombre": "Teleférico (por transbordo)", "monto": 2.0},
     {"nombre": "Otro (escribir monto)...", "monto": 0.0},
   ];
+  bool _cargando_tarifas = false;
 
   static const List<String> PARADAS_FRECUENTES = [
     'Oficina Central Diaconía (Av. Juan Pablo II, El Alto)',
@@ -255,10 +255,8 @@ class _DeclararRecorridoPantallaState
   @override
   void initState() {
     super.initState();
-    if (widget.tipo_actividad_inicial != null &&
-        TIPOS_ACTIVIDAD.contains(widget.tipo_actividad_inicial)) {
-      _tipo_actividad = widget.tipo_actividad_inicial!;
-    }
+    _tipo_actividad = "Escuela de Líderes";
+    _cargarTarifas();
     final destino_base =
         (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty)
             ? widget.destino_inicial!
@@ -332,6 +330,26 @@ class _DeclararRecorridoPantallaState
         }
       });
     } catch (_) {}
+  }
+
+  Future<void> _cargarTarifas() async {
+    setState(() => _cargando_tarifas = true);
+    final repo = ref.read(pasajes_repositorio_proveedor);
+    final resultado = await repo.obtenerTarifas();
+    if (mounted) {
+      if (resultado.exito && resultado.datos != null && resultado.datos!.isNotEmpty) {
+        final lista = List<Map<String, dynamic>>.from(resultado.datos!);
+        if (!lista.any((t) => t['nombre'] == "Otro (escribir monto)...")) {
+          lista.add({"nombre": "Otro (escribir monto)...", "monto": 0.0});
+        }
+        setState(() {
+          _tarifas = lista;
+          _cargando_tarifas = false;
+        });
+      } else {
+        setState(() => _cargando_tarifas = false);
+      }
+    }
   }
 
   @override
@@ -1521,25 +1539,7 @@ class _DeclararRecorridoPantallaState
                 ),
               ),
             ),
-            if (widget.es_pestana) ...[
-              const SizedBox(height: 14),
-              Center(
-                child: TextButton.icon(
-                  onPressed: () {
-                    ref.read(pestana_inicio_proveedor.notifier).cambiarPestana(3);
-                  },
-                  icon: const Icon(Icons.history_rounded, size: 18),
-                  label: const Text(
-                    "Ver historial mensual de pasajes",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: BumandColores.AZUL_DIACONIA,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+
             const SizedBox(height: 24),
           ],
         ),
@@ -1985,43 +1985,51 @@ class _DeclararRecorridoPantallaState
         ),
         const SizedBox(height: 6),
         Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          padding: const EdgeInsets.all(4),
           child: Row(
-            children: TIPOS_ACTIVIDAD.map((tipo) {
-              final seleccionado = _tipo_actividad == tipo;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _tipo_actividad = tipo),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: seleccionado
-                          ? BumandColores.AZUL_DIACONIA
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      tipo,
-                      textAlign: TextAlign.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.school_rounded,
+                  color: BumandColores.AZUL_DIACONIA,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Escuela de Líderes (Viernes Formativo)",
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.bold,
-                        color: seleccionado
-                            ? Colors.white
-                            : const Color(0xFF64748B),
+                        color: BumandColores.AZUL_DIACONIA,
                       ),
                     ),
-                  ),
+                    SizedBox(height: 2),
+                    Text(
+                      "El apoyo económico de pasajes aplica exclusivamente para los talleres de viernes",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            }).toList(),
+              ),
+            ],
           ),
         ),
         if (_esSoloIda) ...[
@@ -2271,7 +2279,7 @@ class _DeclararRecorridoPantallaState
               Expanded(
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: TARIFAS_PREDEFINIDAS
+                    value: _tarifas
                             .any((p) => p["nombre"] == tramo.nombre)
                         ? tramo.nombre
                         : null,
@@ -2280,14 +2288,14 @@ class _DeclararRecorridoPantallaState
                           ? (tramo.nombre == "Otro (escribir monto)..."
                               ? "Otro (Bs ${tramo.monto.toStringAsFixed(2)})"
                               : tramo.nombre!)
-                          : "Selecciona una tarifa...",
+                          : (_cargando_tarifas ? "Cargando tarifas oficiales..." : "Selecciona una tarifa..."),
                       style: const TextStyle(fontSize: 13),
                     ),
                     isExpanded: true,
                     items: [
-                      ...TARIFAS_PREDEFINIDAS.map((p) {
+                      ..._tarifas.map((p) {
                         final nombre = p["nombre"] as String;
-                        final monto = p["monto"] as double;
+                        final monto = (p["monto"] as num).toDouble();
                         return DropdownMenuItem<String>(
                           value: nombre,
                           child: Text(
@@ -2301,9 +2309,9 @@ class _DeclararRecorridoPantallaState
                     ],
                     onChanged: (nuevoNombre) {
                       if (nuevoNombre != null) {
-                        final item = TARIFAS_PREDEFINIDAS
-                            .firstWhere((p) => p["nombre"] == nuevoNombre);
-                        final monto = item["monto"] as double;
+                        final item = _tarifas
+                            .firstWhere((p) => p["nombre"] == nuevoNombre, orElse: () => {"nombre": nuevoNombre, "monto": 0.0});
+                        final monto = (item["monto"] as num).toDouble();
                         setState(() {
                           tramo.nombre = nuevoNombre;
                           if (nuevoNombre != "Otro (escribir monto)...") {

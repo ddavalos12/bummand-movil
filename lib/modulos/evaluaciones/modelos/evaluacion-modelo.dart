@@ -100,69 +100,76 @@ class EvaluacionConsolidadaModelo {
     );
   }
 
-  static EvaluacionConsolidadaModelo modeloEjemplo() {
-    return const EvaluacionConsolidadaModelo(
-      becario_id: 1,
-      periodo_id: 1,
-      periodo_nombre: "II-2026 Diaconía IFD",
-      total_porcentual: 88.5,
-      total_vigesimal: 17.7,
-      modulos_evaluados: 4,
+  static EvaluacionConsolidadaModelo modeloVacio({
+    int becario_id = 1,
+    int periodo_id = 1,
+    String periodo_nombre = "Gestión Semestral Activa",
+  }) {
+    return EvaluacionConsolidadaModelo(
+      becario_id: becario_id,
+      periodo_id: periodo_id,
+      periodo_nombre: periodo_nombre,
+      total_porcentual: 0.0,
+      total_vigesimal: 0.0,
+      modulos_evaluados: 0,
       total_modulos: 5,
-      desglose_modulos: [
+      desglose_modulos: const [
         DetalleModuloEvaluacion(
           modulo_id: 1,
           nombre: "Liderazgo en la Iglesia (Formulario F-03)",
           evaluador_rol: "Pastor de la Congregación",
           peso_porcentaje: 25,
-          puntaje: 92.0,
-          contribucion_ponderada: 23.0,
-          estado: "completada",
-          observaciones: "Excelente compromiso en el ministerio juvenil y servicio dominical.",
+          puntaje: 0.0,
+          contribucion_ponderada: 0.0,
+          estado: "pendiente",
+          observaciones: "Evaluación pastoral pendiente de recepción.",
         ),
         DetalleModuloEvaluacion(
           modulo_id: 2,
           nombre: "Autoevaluación Académica",
           evaluador_rol: "Estudiante Becario",
           peso_porcentaje: 20,
-          puntaje: 85.0,
-          contribucion_ponderada: 17.0,
-          estado: "completada",
-          observaciones: "Rendimiento universitario sobresaliente con materias aprobadas.",
+          puntaje: 0.0,
+          contribucion_ponderada: 0.0,
+          estado: "pendiente",
+          observaciones: "Autoevaluación del estudiante pendiente.",
         ),
         DetalleModuloEvaluacion(
           modulo_id: 3,
           nombre: "Evaluación del Mentor / Prácticas",
           evaluador_rol: "Supervisor Diaconía",
           peso_porcentaje: 25,
-          puntaje: 90.0,
-          contribucion_ponderada: 22.5,
-          estado: "completada",
-          observaciones: "Puntualidad impecable en la agencia y proactividad en tareas asignadas.",
+          puntaje: 0.0,
+          contribucion_ponderada: 0.0,
+          estado: "pendiente",
+          observaciones: "Evaluación del mentor de agencia pendiente.",
         ),
         DetalleModuloEvaluacion(
           modulo_id: 4,
           nombre: "Evaluación Escuela de Líderes",
           evaluador_rol: "Facilitador Pastoral",
           peso_porcentaje: 15,
-          puntaje: 88.0,
-          contribucion_ponderada: 13.2,
-          estado: "completada",
-          observaciones: "Participación activa en los talleres y devocionales formativos.",
+          puntaje: 0.0,
+          contribucion_ponderada: 0.0,
+          estado: "pendiente",
+          observaciones: "Calificación de Escuela de Líderes pendiente.",
         ),
         DetalleModuloEvaluacion(
           modulo_id: 5,
           nombre: "Evaluación Socioeconómica",
           evaluador_rol: "Trabajador Social",
           peso_porcentaje: 15,
-          puntaje: 85.0,
-          contribucion_ponderada: 12.8,
+          puntaje: 0.0,
+          contribucion_ponderada: 0.0,
           estado: "pendiente",
-          observaciones: "En proceso de revisión de documentación socioeconómica del semestre.",
+          observaciones: "Evaluación socioeconómica pendiente de revisión.",
         ),
       ],
     );
   }
+
+  /// Alias de compatibilidad que devuelve el estado vacío / pendiente real (sin notas falsas)
+  static EvaluacionConsolidadaModelo modeloEjemplo() => modeloVacio();
 }
 
 class BecarioAsignadoModulo3Modelo {

@@ -62,3 +62,15 @@ class SolicitudesPasajesNotificador
 }
 
 typedef SolicitudesPasajesNotifier = SolicitudesPasajesNotificador;
+
+
+final tarifas_pasajes_proveedor =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final repo = ref.read(pasajes_repositorio_proveedor);
+  final resultado = await repo.obtenerTarifas();
+  if (resultado.exito && resultado.datos != null) {
+    return resultado.datos!;
+  }
+  return const [];
+});
+final tarifasPasajesProveedor = tarifas_pasajes_proveedor;

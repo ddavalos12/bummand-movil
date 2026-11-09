@@ -7,16 +7,13 @@ import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../asistencia/pantallas/asistencia-pantalla.dart';
 import '../../asistencia/pantallas/historial-asistencia-pantalla.dart';
 import '../../asistencia/proveedores/asistencia-proveedor.dart';
-import '../../evaluaciones/pantallas/evaluacion-socioeconomica-pantalla.dart';
 import '../../evaluaciones/pantallas/evaluaciones-pantalla.dart';
 import '../../justificaciones/pantallas/permisos-pantalla.dart';
 import '../../pasajes/pantallas/declarar-recorrido-pantalla.dart';
 import '../proveedores/inicio-proveedor.dart';
-import 'acerca-de-pantalla.dart';
 import '../../refrigerios/pantallas/refrigerios-pantalla.dart';
 import '../../refrigerios/proveedores/refrigerios-proveedor.dart';
-import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
-import '../../autenticacion/pantallas/mi-perfil-pantalla.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../../devocionales/pantallas/devocionales-pantalla.dart';
 
 
@@ -320,22 +317,6 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
           ),
           const SizedBox(height: 10),
 
-          _construirItemMenu(
-            icono: Icons.volunteer_activism_rounded,
-            color_icono: const Color(0xFF059669),
-            fondo_icono: const Color(0xFFD1FAE5),
-            titulo: "Evaluación Socioeconómica",
-            subtitulo: "Cuestionario de Bienestar · 26 preguntas",
-            alTocar: () {
-              ref.read(menu_principal_proveedor.notifier).ocultar();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const EvaluacionSocioeconomicaPantalla(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 10),
 
           _construirItemMenu(
             icono: Icons.access_time_filled_rounded,
@@ -404,88 +385,6 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
             ),
             const SizedBox(height: 10),
           ],
-          _construirItemMenu(
-            icono: Icons.manage_accounts_rounded,
-            color_icono: BumandColores.azulMarinoProfundo,
-            fondo_icono: const Color(0xFFE0F2FE),
-            titulo: es_admin ? "Mi Perfil y Gestión de Usuarios" : "Mi Perfil y Seguridad de Cuenta",
-            subtitulo: "Nombre, correo(s), contraseña y datos personales",
-            alTocar: () {
-              ref.read(menu_principal_proveedor.notifier).ocultar();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const MiPerfilPantalla(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-          _construirItemMenu(
-            icono: Icons.apartment_rounded,
-            color_icono: BumandColores.azulMarinoSecundario,
-            fondo_icono: const Color(0xFFE2E8F0),
-            titulo: "Acerca de Nosotros",
-            subtitulo: "Diaconía FRIF-IFD · Principios e historia",
-            alTocar: () {
-              ref.read(menu_principal_proveedor.notifier).ocultar();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const AcercaDePantalla(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-
-
-          // Fila del Perfil del Becario / Usuario (Interactiva)
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                ref.read(menu_principal_proveedor.notifier).ocultar();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MiPerfilPantalla(),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.account_circle,
-                      color: BumandColores.azulMarinoProfundo,
-                      size: 26,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        nombre_completo,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFF94A3B8),
-                      size: 22,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

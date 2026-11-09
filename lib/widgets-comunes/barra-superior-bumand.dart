@@ -5,7 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../nucleo/tema/colores.dart';
 import '../modulos/autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modulos/autenticacion/pantallas/inicio-sesion-pantalla.dart';
-import '../modulos/evaluaciones/pantallas/evaluaciones-pantalla.dart';
+import '../modulos/autenticacion/pantallas/mi-perfil-pantalla.dart';
 import '../modulos/notificaciones/pantallas/notificaciones-pantalla.dart';
 import '../modulos/inicio/pantallas/acerca-de-pantalla.dart';
 
@@ -336,6 +336,40 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
+                        color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.manage_accounts_rounded,
+                        color: BumandColores.AZUL_DIACONIA,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      "Mi Perfil y Seguridad de Cuenta",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: BumandColores.NEGRO,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Nombre, correo(s), contraseña y datos personales",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const MiPerfilPantalla()),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
                         color: BumandColores.azulCieloSuave.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -363,40 +397,6 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                     onTap: () {
                       Navigator.of(ctx).pop();
                       _mostrarDialogoCorreosAlternativos(context, ref);
-                    },
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.assignment_turned_in_outlined,
-                        color: BumandColores.AZUL_DIACONIA,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      "Mis Evaluaciones (360°)",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: BumandColores.NEGRO,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      "Calificación ponderada y desglose modular",
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const EvaluacionesPantalla()),
-                      );
                     },
                   ),
                   ListTile(

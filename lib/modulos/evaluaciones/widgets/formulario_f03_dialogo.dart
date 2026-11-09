@@ -1,36 +1,45 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
 
-class FormularioF03Dialogo extends StatefulWidget {
+class FormularioF03Dialogo extends ConsumerStatefulWidget {
   final String nombre_becario;
+  final int? becario_id;
 
   const FormularioF03Dialogo({
     super.key,
     this.nombre_becario = "María Catunta Laime",
+    this.becario_id,
   });
 
   static void mostrar(
     BuildContext context, {
     String nombre_becario = "María Catunta Laime",
+    int? becario_id,
   }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => FormularioF03Dialogo(nombre_becario: nombre_becario),
+      builder: (_) => FormularioF03Dialogo(
+        nombre_becario: nombre_becario,
+        becario_id: becario_id,
+      ),
     );
   }
 
   @override
-  State<FormularioF03Dialogo> createState() => _FormularioF03DialogoState();
+  ConsumerState<FormularioF03Dialogo> createState() => _FormularioF03DialogoState();
 }
 
-class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
+class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
   final _clave_form = GlobalKey<FormState>();
 
   final _pastor_nombre_ctrl = TextEditingController();
@@ -276,31 +285,123 @@ class _FormularioF03DialogoState extends State<FormularioF03Dialogo> {
       _enviando = true;
     });
 
+    final auth = ref.read(autenticacion_proveedor);
+    final usuario = auth.usuario;
+    final int id_becario_real = widget.becario_id ?? usuario?.id ?? 1;
+    final String nombre_becario_real = usuario?.nombre.isNotEmpty == true
+        ? usuario!.nombre
+        : widget.nombre_becario;
+
+    final cuerpo = {
+      "becario_id": id_becario_real,
+      "becario_nombre": nombre_becario_real,
+      "periodo": "Semestre II - 2026",
+      "pastor_nombre": _pastor_nombre_ctrl.text.trim(),
+      "pastor_correo": _pastor_correo_ctrl.text.trim(),
+      "pastor_celular": _pastor_celular_ctrl.text.trim(),
+      "iglesia_nombre": _iglesia_nombre_ctrl.text.trim(),
+      "iglesia_direccion": _iglesia_dir_ctrl.text.trim(),
+      "frecuencia": _frecuencia,
+      "compromiso": _compromiso,
+      "cargo_iglesia": _cargo_iglesia,
+      "cumplimiento": _cumplimiento,
+      "opinion_general": _opinion_ctrl.text.trim(),
+      "declaracion_ci": _declara_ci_ctrl.text.trim(),
+      "fecha_recepcion": DateTime.now().toIso8601String(),
+      "campos_formulario": {
+        "lider_nombre": _lider_nombre_ctrl.text.trim(),
+        "lider_cargo": _lider_cargo_ctrl.text.trim(),
+        "frecuencia_asistencia": _frecuencia,
+        "demuestra_compromiso": _compromiso,
+        "ocupa_cargo": _cargo_iglesia,
+        "cargo_2025": _cargo_2025_ctrl.text.trim(),
+        "cumplimiento_cargos": _cumplimiento,
+        "conviccion_llamado": _conviccion_ctrl.text.trim(),
+        "ejemplo_congregacion": _ejemplo_ctrl.text.trim(),
+        "compromiso_capacitaciones": _capacitaciones_ctrl.text.trim(),
+        "testimonio_cristiano": _testimonio_ctrl.text.trim(),
+        "relacion_miembros": _relacion_ctrl.text.trim(),
+        "desarrollo_nuevos_lideres": _nuevos_lideres_ctrl.text.trim(),
+        "fortalezas": _fortalezas_ctrl.text.trim(),
+        "debilidades": _debilidades_ctrl.text.trim(),
+        "opinion_general": _opinion_ctrl.text.trim(),
+        "declara_nombre": _declara_nombre_ctrl.text.trim(),
+        "declara_ci": _declara_ci_ctrl.text.trim(),
+        "declara_conforme": _declara_veridico,
+      },
+      "observaciones": _opinion_ctrl.text.trim(),
+    };
+
     try {
-      final ruta = '${ApiConstantes.RUTA_BASE}/api/evaluaciones/receptor/f03';
-      await http
+      final preferencias = await SharedPreferences.getInstance();
+      final token = preferencias.getString('token');
+
+      final cabeceras = {
+        "Content-Type": "application/json",
+        if (token != null) "Authorization": "Bearer $token",
+      };
+
+      final url_primaria =
+          '${ApiConstantes.RUTA_BASE}/evaluaciones/f03/becario/$id_becario_real';
+      var respuesta = await http
           .post(
-            Uri.parse(ruta),
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode({
-              "becario_id": 1,
-              "periodo": "Semestre II - 2026",
-              "pastor_nombre": _pastor_nombre_ctrl.text,
-              "pastor_correo": _pastor_correo_ctrl.text,
-              "pastor_celular": _pastor_celular_ctrl.text,
-              "iglesia_nombre": _iglesia_nombre_ctrl.text,
-              "iglesia_direccion": _iglesia_dir_ctrl.text,
-              "frecuencia": _frecuencia,
-              "compromiso": _compromiso,
-              "cargo_iglesia": _cargo_iglesia,
-              "cumplimiento": _cumplimiento,
-              "opinion_general": _opinion_ctrl.text,
-              "declaracion_ci": _declara_ci_ctrl.text,
-              "fecha_recepcion": DateTime.now().toIso8601String(),
-            }),
+            Uri.parse(url_primaria),
+            headers: cabeceras,
+            body: jsonEncode(cuerpo),
           )
-          .timeout(const Duration(seconds: 4));
-    } catch (_) {}
+          .timeout(const Duration(seconds: 5));
+
+      if (respuesta.statusCode == 404) {
+        final url_secundaria =
+            '${ApiConstantes.RUTA_BASE}/api/evaluaciones/receptor/f03';
+        respuesta = await http
+            .post(
+              Uri.parse(url_secundaria),
+              headers: cabeceras,
+              body: jsonEncode(cuerpo),
+            )
+            .timeout(const Duration(seconds: 5));
+      }
+
+      if (respuesta.statusCode != 200 && respuesta.statusCode != 201) {
+        String mensaje_servidor = "No se pudo registrar el Formulario F-03.";
+        try {
+          final error_json = jsonDecode(respuesta.body);
+          if (error_json is Map && error_json['message'] != null) {
+            mensaje_servidor = error_json['message'].toString();
+          }
+        } catch (_) {}
+
+        if (!mounted) return;
+        setState(() {
+          _enviando = false;
+          _mensaje_error = "Error del servidor: $mensaje_servidor";
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error (${respuesta.statusCode}): $mensaje_servidor"),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _enviando = false;
+        _mensaje_error = "Error de red al conectar con el servidor.";
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Error de conexión: No se pudo enviar el Formulario F-03."),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _enviando = false);

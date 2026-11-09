@@ -16,13 +16,16 @@ class DialogoConfirmarRecojo extends ConsumerStatefulWidget {
     required this.refrigerio,
   });
 
-  static Future<void> mostrar(BuildContext context, RefrigerioModelo refrigerio) {
-    return showModalBottomSheet(
+  static Future<void> mostrar(BuildContext context, RefrigerioModelo refrigerio) async {
+    final resultado = await showModalBottomSheet<RefrigerioModelo>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => DialogoConfirmarRecojo(refrigerio: refrigerio),
     );
+    if (resultado != null && context.mounted) {
+      ConstanciaRecojoModal.mostrar(context, resultado);
+    }
   }
 
   @override
@@ -31,6 +34,7 @@ class DialogoConfirmarRecojo extends ConsumerStatefulWidget {
 
 class _DialogoConfirmarRecojoState extends ConsumerState<DialogoConfirmarRecojo> {
   bool _conformidad_aceptada = true;
+  bool _confirmando = false;
 
   @override
   Widget build(BuildContext context) {
@@ -367,19 +371,30 @@ class _DialogoConfirmarRecojoState extends ConsumerState<DialogoConfirmarRecojo>
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         elevation: 0,
                       ),
-                      onPressed: _conformidad_aceptada
-                          ? () {
-                              ref
+                      onPressed: (_conformidad_aceptada && !_confirmando)
+                          ? () async {
+                              final navegador = Navigator.of(context);
+                              final mensajero = ScaffoldMessenger.of(context);
+                              setState(() => _confirmando = true);
+                              await ref
                                   .read(refrigerios_proveedor.notifier)
                                   .confirmarRecojo(widget.refrigerio.id);
-                              Navigator.of(context).pop();
+
+                              if (!mounted) return;
 
                               // Buscar el refrigerio recién actualizado para mostrar su constancia
-                              final actualizado = ref
-                                  .read(refrigerios_proveedor)
-                                  .firstWhere((r) => r.id == widget.refrigerio.id);
+                              final lista = ref.read(refrigerios_proveedor);
+                              final actualizado = lista.firstWhere(
+                                (r) => r.id == widget.refrigerio.id,
+                                orElse: () => widget.refrigerio.copiarCon(
+                                  recogido: true,
+                                  hora_recojo: hora_actual_str,
+                                ),
+                              );
 
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              navegador.pop(actualizado);
+
+                              mensajero.showSnackBar(
                                 SnackBar(
                                   backgroundColor: BumandColores.azulMarinoProfundo,
                                   behavior: SnackBarBehavior.floating,
@@ -387,7 +402,7 @@ class _DialogoConfirmarRecojoState extends ConsumerState<DialogoConfirmarRecojo>
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   content: Text(
-                                    '¡Recojo registrado exitosamente! Tu constancia digital está lista.',
+                                    '¡Recojo registrado exitosamente en el sistema! Tu constancia digital está lista.',
                                     style: GoogleFonts.montserrat(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -396,18 +411,24 @@ class _DialogoConfirmarRecojoState extends ConsumerState<DialogoConfirmarRecojo>
                                   ),
                                 ),
                               );
-
-                              // Abrir automáticamente la constancia digital
-                              ConstanciaRecojoModal.mostrar(context, actualizado);
                             }
                           : null,
-                      child: Text(
-                        'Confirmar Recojo',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      child: _confirmando
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              'Confirmar Recojo',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
                   ),
                 ],

@@ -450,24 +450,30 @@ class PasajesRepositorio {
       );
 
       if (respuesta.statusCode == 200) {
-        final datos = jsonDecode(respuesta.body) as List<dynamic>;
+        final cuerpo = jsonDecode(respuesta.body);
+        final List<dynamic> datos = cuerpo is List ? cuerpo : (cuerpo['datos'] ?? cuerpo['tarifas'] ?? []);
         final tarifas = datos.map((e) {
           final m = e as Map<String, dynamic>;
+          final costo = (m['costo_bs'] as num?)?.toDouble() ?? (m['monto'] as num?)?.toDouble() ?? 2.60;
+          final medio = (m['medio_transporte'] ?? m['nombre'] ?? 'Transporte').toString();
           return {
-            'nombre': m['medio_transporte'] ?? 'Transporte',
-            'monto': (m['costo_bs'] as num?)?.toDouble() ?? 2.60,
+            'id': m['id'],
+            'medio_transporte': medio,
+            'descripcion': m['descripcion'] ?? '',
+            'costo_bs': costo,
+            'activo': m['activo'] ?? true,
+            'nombre': medio,
+            'monto': costo,
           };
         }).toList();
         return ResultadoPasaje.exitoso(tarifas);
       }
-    } catch (_) {}
-    return ResultadoPasaje.exitoso([
-      {'nombre': 'Minibús Directo', 'monto': 2.60},
-      {'nombre': 'Minibús El Alto', 'monto': 3.50},
-      {'nombre': 'Micro / Colectivo', 'monto': 2.00},
-      {'nombre': 'Mi Teleférico', 'monto': 3.00},
-      {'nombre': 'Trufi', 'monto': 4.00},
-    ]);
+      return ResultadoPasaje.fallido('Error al obtener tarifas (${respuesta.statusCode})');
+    } catch (e) {
+      return ResultadoPasaje.fallido('Error de conexión al obtener tarifas: $e');
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
   }
 
   Future<ResultadoPasaje<Map<String, dynamic>>> obtenerHistorialConsolidadoParadas({

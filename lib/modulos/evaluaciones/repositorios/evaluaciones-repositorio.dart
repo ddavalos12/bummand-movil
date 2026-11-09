@@ -48,14 +48,24 @@ class EvaluacionesRepositorio {
         return Resultado.exitoso(EvaluacionConsolidadaModelo.desdeJson(mapa));
       }
 
-      if (respuesta.statusCode == 404 || respuesta.statusCode == 500) {
-        return Resultado.exitoso(EvaluacionConsolidadaModelo.modeloEjemplo());
+      if (respuesta.statusCode == 404) {
+        return Resultado.exitoso(
+          EvaluacionConsolidadaModelo.modeloVacio(
+            becario_id: becario_id,
+            periodo_id: periodo_id,
+          ),
+        );
       }
 
       final error = ErrorBumand.desdeRespuesta(respuesta);
       return Resultado.desdeErrorBumand(error);
     } catch (_) {
-      return Resultado.exitoso(EvaluacionConsolidadaModelo.modeloEjemplo());
+      return Resultado.exitoso(
+        EvaluacionConsolidadaModelo.modeloVacio(
+          becario_id: becario_id,
+          periodo_id: periodo_id,
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }

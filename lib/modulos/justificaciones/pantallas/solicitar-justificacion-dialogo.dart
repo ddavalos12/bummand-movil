@@ -14,14 +14,14 @@ class SolicitarJustificacionDialogo extends ConsumerStatefulWidget {
     super.key,
     this.evento_id,
     this.titulo_evento,
-    this.tipo_incidencia = 'asistencia_evento',
+    this.tipo_incidencia = 'escuela_lideres',
   });
 
   static Future<bool?> mostrar(
     BuildContext context, {
     int? evento_id,
     String? titulo_evento,
-    String tipo_incidencia = 'asistencia_evento',
+    String tipo_incidencia = 'escuela_lideres',
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -44,39 +44,19 @@ class SolicitarJustificacionDialogo extends ConsumerStatefulWidget {
 class _SolicitarJustificacionDialogoState
     extends ConsumerState<SolicitarJustificacionDialogo> {
   final _clave_formulario = GlobalKey<FormState>();
+  final _motivo_controlador = TextEditingController();
   final _descripcion_controlador = TextEditingController();
 
-  static const List<String> MOTIVOS_DISPONIBLES = [
-    'Emergencia médica / Receta',
-    'Corte de ruta / Transporte',
-    'Trámite académico / Examen',
-    'Asunto pastoral / Institucional',
-    'Otro',
-  ];
+  static const Map<String, String> OPCIONES_INCIDENCIA = {
+    'Prácticas Preprofesionales': 'asistencia_practicas',
+    'Escuela de Líderes': 'escuela_lideres',
+    'Evento Convocado': 'asistencia_evento',
+    'Acciones de Servicio': 'otro',
+  };
 
-  static const List<Map<String, String>> TIPOS_PRUEBA = [
-    {
-      'etiqueta': 'Receta médica prescrita',
-      'archivo': 'Receta_Medica_Prescrita.pdf',
-    },
-    {
-      'etiqueta': 'Certificado médico SSU',
-      'archivo': 'Certificado_Medico_SSU.pdf',
-    },
-    {
-      'etiqueta': 'Comprobante fotográfico',
-      'archivo': 'Comprobante_Fotografico_Incidencia.jpg',
-    },
-    {
-      'etiqueta': 'Boleta de trámite',
-      'archivo': 'Boleta_Tramite_Universitario.pdf',
-    },
-  ];
-
-  String _motivo_seleccionado = MOTIVOS_DISPONIBLES.first;
   late String _tipo_incidencia_seleccionada;
   late DateTime _fecha_seleccionada;
-  String? _archivo_adjunto;
+  PlatformFile? _archivo_seleccionado;
   List<int>? _bytes_archivo;
   bool _enviando = false;
 
@@ -89,6 +69,7 @@ class _SolicitarJustificacionDialogoState
 
   @override
   void dispose() {
+    _motivo_controlador.dispose();
     _descripcion_controlador.dispose();
     super.dispose();
   }
@@ -121,16 +102,55 @@ class _SolicitarJustificacionDialogoState
     }
   }
 
+  Future<void> _seleccionarArchivo() async {
+    try {
+      final archivo = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      );
+
+      if (archivo != null) {
+        final bytes = await archivo.readAsBytes();
+
+        if (bytes.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("No se pudo leer el contenido del archivo"),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() {
+          _archivo_seleccionado = archivo;
+          _bytes_archivo = bytes;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error al seleccionar archivo: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _enviar() async {
     if (!_clave_formulario.currentState!.validate()) return;
 
-    if (_archivo_adjunto == null) {
+    if (_archivo_seleccionado == null || _bytes_archivo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            "Debes adjuntar una prueba justificable (receta, certificado o fotografía — No carta)",
+            "Debes adjuntar la receta o certificado médico emitido (obligatorio)",
           ),
-          backgroundColor: Color(0xFFD97706),
+          backgroundColor: Color(0xFFDC2626),
         ),
       );
       return;
@@ -138,66 +158,73 @@ class _SolicitarJustificacionDialogoState
 
     setState(() => _enviando = true);
 
-    final servicio = ref.read(justificaciones_servicio_proveedor);
-    String? url_prueba;
-    String? nombre_prueba = _archivo_adjunto;
+    try {
+      final servicio = ref.read(justificaciones_servicio_proveedor);
 
-    if (_bytes_archivo != null) {
+      // Subida real del comprobante
       final subida = await servicio.subirComprobante(
         bytes: _bytes_archivo!,
-        nombre_archivo: _archivo_adjunto!,
+        nombre_archivo: _archivo_seleccionado!.name,
       );
-      if (subida.exito && subida.datos != null) {
-        url_prueba = subida.datos!['archivo_prueba_url']?.toString();
-        nombre_prueba =
-            subida.datos!['nombre_archivo_prueba']?.toString() ?? _archivo_adjunto;
+
+      if (!subida.exito) {
+        throw Exception(subida.error ?? "No se pudo subir el archivo probatorio");
       }
-    } else {
-      url_prueba =
-          'https://almacenamiento.bumand.org/pruebas/$_archivo_adjunto';
-    }
 
-    final fecha_str =
-        "${_fecha_seleccionada.year.toString().padLeft(4, '0')}-${_fecha_seleccionada.month.toString().padLeft(2, '0')}-${_fecha_seleccionada.day.toString().padLeft(2, '0')}";
+      final url_prueba = subida.datos?['archivo_prueba_url']?.toString();
+      final nombre_prueba = subida.datos?['nombre_archivo_prueba']?.toString() ??
+          _archivo_seleccionado!.name;
 
-    final detalle_texto = _descripcion_controlador.text.trim();
-    final descripcion_final =
-        "$detalle_texto\n\n[Prueba Justificable: $_archivo_adjunto]";
+      final fecha_str =
+          "${_fecha_seleccionada.year.toString().padLeft(4, '0')}-"
+          "${_fecha_seleccionada.month.toString().padLeft(2, '0')}-"
+          "${_fecha_seleccionada.day.toString().padLeft(2, '0')}";
 
-    final resultado = await servicio.enviarJustificacion(
-      tipo_incidencia: _tipo_incidencia_seleccionada,
-      referencia_id: widget.evento_id,
-      fecha_incidencia: fecha_str,
-      motivo: _motivo_seleccionado,
-      descripcion: descripcion_final,
-      archivo_prueba_url: url_prueba,
-      nombre_archivo_prueba: nombre_prueba,
-    );
+      final resultado = await servicio.enviarJustificacion(
+        tipo_incidencia: _tipo_incidencia_seleccionada,
+        referencia_id: widget.evento_id,
+        fecha_incidencia: fecha_str,
+        motivo: _motivo_controlador.text.trim(),
+        descripcion: _descripcion_controlador.text.trim(),
+        archivo_prueba_url: url_prueba,
+        nombre_archivo_prueba: nombre_prueba,
+      );
 
-    if (!mounted) return;
-    setState(() => _enviando = false);
+      if (!mounted) return;
+      setState(() => _enviando = false);
 
-    if (resultado.exito) {
-      ref.invalidate(mis_justificaciones_proveedor);
-      final es_offline = resultado.datos?['offline'] == true;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            es_offline
-                ? 'Permiso / Justificación guardado en cola offline'
-                : 'Permiso / Justificación con prueba enviado al supervisor correctamente',
+      if (resultado.exito) {
+        ref.invalidate(mis_justificaciones_proveedor);
+        final es_offline = resultado.datos?['offline'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              es_offline
+                  ? 'Permiso / Justificación guardado en cola offline'
+                  : 'Permiso / Justificación radicado exitosamente en 2 niveles',
+            ),
+            backgroundColor: const Color(0xFF10B981),
           ),
-          backgroundColor: const Color(0xFF10B981),
-        ),
-      );
-      Navigator.of(context).pop(true);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(resultado.error ?? 'Error al enviar justificación'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
+        );
+        Navigator.of(context).pop(true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(resultado.error ?? 'Error al radicar justificación'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _enviando = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error al enviar: $e"),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
     }
   }
 
@@ -206,6 +233,11 @@ class _SolicitarJustificacionDialogoState
     final padding_inferior = MediaQuery.of(context).viewInsets.bottom;
     final altura_maxima = MediaQuery.of(context).size.height * 0.90;
 
+    final fecha_formateada =
+        "${_fecha_seleccionada.day.toString().padLeft(2, '0')}/"
+        "${_fecha_seleccionada.month.toString().padLeft(2, '0')}/"
+        "${_fecha_seleccionada.year}";
+
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: altura_maxima),
       child: Container(
@@ -213,42 +245,42 @@ class _SolicitarJustificacionDialogoState
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: padding_inferior + 20,
-      ),
-      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 16,
+          bottom: padding_inferior + 20,
+        ),
         child: Form(
           key: _clave_formulario,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
+            shrinkWrap: true,
             children: [
+              // Barra de arrastre superior
               Center(
                 child: Container(
-                  width: 48,
-                  height: 5,
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(10),
+                      color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
-                      Icons.assignment_late_outlined,
-                      color: Color(0xFFD97706),
-                      size: 24,
+                      Icons.assignment_late_rounded,
+                      color: BumandColores.AZUL_DIACONIA,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -257,489 +289,267 @@ class _SolicitarJustificacionDialogoState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Permisos y Justificaciones",
+                          "Registrar Permiso / Justificación",
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: BumandColores.NEGRO,
                           ),
                         ),
                         Text(
-                          "Reporte con prueba médica o comprobante justificable",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
+                          "Flujo de validación médica o institucional",
+                          style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(context).pop(false),
                   ),
                 ],
               ),
-              if (widget.titulo_evento != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
+              const Divider(height: 24),
+
+              // Selector de Tipo de Incidencia
+              const Text(
+                "Tipo de Incidencia *",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: OPCIONES_INCIDENCIA.values.contains(_tipo_incidencia_seleccionada)
+                    ? _tipo_incidencia_seleccionada
+                    : 'escuela_lideres',
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.category_rounded, size: 20),
+                ),
+                borderRadius: BorderRadius.circular(12),
+                items: OPCIONES_INCIDENCIA.entries.map((e) {
+                  return DropdownMenuItem<String>(
+                    value: e.value,
+                    child: Text(e.key, style: const TextStyle(fontSize: 13)),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _tipo_incidencia_seleccionada = val);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // Fecha de Incidencia
+              const Text(
+                "Fecha de Incidencia *",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 6),
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: _seleccionarFecha,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.event,
-                        size: 16,
-                        color: BumandColores.AZUL_DIACONIA,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          widget.titulo_evento!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF334155),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      const Icon(Icons.calendar_today_rounded, size: 18, color: BumandColores.AZUL_DIACONIA),
+                      const SizedBox(width: 10),
+                      Text(fecha_formateada, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      const Spacer(),
+                      const Text(
+                        "Cambiar",
+                        style: TextStyle(
+                          color: BumandColores.AZUL_DIACONIA,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-              const SizedBox(height: 14),
+              ),
+              const SizedBox(height: 12),
 
-              // Selector de Tipo de Actividad
+              // Motivo Resumido (Libre)
               const Text(
-                "Tipo de actividad:",
+                "Motivo Resumido *",
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  ('asistencia_practicas', 'Prácticas'),
-                  ('escuela_lideres', 'Escuela de Líderes - Viernes'),
-                  ('asistencia_evento', 'Acciones de Servicio - Viernes'),
-                ].map((actividad) {
-                  final seleccionado = _tipo_incidencia_seleccionada == actividad.$1;
-                  return ChoiceChip(
-                    label: Text(actividad.$2),
-                    selected: seleccionado,
-                    selectedColor: BumandColores.AZUL_DIACONIA,
-                    backgroundColor: Colors.grey.shade100,
-                    labelStyle: TextStyle(
-                      color: seleccionado ? Colors.white : Colors.black87,
-                      fontSize: 11.5,
-                      fontWeight: seleccionado ? FontWeight.bold : FontWeight.w500,
-                    ),
-                    onSelected: (val) {
-                      if (val) {
-                        setState(() => _tipo_incidencia_seleccionada = actividad.$1);
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 14),
-
-              // Selector de Fecha (con soporte de fechas futuras para anticipación)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.calendar_month_rounded,
-                        color: BumandColores.AZUL_DIACONIA,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Fecha de la jornada / permiso:",
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Text(
-                                "${_fecha_seleccionada.day.toString().padLeft(2, '0')}/${_fecha_seleccionada.month.toString().padLeft(2, '0')}/${_fecha_seleccionada.year}",
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: BumandColores.NEGRO,
-                                ),
-                              ),
-                              if (_fecha_seleccionada.isAfter(DateTime.now())) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFECFDF5),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFF10B981)),
-                                  ),
-                                  child: const Text(
-                                    "Anticipado",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF047857),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: _seleccionarFecha,
-                      icon: const Icon(Icons.edit_calendar, size: 16),
-                      label: const Text("Elegir"),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              const SizedBox(height: 16),
-              const Text(
-                "Motivo del permiso o incidencia:",
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: MOTIVOS_DISPONIBLES.map((motivo) {
-                  final seleccionado = _motivo_seleccionado == motivo;
-                  return ChoiceChip(
-                    label: Text(motivo),
-                    selected: seleccionado,
-                    selectedColor: BumandColores.AZUL_DIACONIA,
-                    backgroundColor: Colors.grey.shade100,
-                    labelStyle: TextStyle(
-                      color: seleccionado ? Colors.white : Colors.black87,
-                      fontSize: 12,
-                      fontWeight:
-                          seleccionado ? FontWeight.bold : FontWeight.w500,
-                    ),
-                    onSelected: (bool valor) {
-                      if (valor) {
-                        setState(() => _motivo_seleccionado = motivo);
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-
-              // Sección obligatoria: Prueba Justificable (No carta)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: _archivo_adjunto != null
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFFE2E8F0),
-                    width: _archivo_adjunto != null ? 1.5 : 1.0,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.verified_outlined,
-                          size: 18,
-                          color: _archivo_adjunto != null
-                              ? const Color(0xFF059669)
-                              : const Color(0xFFD97706),
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            "Prueba Justificable (Obligatoria)",
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      "Receta médica, certificado o comprobante fotográfico — No carta.",
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF64748B),
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Selector rápido de tipos de prueba válidos
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: TIPOS_PRUEBA.map((item) {
-                        final etiqueta = item['etiqueta']!;
-                        final archivo = item['archivo']!;
-                        final seleccionado = _archivo_adjunto == archivo;
-                        return ActionChip(
-                          avatar: Icon(
-                            seleccionado
-                                ? Icons.check_circle_rounded
-                                : Icons.attach_file_rounded,
-                            size: 14,
-                            color: seleccionado
-                                ? Colors.white
-                                : BumandColores.AZUL_DIACONIA,
-                          ),
-                          label: Text(
-                            etiqueta,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: seleccionado
-                                  ? FontWeight.bold
-                                  : FontWeight.w500,
-                              color: seleccionado
-                                  ? Colors.white
-                                  : const Color(0xFF334155),
-                            ),
-                          ),
-                          backgroundColor: seleccionado
-                              ? BumandColores.AZUL_DIACONIA
-                              : Colors.white,
-                          side: BorderSide(
-                            color: seleccionado
-                                ? BumandColores.AZUL_DIACONIA
-                                : const Color(0xFFCBD5E1),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _archivo_adjunto = archivo;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Vista de archivo adjunto
-                    if (_archivo_adjunto != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF10B981)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.description_rounded,
-                              color: Color(0xFF059669),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _archivo_adjunto!,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF065F46),
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () => setState(() => _archivo_adjunto = null),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                size: 18,
-                                color: Color(0xFF059669),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          try {
-                            final resultado = await FilePicker.pickFiles(
-                              type: FileType.custom,
-                              allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
-                            );
-                            if (resultado.isNotEmpty) {
-                              final archivo = resultado.first;
-                              final bytes = await archivo.readAsBytes();
-                              setState(() {
-                                _archivo_adjunto = archivo.name;
-                                _bytes_archivo = bytes;
-                              });
-                            }
-                          } catch (_) {
-                            try {
-                              final resultado = await FilePicker.pickFiles();
-                              if (resultado.isNotEmpty) {
-                                final archivo = resultado.first;
-                                final bytes = await archivo.readAsBytes();
-                                setState(() {
-                                  _archivo_adjunto = archivo.name;
-                                  _bytes_archivo = bytes;
-                                });
-                              }
-                            } catch (e) {
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("No se pudo abrir el selector: $e"),
-                                  backgroundColor: const Color(0xFFDC2626),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                            color: BumandColores.azulCieloSuave,
-                            style: BorderStyle.solid,
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        icon: const Icon(
-                          Icons.camera_alt_outlined,
-                          size: 16,
-                          color: BumandColores.azulCieloSuave,
-                        ),
-                        label: const Text(
-                          "Adjuntar fotografía o certificado médico (PDF/IMG)",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: BumandColores.azulCieloSuave,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              const Text(
-                "Explicación de las circunstancias:",
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
               TextFormField(
-                controller: _descripcion_controlador,
-                maxLines: 3,
-                maxLength: 300,
+                controller: _motivo_controlador,
                 decoration: InputDecoration(
-                  hintText:
-                      "Describe las circunstancias de la ausencia o retraso e indica la prueba adjunta...",
-                  hintStyle:
-                      TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
+                  hintText: "Ej. Cita médica en seguro social, Examen parcial...",
+                  hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.edit_note_rounded, size: 20),
                 ),
-                validator: (valor) {
-                  if (valor == null || valor.trim().isEmpty) {
-                    return "Ingresa una breve descripción de la justificación";
-                  }
-                  if (valor.trim().length < 8) {
-                    return "La descripción debe tener al menos 8 caracteres";
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return "Ingresa el motivo resumido";
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Descripción Detallada
+              const Text(
+                "Descripción Detallada *",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _descripcion_controlador,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: "Explica las circunstancias de la inasistencia o retraso...",
+                  hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.notes_rounded, size: 20),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().length < 8) {
+                    return "Describe la situación (mínimo 8 caracteres)";
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // Carga de Archivo Real
+              const Text(
+                "Prueba Justificable (Receta o certificado médico — No carta) *",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 6),
+              if (_archivo_seleccionado == null)
+                InkWell(
+                  onTap: _seleccionarArchivo,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.cloud_upload_outlined,
+                          size: 28,
+                          color: BumandColores.AZUL_DIACONIA,
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          "Adjuntar receta o certificado médico",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: BumandColores.AZUL_DIACONIA,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Formatos aceptados: JPG, PNG, WEBP o PDF (Receta o certificado médico emitido)",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF16A34A)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.description_rounded, color: Color(0xFF16A34A), size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _archivo_seleccionado!.name,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF166534),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            _archivo_seleccionado = null;
+                            _bytes_archivo = null;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 20),
+
+              // Botón Radicar
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
-                  onPressed: _enviando ? null : _enviar,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: BumandColores.AZUL_DIACONIA,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  onPressed: _enviando ? null : _enviar,
                   icon: _enviando
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.send_rounded, size: 18),
                   label: Text(
-                    _enviando
-                        ? "Enviando justificación..."
-                        : "Enviar Permiso / Justificación",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    _enviando ? "Radicando..." : "Radicar Permiso / Justificación",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
               ),
@@ -747,7 +557,6 @@ class _SolicitarJustificacionDialogoState
           ),
         ),
       ),
-    ),
     );
   }
 }

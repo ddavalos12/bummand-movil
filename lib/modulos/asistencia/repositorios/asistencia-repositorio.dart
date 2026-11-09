@@ -352,11 +352,10 @@ class AsistenciaRepositorio {
       if (cliente == null) cliente_http.close();
     }
 
-    final local = obtenerExtractoLocalPorMes(mes_param);
-    return Resultado.exitoso(local);
+    return Resultado.fallido('No se pudo obtener el extracto mensual');
   }
 
-  /// Obtiene la lista completa de extractos mensuales (Noviembre 2026 a Marzo 2026)
+  /// Obtiene la lista completa de extractos mensuales desde el backend
   Future<Resultado<List<ExtractoMensualAsistencia>>> obtenerExtractosMensuales() async {
     final cliente_http = _obtenerCliente();
     try {
@@ -367,7 +366,7 @@ class AsistenciaRepositorio {
 
       final respuesta = await cliente_http
           .get(uri, headers: cabeceras)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 4));
 
       if (respuesta.statusCode == 200) {
         final decodificado = jsonDecode(respuesta.body);
@@ -375,666 +374,68 @@ class AsistenciaRepositorio {
           final lista = decodificado
               .map((e) => ExtractoMensualAsistencia.desdeMapa(e as Map<String, dynamic>))
               .toList();
-          if (lista.isNotEmpty) {
-            return Resultado.exitoso(lista);
-          }
+          return Resultado.exitoso(lista);
         }
       }
-    } catch (_) {
-      // Fallback transparente al modelo determinístico
+      return Resultado.fallido('No se pudieron obtener los extractos mensuales (${respuesta.statusCode})');
+    } catch (e) {
+      return Resultado.fallido('Error de conexión al obtener extractos: $e');
     } finally {
       if (cliente == null) cliente_http.close();
     }
-
-    return Resultado.exitoso(generarExtractosLocales());
   }
 
-  /// Busca un extracto mensual local que coincida con el mes solicitado (ej. "Mayo", "mayo", "Mayo 2026")
-  ExtractoMensualAsistencia obtenerExtractoLocalPorMes(String mes_o_periodo) {
-    final todos = generarExtractosLocales();
-    final busqueda = mes_o_periodo.trim().toLowerCase();
+  /// Obtiene las multas reales del becario desde el backend
+  Future<Resultado<List<Map<String, dynamic>>>> obtenerMisMultas() async {
+    final cliente_http = _obtenerCliente();
+    try {
+      final cabeceras = await _cabeceras();
+      final uri = Uri.parse(
+        '${ApiConstantes.RUTA_BASE}/api/asistencia/multas/mis-multas',
+      );
 
-    for (final e in todos) {
-      if (e.mes_nombre.toLowerCase() == busqueda ||
-          e.mes_corto.toLowerCase() == busqueda ||
-          e.mes_id.toLowerCase() == busqueda ||
-          e.mes_nombre.toLowerCase().contains(busqueda) ||
-          busqueda.contains(e.mes_corto.toLowerCase())) {
-        return e;
+      final respuesta = await cliente_http
+          .get(uri, headers: cabeceras)
+          .timeout(const Duration(seconds: 4));
+
+      if (respuesta.statusCode == 200) {
+        final decodificado = jsonDecode(respuesta.body);
+        if (decodificado is List) {
+          final lista = decodificado.cast<Map<String, dynamic>>();
+          return Resultado.exitoso(lista);
+        }
       }
+      return Resultado.exitoso([]);
+    } catch (_) {
+      return Resultado.exitoso([]);
+    } finally {
+      if (cliente == null) cliente_http.close();
     }
+  }
 
-    return todos.firstWhere(
-      (e) => e.mes_corto == "Mayo",
-      orElse: () => todos.first,
+  /// Busca un extracto por mes para compatibilidad
+  ExtractoMensualAsistencia obtenerExtractoLocalPorMes(String mes_o_periodo) {
+    return ExtractoMensualAsistencia(
+      mes_id: "2026-05",
+      mes_nombre: mes_o_periodo.isNotEmpty ? mes_o_periodo : "Mayo 2026",
+      mes_corto: "Mayo",
+      anio: 2026,
+      mes_numero: 5,
+      horas_totales: 0.0,
+      meta_mensual: 36.0,
+      diferencia_horas: 0.0,
+      porcentaje_cumplido: 0,
+      estado: "EN PROGRESO",
+      jornadas_totales: 0,
+      tasa_puntualidad: 100,
+      movimientos: const [],
     );
   }
 
-  /// Generador determinístico de los 9 meses de gestión (Marzo 2026 a Noviembre 2026)
-  /// con detalle diario de entradas, salidas, cálculo de horas y saldo acumulado.
+  /// Retorna lista vacía al haberse purgado los datos locales falsos
   List<ExtractoMensualAsistencia> generarExtractosLocales({
     List<Map<String, dynamic>>? registros_reales,
-  }) {
-    MovimientoExtractoAsistencia crearMov({
-      required int anio,
-      required int mes,
-      required int dia,
-      required String dia_semana,
-      required String actividad,
-      required String tipo,
-      required String lugar,
-      required String entrada,
-      required String salida,
-      required double horas,
-      required double acumuladas,
-      bool puntual = true,
-      bool geocerca = true,
-      double distancia = 32.0,
-      bool confirmada = true,
-      bool manual = false,
-      String estado = "aprobado",
-    }) {
-      final dia_str = dia.toString().padLeft(2, '0');
-      final mes_str = mes.toString().padLeft(2, '0');
-      return MovimientoExtractoAsistencia(
-        fecha: DateTime(anio, mes, dia),
-        fecha_formateada: "$dia_str-$mes_str",
-        dia_semana: dia_semana,
-        actividad: actividad,
-        tipo: tipo,
-        lugar: lugar,
-        hora_entrada: entrada,
-        hora_salida: salida,
-        horas_dia: horas,
-        horas_acumuladas: acumuladas,
-        es_puntual: puntual,
-        dentro_geocerca: geocerca,
-        distancia_gps: distancia,
-        confirmado_organizador: confirmada,
-        es_manual: manual,
-        estado: estado,
-      );
-    }
-
-    // 1. Noviembre 2026 (Mes 11) - En progreso
-    final movs_noviembre = [
-      crearMov(
-        anio: 2026, mes: 11, dia: 2, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 4.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 11, dia: 4, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 8.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 11, dia: 6, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "18:30", horas: 3.50, acumuladas: 11.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 11, dia: 7, dia_semana: "Sáb",
-        actividad: "Acciones de Servicio", tipo: "servicio",
-        lugar: "Centro Comunitario San Lucas",
-        entrada: "09:00", salida: "12:00", horas: 3.00, acumuladas: 14.50,
-      ),
-    ];
-
-    // 2. Octubre 2026 (Mes 10) - 39.50 hrs
-    final movs_octubre = [
-      crearMov(
-        anio: 2026, mes: 10, dia: 2, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 4.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 5, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 8.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 7, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 12.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 9, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 16.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 12, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 20.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 14, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 24.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 16, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 28.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 19, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 32.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 21, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 36.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 10, dia: 24, dia_semana: "Sáb",
-        actividad: "Acciones de Servicio", tipo: "servicio",
-        lugar: "Parroquia San Gabriel",
-        entrada: "09:00", salida: "12:30", horas: 3.50, acumuladas: 39.50,
-      ),
-    ];
-
-    // 3. Septiembre 2026 (Mes 9) - 37.00 hrs
-    final movs_septiembre = [
-      crearMov(
-        anio: 2026, mes: 9, dia: 2, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 4.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 9, dia: 4, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 8.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 9, dia: 7, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 12.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 9, dia: 9, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 16.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 9, dia: 11, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 20.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 9, dia: 14, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 24.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 9, dia: 16, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 28.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 9, dia: 18, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 32.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 9, dia: 25, dia_semana: "Vie",
-        actividad: "Devocional Institucional", tipo: "devocional",
-        lugar: "Capilla Diaconía IFD",
-        entrada: "08:00", salida: "13:00", horas: 5.00, acumuladas: 37.00,
-      ),
-    ];
-
-    // 4. Agosto 2026 (Mes 8) - 38.50 hrs
-    final movs_agosto = [
-      crearMov(
-        anio: 2026, mes: 8, dia: 3, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 4.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 5, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 8.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 7, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "18:30", horas: 3.50, acumuladas: 11.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 10, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 15.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 12, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 19.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 14, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 23.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 17, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 27.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 19, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 31.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 21, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "18:30", horas: 3.50, acumuladas: 35.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 8, dia: 24, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "11:30", horas: 3.50, acumuladas: 38.50,
-      ),
-    ];
-
-    // 5. Julio 2026 (Mes 7) - 36.50 hrs
-    final movs_julio = [
-      crearMov(
-        anio: 2026, mes: 7, dia: 1, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 4.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 7, dia: 3, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 8.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 7, dia: 6, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 12.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 7, dia: 8, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 16.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 7, dia: 10, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 20.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 7, dia: 13, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 24.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 7, dia: 15, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 28.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 7, dia: 17, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 32.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 7, dia: 22, dia_semana: "Mié",
-        actividad: "Acciones de Servicio", tipo: "servicio",
-        lugar: "Centro San Gabriel",
-        entrada: "08:30", salida: "13:00", horas: 4.50, acumuladas: 36.50,
-      ),
-    ];
-
-    // 6. Junio 2026 (Mes 6) - 40.00 hrs
-    final movs_junio = [
-      crearMov(
-        anio: 2026, mes: 6, dia: 1, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 4.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 3, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 8.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 5, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 12.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 8, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 16.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 10, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 20.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 12, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 24.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 15, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 28.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 17, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 32.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 19, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 36.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 6, dia: 22, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 40.00,
-      ),
-    ];
-
-    // 7. Mayo 2026 (Mes 5) - 38.00 hrs (Ejemplo de consulta del usuario)
-    final movs_mayo = [
-      crearMov(
-        anio: 2026, mes: 5, dia: 4, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:15", horas: 4.25, acumuladas: 4.25,
-      ),
-      crearMov(
-        anio: 2026, mes: 5, dia: 6, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:15", horas: 4.25, acumuladas: 8.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 5, dia: 8, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 12.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 5, dia: 11, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:15", horas: 4.25, acumuladas: 16.75,
-      ),
-      crearMov(
-        anio: 2026, mes: 5, dia: 13, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:15", horas: 4.25, acumuladas: 21.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 5, dia: 15, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 25.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 5, dia: 18, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:15", horas: 4.25, acumuladas: 29.25,
-      ),
-      crearMov(
-        anio: 2026, mes: 5, dia: 20, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:15", horas: 4.25, acumuladas: 33.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 5, dia: 23, dia_semana: "Sáb",
-        actividad: "Acciones de Servicio", tipo: "servicio",
-        lugar: "Centro Comunitario San Lucas",
-        entrada: "08:30", salida: "13:00", horas: 4.50, acumuladas: 38.00,
-      ),
-    ];
-
-    // 8. Abril 2026 (Mes 4) - 36.50 hrs
-    final movs_abril = [
-      crearMov(
-        anio: 2026, mes: 4, dia: 1, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 4.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 4, dia: 3, dia_semana: "Vie",
-        actividad: "Devocional Institucional", tipo: "devocional",
-        lugar: "Capilla Diaconía IFD",
-        entrada: "08:00", salida: "12:30", horas: 4.50, acumuladas: 8.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 4, dia: 6, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 12.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 4, dia: 8, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 16.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 4, dia: 10, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 20.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 4, dia: 13, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 24.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 4, dia: 15, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 28.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 4, dia: 17, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 32.50,
-      ),
-      crearMov(
-        anio: 2026, mes: 4, dia: 20, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 36.50,
-      ),
-    ];
-
-    // 9. Marzo 2026 (Mes 3) - 36.00 hrs
-    final movs_marzo = [
-      crearMov(
-        anio: 2026, mes: 3, dia: 2, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 4.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 3, dia: 4, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 8.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 3, dia: 6, dia_semana: "Vie",
-        actividad: "Escuela de Líderes - Inducción", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 12.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 3, dia: 9, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 16.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 3, dia: 11, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 20.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 3, dia: 13, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 24.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 3, dia: 16, dia_semana: "Lun",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 28.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 3, dia: 18, dia_semana: "Mié",
-        actividad: "Prácticas Pre-Profesionales", tipo: "practicas",
-        lugar: "Oficina Central Diaconía IFD",
-        entrada: "08:00", salida: "12:00", horas: 4.00, acumuladas: 32.00,
-      ),
-      crearMov(
-        anio: 2026, mes: 3, dia: 20, dia_semana: "Vie",
-        actividad: "Escuela de Líderes", tipo: "liderazgo",
-        lugar: "Auditorio Principal Diaconía",
-        entrada: "15:00", salida: "19:00", horas: 4.00, acumuladas: 36.00,
-      ),
-    ];
-
-    ExtractoMensualAsistencia crearExtr({
-      required String id,
-      required String nombre,
-      required String corto,
-      required int mes_num,
-      required double horas,
-      required List<MovimientoExtractoAsistencia> movs,
-      required int puntualidad,
-    }) {
-      const double meta = 36.0;
-      final diff = horas - meta;
-      final pct = ((horas / meta) * 100).round();
-      final estado = horas >= meta ? "META CUMPLIDA" : "EN PROGRESO";
-      return ExtractoMensualAsistencia(
-        mes_id: id,
-        mes_nombre: nombre,
-        mes_corto: corto,
-        anio: 2026,
-        mes_numero: mes_num,
-        horas_totales: horas,
-        meta_mensual: meta,
-        diferencia_horas: diff,
-        porcentaje_cumplido: pct,
-        estado: estado,
-        jornadas_totales: movs.length,
-        tasa_puntualidad: puntualidad,
-        movimientos: movs,
-      );
-    }
-
-    return [
-      crearExtr(
-        id: "2026-11", nombre: "Noviembre 2026", corto: "Noviembre",
-        mes_num: 11, horas: 14.50, movs: movs_noviembre, puntualidad: 98,
-      ),
-      crearExtr(
-        id: "2026-10", nombre: "Octubre 2026", corto: "Octubre",
-        mes_num: 10, horas: 39.50, movs: movs_octubre, puntualidad: 100,
-      ),
-      crearExtr(
-        id: "2026-09", nombre: "Septiembre 2026", corto: "Septiembre",
-        mes_num: 9, horas: 37.00, movs: movs_septiembre, puntualidad: 100,
-      ),
-      crearExtr(
-        id: "2026-08", nombre: "Agosto 2026", corto: "Agosto",
-        mes_num: 8, horas: 38.50, movs: movs_agosto, puntualidad: 100,
-      ),
-      crearExtr(
-        id: "2026-07", nombre: "Julio 2026", corto: "Julio",
-        mes_num: 7, horas: 36.50, movs: movs_julio, puntualidad: 100,
-      ),
-      crearExtr(
-        id: "2026-06", nombre: "Junio 2026", corto: "Junio",
-        mes_num: 6, horas: 40.00, movs: movs_junio, puntualidad: 100,
-      ),
-      crearExtr(
-        id: "2026-05", nombre: "Mayo 2026", corto: "Mayo",
-        mes_num: 5, horas: 38.00, movs: movs_mayo, puntualidad: 99,
-      ),
-      crearExtr(
-        id: "2026-04", nombre: "Abril 2026", corto: "Abril",
-        mes_num: 4, horas: 36.50, movs: movs_abril, puntualidad: 100,
-      ),
-      crearExtr(
-        id: "2026-03", nombre: "Marzo 2026", corto: "Marzo",
-        mes_num: 3, horas: 36.00, movs: movs_marzo, puntualidad: 100,
-      ),
-    ];
-  }
+  }) => const <ExtractoMensualAsistencia>[];
 }
 
 /// Movimiento diario de entrada y salida para el extracto mensual bancario de asistencia.

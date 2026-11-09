@@ -5,11 +5,8 @@ import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/error-widget-personalizado.dart';
-import '../../evaluaciones/proveedores/evaluaciones-proveedor.dart';
-import '../../evaluaciones/widgets/detalle_evaluacion_modal.dart';
-import '../../evaluaciones/widgets/formulario_f03_dialogo.dart';
-import '../../pasajes/modelos/recorrido-modelo.dart';
-import '../../pasajes/modelos/solicitud-pasaje-modelo.dart';
+import '../../justificaciones/servicios/justificaciones-servicio.dart';
+import '../../justificaciones/pantallas/permisos-pantalla.dart';
 import '../../pasajes/pantallas/detalle-historial-pasaje-pantalla.dart';
 import '../../pasajes/proveedores/pasajes-proveedor.dart';
 import '../proveedores/asistencia-proveedor.dart';
@@ -18,7 +15,8 @@ import '../repositorios/asistencia-repositorio.dart';
 import 'detalle-extracto-asistencia-pantalla.dart';
 
 class HistorialAsistenciaPantalla extends ConsumerStatefulWidget {
-  const HistorialAsistenciaPantalla({super.key});
+  final int indice_inicial;
+  const HistorialAsistenciaPantalla({super.key, this.indice_inicial = 0});
 
   @override
   ConsumerState<HistorialAsistenciaPantalla> createState() =>
@@ -36,12 +34,11 @@ class _HistorialAsistenciaPantallaState
       TextEditingController();
   String _mes_seleccionado_asistencia = "todos";
   String _filtro_actividad_inline = "todos";
-  String _subseccion_evaluacion = "todas";
 
   @override
   void initState() {
     super.initState();
-    _controlador_tabs = TabController(length: 4, vsync: this);
+    _controlador_tabs = TabController(length: 4, vsync: this, initialIndex: widget.indice_inicial.clamp(0, 3));
   }
 
   @override
@@ -75,7 +72,7 @@ class _HistorialAsistenciaPantallaState
               ref.invalidate(historial_asistencia_proveedor);
               ref.invalidate(extractos_mensuales_proveedor);
               ref.invalidate(solicitudes_pasajes_proveedor);
-              ref.invalidate(evaluacion_consolidada_proveedor);
+              ref.invalidate(mis_justificaciones_proveedor);
             },
           ),
         ],
@@ -106,8 +103,8 @@ class _HistorialAsistenciaPantallaState
                   text: "Asistencias",
                 ),
                 Tab(
-                  icon: Icon(Icons.assignment_turned_in_rounded, size: 20),
-                  text: "Evaluaciones",
+                  icon: Icon(Icons.assignment_late_outlined, size: 20),
+                  text: "Permisos",
                 ),
                 Tab(
                   icon: Icon(Icons.directions_bus_rounded, size: 20),
@@ -126,7 +123,7 @@ class _HistorialAsistenciaPantallaState
               controller: _controlador_tabs,
               children: [
                 _construirPestanaAsistencias(),
-                _construirPestanaEvaluaciones(),
+                _construirPestanaPermisos(),
                 _construirPestanaPasajes(),
                 _construirPestanaMultas(),
               ],
@@ -1336,120 +1333,148 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Widget _construirPestanaEvaluaciones() {
-    final evaluacion_async = ref.watch(evaluacion_consolidada_proveedor);
+  String _filtro_permiso = 'todos';
+
+  Widget _construirPestanaPermisos() {
+    final solicitudes_async = ref.watch(mis_justificaciones_proveedor);
 
     return RefreshIndicator(
       color: BumandColores.NARANJA_OSCURO,
       backgroundColor: BumandColores.AZUL_DIACONIA,
-      onRefresh: () async => ref.invalidate(evaluacion_consolidada_proveedor),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _chipSubseccionEval("todas", "Todas las secciones"),
-                  const SizedBox(width: 8),
-                  _chipSubseccionEval("modulos", "Módulos Canónicos (5)"),
-                  const SizedBox(width: 8),
-                  _chipSubseccionEval("competencias", "Criterios Formativos"),
-                ],
+      onRefresh: () async => ref.invalidate(mis_justificaciones_proveedor),
+      child: solicitudes_async.when(
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        error: (err, _) => ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Text(
+                "Error al cargar solicitudes de permisos: $err",
+                style: TextStyle(color: Colors.red.shade800),
               ),
             ),
+          ],
+        ),
+        data: (resultado) {
+          final solicitudes = resultado.datos ?? [];
+          final filtradas = _filtrarSolicitudesPermisos(solicitudes);
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 80),
+            children: [
+              // 1. Tarjeta informativa del flujo institucional de 2 niveles
+              _construirTarjetaInformativaPermisos(),
+              const SizedBox(height: 12),
+
+              // 2. Filtros de estado rápido
+              _construirFiltrosPermisos(),
+              const SizedBox(height: 12),
+
+              // 3. Botón para radicar nuevo permiso
+              SizedBox(
+                height: 44,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: BumandColores.AZUL_DIACONIA,
+                    side: const BorderSide(color: BumandColores.AZUL_DIACONIA),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PermisosPantalla(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text(
+                    "Radicar Nuevo Permiso / Justificación",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // 4. Listado o Estado Vacío
+              if (filtradas.isEmpty)
+                _construirEstadoVacioPermisos()
+              else
+                for (final s in filtradas) _construirTarjetaSolicitudPermiso(s),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _construirTarjetaInformativaPermisos() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          Expanded(
-            child: evaluacion_async.when(
-              data: (resultado) {
-                final bool mostrar_modulos = _subseccion_evaluacion == "todas" ||
-                    _subseccion_evaluacion == "modulos";
-                final bool mostrar_competencias =
-                    _subseccion_evaluacion == "todas" ||
-                        _subseccion_evaluacion == "competencias";
-
-                final modulos_receptores = [
-                  {
-                    "numero": 1,
-                    "titulo": "Liderazgo en la Iglesia (Formulario F-03)",
-                    "subtitulo": "Evaluador: Pastor de la Congregación",
-                    "estado": "Completado",
-                  },
-                  {
-                    "numero": 2,
-                    "titulo": "Autoevaluación Académica",
-                    "subtitulo": "Subida obligatoria de Récord e Historial",
-                    "estado": "Documentos Recibidos",
-                  },
-                  {
-                    "numero": 3,
-                    "titulo": "Evaluación del Mentor / Supervisor",
-                    "subtitulo": "Pasantías en agencias · Código QR",
-                    "estado": "Pendiente",
-                  },
-                  {
-                    "numero": 4,
-                    "titulo": "Evaluación Escuela de Líderes",
-                    "subtitulo": "Talleres y devocionales presenciales de viernes",
-                    "estado": "Completado",
-                  },
-                  {
-                    "numero": 5,
-                    "titulo": "Evaluación Socioeconómica",
-                    "subtitulo": "Ficha receptora de 4 bloques confidenciales",
-                    "estado": "Pendiente",
-                  },
-                ];
-
-                return ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    if (mostrar_modulos) ...[
-                      _construirCabeceraSubseccion(
-                        titulo: "Módulos Formativos de Evaluación",
-                        subtitulo:
-                            "5 áreas canónicas · Recepción semestral activa",
-                        icono: Icons.view_list_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      for (final mod in modulos_receptores)
-                        _construirItemModuloReceptor(
-                          numero: mod["numero"] as int,
-                          titulo: mod["titulo"] as String,
-                          subtitulo: mod["subtitulo"] as String,
-                          estado: mod["estado"] as String,
-                        ),
-                      const SizedBox(height: 20),
-                    ],
-                    if (mostrar_competencias) ...[
-                      _construirCabeceraSubseccion(
-                        titulo: "Criterios y Competencias Formativas",
-                        subtitulo:
-                            "Pilares institucionales de acompañamiento integral",
-                        icono: Icons.military_tech_outlined,
-                      ),
-                      const SizedBox(height: 10),
-                      _construirTarjetaCompetenciasFormativas(),
-                      const SizedBox(height: 16),
-                    ],
-                  ],
-                );
-              },
-              loading: () => ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  CargandoSkeleton.linea(alto: 100),
-                  const SizedBox(height: 16),
-                  CargandoSkeleton.lista(cantidad: 4, alto_item: 90),
-                ],
-              ),
-              error: (error, _) => ErrorWidgetPersonalizado(
-                mensaje: "Error al cargar evaluaciones",
-                detalles: [error.toString()],
-                alReintentar: () =>
-                    ref.invalidate(evaluacion_consolidada_proveedor),
-              ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.rule_folder_rounded,
+              color: BumandColores.AZUL_DIACONIA,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Flujo de Aprobación en 2 Niveles",
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: BumandColores.NEGRO,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  "1° Paso: Revisión del Supervisor asignado.\n"
+                  "2° Paso: Aprobación definitiva por Administración.\n"
+                  "Los permisos de viernes aprobados cuentan con exención total de multa.",
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF64748B),
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1457,327 +1482,356 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  Widget _construirItemModuloReceptor({
-    required int numero,
-    required String titulo,
-    required String subtitulo,
-    required String estado,
-  }) {
-    final es_recibido =
-        estado.toLowerCase().contains("complet") || estado.toLowerCase().contains("recib");
-
-    return GestureDetector(
-      onTap: () {
-        switch (numero) {
-          case 1:
-            FormularioF03Dialogo.mostrar(context);
-            break;
-          case 2:
-            DetalleEvaluacionModal.mostrarReceptorAcademico(context);
-            break;
-          case 3:
-            DetalleEvaluacionModal.mostrarReceptorMentor(context);
-            break;
-          case 4:
-            DetalleEvaluacionModal.mostrar(
-              context,
-              numero_modulo: "04",
-              titulo: titulo,
-              evaluador: "Coordinación Escuela de Líderes",
-              estado: estado,
-              comentario:
-                  "Asistencia verificada a talleres formativos y actividades de servicio.",
-            );
-            break;
-          case 5:
-            DetalleEvaluacionModal.mostrarReceptorSocioeconomico(context);
-            break;
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _BORDE),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                "$numero",
-                style: const TextStyle(
-                  color: BumandColores.AZUL_DIACONIA,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    titulo,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: BumandColores.NEGRO,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitulo,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: es_recibido
-                    ? const Color(0xFFECFDF5)
-                    : const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: es_recibido
-                      ? const Color(0xFF86EFAC)
-                      : const Color(0xFFFDE68A),
-                ),
-              ),
-              child: Text(
-                estado,
-                style: TextStyle(
-                  color: es_recibido
-                      ? const Color(0xFF047857)
-                      : const Color(0xFFB45309),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10.5,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _chipSubseccionEval(String valor, String etiqueta) {
-    final seleccionado = _subseccion_evaluacion == valor;
-    return ChoiceChip(
-      label: Text(etiqueta),
-      selected: seleccionado,
-      onSelected: (_) => setState(() => _subseccion_evaluacion = valor),
-      selectedColor: BumandColores.AZUL_DIACONIA,
-      backgroundColor: Colors.white,
-      labelStyle: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: seleccionado ? Colors.white : const Color(0xFF64748B),
-      ),
-      side: BorderSide(
-        color: seleccionado ? BumandColores.AZUL_DIACONIA : _BORDE,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    );
-  }
-
-  Widget _construirCabeceraSubseccion({
-    required String titulo,
-    required String subtitulo,
-    required IconData icono,
-  }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icono, size: 18, color: BumandColores.AZUL_DIACONIA),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                titulo,
-                style: const TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.bold,
-                  color: BumandColores.AZUL_DIACONIA,
-                ),
-              ),
-              Text(
-                subtitulo,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _construirTarjetaCompetenciasFormativas() {
-    final competencias = [
-      {
-        "titulo": "Puntualidad y Asistencia en Agencias",
-        "detalle": "Horas de servicio verificadas por geocerca GPS",
-        "estado": "Verificado",
-        "icono": Icons.alarm_on_rounded,
-        "color": const Color(0xFF10B981),
-      },
-      {
-        "titulo": "Liderazgo Eclesial y Servicio Diaconal",
-        "detalle": "Aporte a la iglesia local acreditado por formulario F-03",
-        "estado": "Acreditado",
-        "icono": Icons.church_outlined,
-        "color": const Color(0xFF3B82F6),
-      },
-      {
-        "titulo": "Aprovechamiento Académico Universitario",
-        "detalle": "Récord e historial semestral recepcionados",
-        "estado": "En revisión",
-        "icono": Icons.school_outlined,
-        "color": const Color(0xFFF59E0B),
-      },
-      {
-        "titulo": "Identidad Institucional y Devocional",
-        "detalle": "Participación activa en talleres de Escuela de Líderes",
-        "estado": "Verificado",
-        "icono": Icons.auto_stories_outlined,
-        "color": const Color(0xFF8B5CF6),
-      },
+  Widget _construirFiltrosPermisos() {
+    final opciones = [
+      ('todos', 'Todos'),
+      ('pendiente', '1. Pendientes'),
+      ('revisado_supervisor', '2. Revisados'),
+      ('aprobado_administracion', 'Aprobados'),
     ];
 
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: opciones.map((op) {
+          final seleccionado = _filtro_permiso == op.$1;
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: ChoiceChip(
+              label: Text(op.$2),
+              selected: seleccionado,
+              selectedColor: BumandColores.AZUL_DIACONIA,
+              backgroundColor: Colors.white,
+              labelStyle: TextStyle(
+                color: seleccionado ? Colors.white : const Color(0xFF334155),
+                fontSize: 12,
+                fontWeight: seleccionado ? FontWeight.bold : FontWeight.w500,
+              ),
+              side: BorderSide(
+                color: seleccionado
+                    ? BumandColores.AZUL_DIACONIA
+                    : const Color(0xFFCBD5E1),
+              ),
+              onSelected: (val) {
+                if (val) setState(() => _filtro_permiso = op.$1);
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _filtrarSolicitudesPermisos(
+      List<Map<String, dynamic>> lista) {
+    if (_filtro_permiso == 'todos') return lista;
+    return lista.where((s) => s['estado'] == _filtro_permiso).toList();
+  }
+
+  Widget _construirEstadoVacioPermisos() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(Icons.assignment_turned_in_outlined, size: 56, color: Colors.grey.shade400),
+          const SizedBox(height: 14),
+          const Text(
+            "Sin solicitudes de permisos",
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: BumandColores.NEGRO),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Tus solicitudes radicadas aparecerán aquí con seguimiento en tiempo real de aprobación.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirTarjetaSolicitudPermiso(Map<String, dynamic> s) {
+    final estado = s['estado']?.toString() ?? 'pendiente';
+    final tipo = s['tipo_incidencia']?.toString() ?? 'otro';
+    final fecha = s['fecha_incidencia']?.toString() ?? '';
+    final motivo = s['motivo']?.toString() ?? 'Sin motivo especificado';
+    final descripcion = s['descripcion']?.toString() ?? '';
+    final archivo = s['nombre_archivo_prueba']?.toString();
+    final obs_sup = s['observacion_supervisor']?.toString();
+    final obs_adm = s['observacion_admin']?.toString();
+    final fecha_sup = s['fecha_revision_supervisor']?.toString();
+    final fecha_adm = s['fecha_aprobacion_admin']?.toString();
+
+    final es_actividad_viernes = tipo == 'escuela_lideres' ||
+        tipo == 'asistencia_evento' ||
+        fecha.toLowerCase().contains('vie');
+    final permiso_aprobado =
+        estado == 'aprobado_administracion' || estado == 'aprobada';
+
+    String tipo_legible = 'Actividad';
+    Color color_tipo = BumandColores.AZUL_DIACONIA;
+    if (tipo == 'escuela_lideres') {
+      tipo_legible = 'Escuela de Líderes (Viernes)';
+      color_tipo = const Color(0xFF7C3AED);
+    } else if (tipo == 'asistencia_evento') {
+      tipo_legible = 'Acción de Servicio (Viernes)';
+      color_tipo = BumandColores.azulPetroleo;
+    } else if (tipo == 'asistencia_practicas') {
+      tipo_legible = 'Prácticas Institucionales';
+      color_tipo = BumandColores.AZUL_DIACONIA;
+    } else {
+      tipo_legible = 'Otro';
+      color_tipo = Colors.teal;
+    }
+
+    String estado_legible = '1. Pendiente de Revisión';
+    Color color_estado = const Color(0xFFD97706);
+    Color fondo_estado = const Color(0xFFFEF3C7);
+    IconData icono_estado = Icons.hourglass_top_rounded;
+
+    if (estado == 'revisado_supervisor') {
+      estado_legible = '2. Revisado por Supervisor';
+      color_estado = const Color(0xFF0284C7);
+      fondo_estado = const Color(0xFFE0F2FE);
+      icono_estado = Icons.supervised_user_circle_rounded;
+    } else if (permiso_aprobado) {
+      estado_legible = '3. Aprobado por Administración';
+      color_estado = const Color(0xFF059669);
+      fondo_estado = const Color(0xFFD1FAE5);
+      icono_estado = Icons.check_circle_rounded;
+    } else if (estado.contains('rechazado')) {
+      estado_legible = 'Rechazado';
+      color_estado = const Color(0xFFDC2626);
+      fondo_estado = const Color(0xFFFEE2E2);
+      icono_estado = Icons.cancel_rounded;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _BORDE),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Criterios de Excelencia Diaconal",
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: BumandColores.NEGRO,
-            ),
+          // Cabecera: Tipo + Fecha
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color_tipo.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  tipo_legible,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: color_tipo,
+                  ),
+                ),
+              ),
+              Text(
+                fecha,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
+
+          // Motivo
           Text(
-            "Indicadores de formación integral para el acompañamiento del becario:",
-            style: TextStyle(
-              fontSize: 11.5,
-              color: Colors.grey.shade600,
+            motivo,
+            style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
             ),
           ),
-          const SizedBox(height: 12),
-          for (final comp in competencias) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+          if (descripcion.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              descripcion,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF475569),
+                height: 1.3,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+
+          // Archivo probatorio adjunto
+          if (archivo != null && archivo.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: (comp["color"] as Color).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      comp["icono"] as IconData,
-                      size: 18,
-                      color: comp["color"] as Color,
+                  const Icon(
+                    Icons.description_rounded,
+                    size: 16,
+                    color: BumandColores.AZUL_DIACONIA,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      archivo,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF334155),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                comp["titulo"] as String,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12.5,
-                                  color: BumandColores.NEGRO,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (comp["color"] as Color).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                comp["estado"] as String,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10.5,
-                                  color: comp["color"] as Color,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          comp["detalle"] as String,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
+                  const Text(
+                    "Respaldo",
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: BumandColores.AZUL_DIACONIA,
                     ),
                   ),
                 ],
               ),
             ),
-            if (comp != competencias.last)
-              const Divider(height: 12, color: Color(0xFFF1F5F9)),
+            const SizedBox(height: 10),
+          ],
+
+          // Estado del flujo
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: fondo_estado,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icono_estado, size: 14, color: color_estado),
+                const SizedBox(width: 6),
+                Text(
+                  estado_legible,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: color_estado,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Observaciones de supervisor y admin
+          if (obs_sup != null && obs_sup.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Revisión Supervisor${fecha_sup != null ? ' ($fecha_sup)' : ''}:",
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0369A1),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    obs_sup,
+                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF334155)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          if (obs_adm != null && obs_adm.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Aprobación Administración${fecha_adm != null ? ' ($fecha_adm)' : ''}:",
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF15803D),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    obs_adm,
+                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF166534)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Badge de Exención de Multa de Viernes
+          if (es_actividad_viernes && permiso_aprobado) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF10B981)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.shield_rounded, size: 14, color: Color(0xFF047857)),
+                  SizedBox(width: 6),
+                  Text(
+                    "Exención total de multa de viernes aplicada",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF047857),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ],
       ),
@@ -1793,117 +1847,39 @@ class _HistorialAsistenciaPantallaState
       onRefresh: () async => ref.invalidate(solicitudes_pasajes_proveedor),
       child: solicitudes_async.when(
         data: (solicitudes) {
-          final lista = solicitudes.isNotEmpty
-              ? solicitudes
-              : [
-                  SolicitudPasajeModelo(
-                    id: 101,
-                    periodo: "Octubre 2026",
-                    estado: "APROBADO",
-                    monto_total: 28.0,
-                    monto_devolucion: 22.40,
-                    observaciones: "Declaración mensual aprobada por Diaconía IFD",
-                    recorridos: [
-                      RecorridoModelo(
-                        id: 1,
-                        fecha: DateTime(2026, 10, 2),
-                        tramo: "ida",
-                        origen: "Av. Buenos Aires",
-                        destino: "Oficina Central",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 2,
-                        fecha: DateTime(2026, 10, 2),
-                        tramo: "vuelta",
-                        origen: "Oficina Central",
-                        destino: "Av. Buenos Aires",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 3,
-                        fecha: DateTime(2026, 10, 4),
-                        tramo: "ida",
-                        origen: "Av. Buenos Aires",
-                        destino: "Oficina Central",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 4,
-                        fecha: DateTime(2026, 10, 4),
-                        tramo: "vuelta",
-                        origen: "Oficina Central",
-                        destino: "Av. Buenos Aires",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 5,
-                        fecha: DateTime(2026, 10, 6),
-                        tramo: "ida",
-                        origen: "Av. Buenos Aires",
-                        destino: "Oficina Central",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 6,
-                        fecha: DateTime(2026, 10, 9),
-                        tramo: "ida",
-                        origen: "Av. Buenos Aires",
-                        destino: "Oficina Central",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 7,
-                        fecha: DateTime(2026, 10, 9),
-                        tramo: "vuelta",
-                        origen: "Oficina Central",
-                        destino: "Av. Buenos Aires",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 8,
-                        fecha: DateTime(2026, 10, 11),
-                        tramo: "ida",
-                        origen: "Av. Buenos Aires",
-                        destino: "Oficina Central",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 9,
-                        fecha: DateTime(2026, 10, 11),
-                        tramo: "vuelta",
-                        origen: "Oficina Central",
-                        destino: "Av. Buenos Aires",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 10,
-                        fecha: DateTime(2026, 10, 13),
-                        tramo: "ida",
-                        origen: "Av. Buenos Aires",
-                        destino: "Oficina Central",
-                        tarifa: 2.50,
-                      ),
-                      RecorridoModelo(
-                        id: 11,
-                        fecha: DateTime(2026, 10, 16),
-                        tramo: "ida",
-                        origen: "Av. Buenos Aires",
-                        destino: "Oficina Central",
-                        tarifa: 2.50,
-                      ),
-                    ],
+          if (solicitudes.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.all(24),
+              children: [
+                const SizedBox(height: 60),
+                Icon(
+                  Icons.directions_bus_outlined,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Sin solicitudes de pasajes",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: BumandColores.NEGRO,
                   ),
-                  SolicitudPasajeModelo(
-                    id: 100,
-                    periodo: "Septiembre 2026",
-                    estado: "PAGADO",
-                    monto_total: 150.0,
-                    monto_devolucion: 120.0,
-                    observaciones: "Desembolso del 80% procesado en cuenta",
-                    recorridos: [],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Aún no registras solicitudes de pasajes para este periodo.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
                   ),
-                ];
+                ),
+              ],
+            );
+          }
+          final lista = solicitudes;
 
           final total_acumulado = lista.fold<double>(
             0.0,
@@ -2214,232 +2190,303 @@ class _HistorialAsistenciaPantallaState
   }
 
   Widget _construirPestanaMultas() {
-    final multas_ejemplo = [
-      {
-        "fecha": "Viernes 23/10/2026",
-        "hora_llegada": "15:00",
-        "hora_limite": "14:35",
-        "minutos_penalidad": 0,
-        "tramo": "Permiso Aprobado",
-        "monto_bs": 0.0,
-        "motivo": "Emergencia médica con receta y certificado — Aprobado por Administración",
-        "estado": "Sin Multa (Permiso Aprobado por Administración)",
-        "permiso_aprobado": true,
-      },
-      {
-        "fecha": "Viernes 09/10/2026",
-        "hora_llegada": "14:41",
-        "hora_limite": "14:35",
-        "minutos_penalidad": 6,
-        "tramo": "1 a 10 min",
-        "monto_bs": _calcularMultaPorMinutos(6),
-        "motivo": "Retraso a Escuela de Líderes (6 min)",
-        "estado": "Deducido en planilla de pasajes",
-      },
-      {
-        "fecha": "Viernes 02/10/2026",
-        "hora_llegada": "14:50",
-        "hora_limite": "14:35",
-        "minutos_penalidad": 15,
-        "tramo": "11 a 30 min",
-        "monto_bs": _calcularMultaPorMinutos(15),
-        "motivo": "Retraso a Escuela de Líderes (15 min)",
-        "estado": "Deducido en planilla de pasajes",
-      },
-    ];
-
-    final total_multas_bs = multas_ejemplo.fold<double>(
-      0.0,
-      (acc, m) => acc + (m["monto_bs"] as double),
-    );
-    final total_minutos = multas_ejemplo.fold<int>(
-      0,
-      (acc, m) => acc + (m["minutos_penalidad"] as int),
-    );
+    final historial_async = ref.watch(historial_asistencia_proveedor);
 
     return RefreshIndicator(
       color: BumandColores.NARANJA_OSCURO,
       backgroundColor: BumandColores.AZUL_DIACONIA,
       onRefresh: () async => ref.invalidate(historial_asistencia_proveedor),
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFFB91C1C),
-                  Color(0xFFDC2626),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.red.withValues(alpha: 0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _kpiMetricaBlanco(
-                  "Bs. ${total_multas_bs.toStringAsFixed(2)}",
-                  "Total Retención",
-                  Icons.money_off_csred_outlined,
-                ),
-                Container(
-                  height: 36,
-                  width: 1,
-                  color: Colors.white.withValues(alpha: 0.3),
-                ),
-                _kpiMetricaBlanco(
-                  "$total_minutos min",
-                  "Minutos Retraso",
-                  Icons.timer_outlined,
-                ),
-                Container(
-                  height: 36,
-                  width: 1,
-                  color: Colors.white.withValues(alpha: 0.3),
-                ),
-                _kpiMetricaBlanco(
-                  "Por tramos",
-                  "Escala Oficial",
-                  Icons.receipt_long_outlined,
-                ),
-              ],
-            ),
+      child: historial_async.when(
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: CircularProgressIndicator(),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            "DESGLOSE DE INCIDENCIAS DE VIERNES",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF64748B),
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          for (final inc in multas_ejemplo)
+        ),
+        error: (err, _) => ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
             Container(
-              margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Colors.red.shade50,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _BORDE),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                border: Border.all(color: Colors.red.shade200),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        inc["fecha"].toString(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: BumandColores.NEGRO,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: (inc["monto_bs"] as double) == 0.0
-                              ? const Color(0xFFECFDF5)
-                              : const Color(0xFFFEE2E2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: (inc["monto_bs"] as double) == 0.0
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFFCA5A5),
-                          ),
-                        ),
-                        child: Text(
-                          (inc["monto_bs"] as double) == 0.0
-                              ? "Sin Multa (Permiso Aprobado)"
-                              : "Bs. ${(inc["monto_bs"] as double).toStringAsFixed(2)}",
-                          style: TextStyle(
-                            color: (inc["monto_bs"] as double) == 0.0
-                                ? const Color(0xFF047857)
-                                : const Color(0xFFB91C1C),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    inc["motivo"].toString(),
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: Color(0xFF334155),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "Llegada: ${inc["hora_llegada"]} (Límite: ${inc["hora_limite"]})",
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        "${inc["tramo"]} (${inc["minutos_penalidad"]} min)",
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFDC2626),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.check_circle_outline,
-                        size: 13,
-                        color: Color(0xFF059669),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        inc["estado"].toString(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF059669),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              child: Text(
+                "Error al cargar registro de incidencias: $err",
+                style: TextStyle(color: Colors.red.shade800),
               ),
             ),
+          ],
+        ),
+        data: (resultado) {
+          final asistencias = resultado.datos ?? [];
+          final multas_reales = <Map<String, dynamic>>[];
+
+          for (final a in asistencias) {
+            final int minutos = (a['minutos_tarde'] as num?)?.toInt() ??
+                (a['minutos_retraso'] as num?)?.toInt() ??
+                (a['minutos_penalidad'] as num?)?.toInt() ??
+                0;
+            final double monto = (a['multa'] as num?)?.toDouble() ??
+                (a['monto_bs'] as num?)?.toDouble() ??
+                (minutos > 0 ? _calcularMultaPorMinutos(minutos) : 0.0);
+            final bool tiene_permiso =
+                a['justificacion_id'] != null || a['permiso_aprobado'] == true;
+
+            if (minutos > 0 || monto > 0 || tiene_permiso) {
+              multas_reales.add({
+                'fecha': a['fecha'] ??
+                    a['fecha_asistencia'] ??
+                    'Fecha de asistencia',
+                'hora_llegada':
+                    a['hora_llegada'] ?? a['hora_entrada'] ?? '--:--',
+                'hora_limite': a['hora_limite'] ?? '14:35',
+                'minutos_penalidad': tiene_permiso ? 0 : minutos,
+                'tramo': tiene_permiso
+                    ? 'Permiso Aprobado'
+                    : '$minutos min de retraso',
+                'monto_bs': tiene_permiso ? 0.0 : monto,
+                'motivo': a['motivo'] ??
+                    (tiene_permiso
+                        ? 'Permiso oficial aprobado por Administración'
+                        : 'Retraso en asistencia a Escuela de Líderes'),
+                'estado': tiene_permiso
+                    ? 'Sin Multa (Permiso Aprobado)'
+                    : 'Deducido en planilla de pasajes',
+                'permiso_aprobado': tiene_permiso,
+              });
+            }
+          }
+
+          if (multas_reales.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.all(24),
+              children: [
+                const SizedBox(height: 60),
+                Icon(
+                  Icons.check_circle_outline_rounded,
+                  size: 64,
+                  color: Colors.green.shade500,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Sin multas ni incidencias",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: BumandColores.NEGRO,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "¡Felicidades! Mantienes un registro ejemplar sin sanciones registradas.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            );
+          }
+
+          final total_multas_bs = multas_reales.fold<double>(
+            0.0,
+            (acc, m) => acc + (m["monto_bs"] as double),
+          );
+          final total_minutos = multas_reales.fold<int>(
+            0,
+            (acc, m) => acc + (m["minutos_penalidad"] as int),
+          );
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFFB91C1C),
+                      Color(0xFFDC2626),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _kpiMetricaBlanco(
+                      "Bs. ${total_multas_bs.toStringAsFixed(2)}",
+                      "Total Retención",
+                      Icons.money_off_csred_outlined,
+                    ),
+                    Container(
+                      height: 36,
+                      width: 1,
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                    _kpiMetricaBlanco(
+                      "$total_minutos min",
+                      "Minutos Retraso",
+                      Icons.timer_outlined,
+                    ),
+                    Container(
+                      height: 36,
+                      width: 1,
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                    _kpiMetricaBlanco(
+                      "Por tramos",
+                      "Escala Oficial",
+                      Icons.receipt_long_outlined,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "DESGLOSE DE INCIDENCIAS DE VIERNES",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final inc in multas_reales)
+                _construirTarjetaIncidencia(inc),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _construirTarjetaIncidencia(Map<String, dynamic> inc) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _BORDE),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                inc["fecha"].toString(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: BumandColores.NEGRO,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: (inc["monto_bs"] as double) == 0.0
+                      ? const Color(0xFFECFDF5)
+                      : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: (inc["monto_bs"] as double) == 0.0
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFFCA5A5),
+                  ),
+                ),
+                child: Text(
+                  (inc["monto_bs"] as double) == 0.0
+                      ? "Sin Multa (Permiso Aprobado)"
+                      : "Bs. ${(inc["monto_bs"] as double).toStringAsFixed(2)}",
+                  style: TextStyle(
+                    color: (inc["monto_bs"] as double) == 0.0
+                        ? const Color(0xFF047857)
+                        : const Color(0xFFB91C1C),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            inc["motivo"].toString(),
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF334155),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "Llegada: ${inc["hora_llegada"]} (Límite: ${inc["hora_limite"]})",
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              Text(
+                "${inc["tramo"]} (${inc["minutos_penalidad"]} min)",
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFDC2626),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                size: 13,
+                color: Color(0xFF059669),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                inc["estado"].toString(),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF059669),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

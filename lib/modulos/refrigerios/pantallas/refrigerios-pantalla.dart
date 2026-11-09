@@ -30,14 +30,59 @@ class RefrigeriosPantalla extends ConsumerWidget {
         subtitulo: 'Sorteo de Duplas, Rendición 100% y Recojo',
         mostrar_perfil: false,
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: BumandColores.amarilloRadiante,
+        foregroundColor: BumandColores.azulMarinoSecundario,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        onPressed: () => RendirRefrigerioModal.mostrar(context),
+        icon: const Icon(Icons.soup_kitchen_rounded, size: 20),
+        label: Text(
+          'Registrar Raciones',
+          style: GoogleFonts.montserrat(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(refrigerios_proveedor);
+          await ref.read(refrigerios_proveedor.notifier).cargarRefrigerios();
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 80),
           children: [
+            // =========================================================
+            // ACCESO DIRECTO DESTACADO: REGISTRAR RACIONES DE REFRIGERIO
+            // =========================================================
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: BumandColores.amarilloRadiante,
+                  foregroundColor: BumandColores.azulMarinoSecundario,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 2,
+                ),
+                onPressed: () => RendirRefrigerioModal.mostrar(context),
+                icon: const Icon(Icons.soup_kitchen_rounded, size: 22, color: BumandColores.azulMarinoSecundario),
+                label: Text(
+                  'Registrar Raciones de Refrigerio',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: BumandColores.azulMarinoSecundario,
+                  ),
+                ),
+              ),
+            ),
             // =========================================================
             // AVISO DESTACADO AL BECARIO: SI ES ENCARGADO ESTE VIERNES
             // =========================================================
@@ -616,7 +661,7 @@ class RefrigeriosPantalla extends ConsumerWidget {
               onPressed: () => DialogoConfirmarRecojo.mostrar(context, item),
               icon: const Icon(Icons.how_to_reg_rounded, size: 20),
               label: Text(
-                'Registrar que Recogí mi Refrigerio',
+                'Registrar Recojo de Refrigerio',
                 style: GoogleFonts.poppins(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -1001,14 +1046,14 @@ class RefrigeriosPantalla extends ConsumerWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     visualDensity: VisualDensity.compact,
-                    elevation: 0,
+                    elevation: 1,
                   ),
                   onPressed: () => DialogoConfirmarRecojo.mostrar(context, item),
-                  icon: const Icon(Icons.how_to_reg_rounded, size: 14),
+                  icon: const Icon(Icons.how_to_reg_rounded, size: 15),
                   label: Text(
-                    'Recoger',
+                    'Registrar Recojo de Refrigerio',
                     style: GoogleFonts.montserrat(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,

@@ -66,47 +66,6 @@ class DevocionalesRepositorio {
   final http.Client? cliente;
   final ColaOfflineServicio? cola_offline;
 
-  static const List<DevocionalModelo> SEMILLAS = [
-    DevocionalModelo(
-      id: 1,
-      fecha: '2026-10-07',
-      cita_biblica: 'Filipenses 4:13',
-      titulo: 'Fortaleza en el Servicio Diario',
-      reflexion:
-          'Hoy comprendí que en cada tarea de apoyo preprofesional, el Señor renueva mis fuerzas y paciencia con los beneficiarios.',
-      oracion_peticion:
-          'Sabiduría en los exámenes universitarios y gracia en mi asignación de práctica.',
-      comentario_pastoral:
-          'Sigue adelante hermano, tu testimonio edifica a la congregación.',
-      revisado_por_pastor: true,
-    ),
-    DevocionalModelo(
-      id: 2,
-      fecha: '2026-10-05',
-      cita_biblica: 'Proverbios 3:5-6',
-      titulo: 'Confianza y Guía Divina',
-      reflexion:
-          'Fiarme de Dios de todo corazón y no en mi propia inteligencia al tomar decisiones en el trabajo y la facultad.',
-      oracion_peticion:
-          'Por mi familia y la provisión económica para los estudios.',
-      comentario_pastoral: null,
-      revisado_por_pastor: false,
-    ),
-    DevocionalModelo(
-      id: 3,
-      fecha: '2026-10-02',
-      cita_biblica: 'Colosenses 3:23-24',
-      titulo: 'Hacedlo todo para el Señor',
-      reflexion:
-          'Todo trabajo o apoyo en la agencia debe realizarse con excelencia, pues a Cristo el Señor servimos.',
-      oracion_peticion:
-          'Por la Escuela de Líderes y los talleres diaconales de los viernes.',
-      comentario_pastoral:
-          'Excelente aplicación práctica. Dios bendiga tu servicio.',
-      revisado_por_pastor: true,
-    ),
-  ];
-
   DevocionalesRepositorio({
     this.cliente,
     this.cola_offline,
@@ -139,16 +98,18 @@ class DevocionalesRepositorio {
 
       if (respuesta.statusCode == 200) {
         final dynamic cuerpo = jsonDecode(respuesta.body);
-        if (cuerpo is List && cuerpo.isNotEmpty) {
+        if (cuerpo is List) {
           final lista = cuerpo
-              .map((e) => DevocionalModelo.desdeMapa(e as Map<String, dynamic>))
+              .whereType<Map<String, dynamic>>()
+              .map((e) => DevocionalModelo.desdeMapa(e))
               .toList();
           return Resultado.exitoso(lista);
         }
       }
-      return Resultado.exitoso(List<DevocionalModelo>.from(SEMILLAS));
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return Resultado.desdeErrorBumand(error);
     } catch (_) {
-      return Resultado.exitoso(List<DevocionalModelo>.from(SEMILLAS));
+      return Resultado.exitoso(const []);
     } finally {
       if (cliente == null) cliente_http.close();
     }
