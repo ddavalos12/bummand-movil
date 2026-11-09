@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -48,9 +48,9 @@ class BecariosRefrigeriosNotificador extends Notifier<List<String>> {
         final dinamico = jsonDecode(respuesta.body);
         if (dinamico is List && dinamico.isNotEmpty) {
           final nombres = dinamico
-              .where((b) => b is Map)
+              .whereType<Map>()
               .map((b) {
-                final bm = Map<String, dynamic>.from(b as Map);
+                final bm = Map<String, dynamic>.from(b);
                 final nom = bm['nombres'] ?? bm['nombre'] ?? '';
                 final ape = bm['apellidos'] ?? bm['apellido'] ?? '';
                 final nombre_completo = '$nom $ape'.trim();
@@ -111,8 +111,8 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
         final cuerpo = jsonDecode(respuesta.body);
         if (cuerpo is List) {
           final lista = cuerpo
-              .where((r) => r is Map)
-              .map((r) => RefrigerioModelo.desdeJson(Map<String, dynamic>.from(r as Map)))
+              .whereType<Map>()
+              .map((r) => RefrigerioModelo.desdeJson(Map<String, dynamic>.from(r)))
               .toList();
 
           // Ordenar por fecha descendente

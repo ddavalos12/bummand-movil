@@ -1,4 +1,4 @@
-double _parsearDouble(dynamic val, [double def = 0.0]) {
+﻿double _parsearDouble(dynamic val, [double def = 0.0]) {
   if (val == null) return def;
   if (val is num) return val.toDouble();
   return double.tryParse(val.toString()) ?? def;
@@ -308,14 +308,14 @@ class RefrigerioModelo {
         [];
 
     final lista_ingredientes = lista_ingredientes_raw
-        .where((elem) => elem is Map)
-        .map((elem) => IngredienteRefrigerioModelo.desdeJson(Map<String, dynamic>.from(elem as Map)))
+        .whereType<Map>()
+        .map((elem) => IngredienteRefrigerioModelo.desdeJson(Map<String, dynamic>.from(elem)))
         .toList();
 
     final firmas_raw = json['firmas_conformidad'] as List<dynamic>? ?? [];
     final lista_firmas = firmas_raw
-        .where((f) => f is Map)
-        .map((f) => Map<String, dynamic>.from(f as Map))
+        .whereType<Map>()
+        .map((f) => Map<String, dynamic>.from(f))
         .toList();
 
     final cantidad = _parsearInt(json['cantidad_raciones'], 23);

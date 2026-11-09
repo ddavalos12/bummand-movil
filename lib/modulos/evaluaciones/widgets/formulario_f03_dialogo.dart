@@ -7,6 +7,7 @@ import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/descargador_archivo.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
 
 class FormularioF03Dialogo extends ConsumerStatefulWidget {
@@ -416,7 +417,7 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
     );
   }
 
-  void _exportarPdf() {
+  Future<void> _exportarPdf() async {
     if (_pastor_nombre_ctrl.text.trim().isEmpty ||
         _pastor_correo_ctrl.text.trim().isEmpty) {
       setState(() {
@@ -434,17 +435,66 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
       return;
     }
 
-    setState(() => _mensaje_error = null);
+    setState(() {
+      _mensaje_error = null;
+      _enviando = true;
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("✓ Formulario F-03 exportado a PDF correctamente."),
+        content: Text("Generando informe oficial F-03 en PDF..."),
         backgroundColor: BumandColores.TURQUESA_DIACONIA,
-        duration: Duration(seconds: 3),
+        duration: Duration(seconds: 2),
       ),
     );
 
-    Navigator.of(context).pop();
+    try {
+      final preferencias = await SharedPreferences.getInstance();
+      final token = preferencias.getString('token');
+      final id_becario = widget.becario_id ?? 1;
+
+      final url = Uri.parse('${ApiConstantes.RUTA_BASE}/api/pdf/evaluacion/$id_becario');
+      final cabeceras = {
+        if (token != null) "Authorization": "Bearer $token",
+      };
+
+      final respuesta = await http
+          .get(url, headers: cabeceras)
+          .timeout(const Duration(seconds: 20));
+
+      if (respuesta.statusCode == 200 && respuesta.bodyBytes.isNotEmpty) {
+        final nombre_limpio = widget.nombre_becario.replaceAll(RegExp(r'\s+'), '_');
+        final nombre_archivo = "Formulario_F03_$nombre_limpio.pdf";
+
+        await descargarBytesPdf(respuesta.bodyBytes, nombre_archivo);
+
+        if (!mounted) return;
+        setState(() => _enviando = false);
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Archivo $nombre_archivo descargado exitosamente."),
+            backgroundColor: BumandColores.azulMarinoProfundo,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      } else {
+        throw Exception("Código de estado ${respuesta.statusCode}");
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _enviando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error al generar PDF: $e"),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
   }
 
   @override
@@ -673,7 +723,7 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
                     width: double.infinity,
                     height: 44,
                     child: OutlinedButton.icon(
-                      onPressed: _exportarPdf,
+                      onPressed: _enviando ? null : _exportarPdf,
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
