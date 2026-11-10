@@ -502,24 +502,40 @@ class MovimientoExtractoAsistencia {
     final h_out =
         mapa["horaSalida"]?.toString() ?? mapa["hora_salida"]?.toString() ?? "12:00";
 
+    final tipo_str = mapa["tipo"]?.toString().toLowerCase() ?? "practicas";
+    final act_str = (mapa["actividad"]?.toString() ??
+            mapa["tipo_etiqueta"]?.toString() ??
+            mapa["titulo"]?.toString() ??
+            "")
+        .toLowerCase();
+    final es_escuela_lideres = tipo_str.contains("escuela") ||
+        tipo_str.contains("lider") ||
+        act_str.contains("escuela") ||
+        act_str.contains("líder") ||
+        act_str.contains("lider");
+
     double horas = 4.0;
-    if (mapa["horas_dia"] != null) {
+    if (es_escuela_lideres) {
+      horas = 0.0;
+    } else if (mapa["horas_dia"] != null) {
       horas = double.tryParse(mapa["horas_dia"].toString()) ?? 4.0;
     } else if (mapa["horasTrabajadas"] != null) {
       final h_str = mapa["horasTrabajadas"].toString().replaceAll("h", "").trim();
       horas = double.tryParse(h_str) ?? 4.0;
     }
 
-    final acum = (mapa["horas_acumuladas"] != null)
-        ? (double.tryParse(mapa["horas_acumuladas"].toString()) ?? (acumulado_previo + horas))
-        : (acumulado_previo + horas);
+    final acum = es_escuela_lideres
+        ? acumulado_previo
+        : ((mapa["horas_acumuladas"] != null)
+            ? (double.tryParse(mapa["horas_acumuladas"].toString()) ?? (acumulado_previo + horas))
+            : (acumulado_previo + horas));
 
     return MovimientoExtractoAsistencia(
       fecha: fecha_dt,
       fecha_formateada: "$dia-$mes",
       dia_semana: dia_sem,
       actividad: mapa["actividad"]?.toString() ?? mapa["tipo_etiqueta"]?.toString() ?? mapa["titulo"]?.toString() ?? "Prácticas Diaconía",
-      tipo: mapa["tipo"]?.toString().toLowerCase() ?? "practicas",
+      tipo: es_escuela_lideres ? "escuela_lideres" : (mapa["tipo"]?.toString().toLowerCase() ?? "practicas"),
       lugar: mapa["lugar"]?.toString() ?? mapa["sede"]?.toString() ?? "Oficina Central Diaconía IFD",
       hora_entrada: h_in,
       hora_salida: h_out,
@@ -596,12 +612,14 @@ class ExtractoMensualAsistencia {
       }
     }
 
-    final double total = double.tryParse(mapa["horas_totales"]?.toString() ?? "") ??
-        double.tryParse(mapa["horas_acumuladas"]?.toString() ?? "") ??
-        (movs.isNotEmpty ? movs.last.horas_acumuladas : 0.0);
+    final double total = movs.isNotEmpty
+        ? movs.last.horas_acumuladas
+        : (double.tryParse(mapa["horas_totales"]?.toString() ?? "") ??
+            double.tryParse(mapa["horas_acumuladas"]?.toString() ?? "") ??
+            0.0);
     final double meta = double.tryParse(mapa["meta_horas"]?.toString() ?? "") ?? 36.0;
     final double diff = total - meta;
-    final int pct = ((total / meta) * 100).round();
+    final int pct = meta > 0 ? ((total / meta) * 100).round() : 0;
     final mesNom = mapa["mes_nombre"]?.toString() ?? "Noviembre 2026";
     final mesCorto = mapa["mes_corto"]?.toString() ?? mesNom.split(" ")[0];
 

@@ -463,7 +463,7 @@ class _DetalleExtractoAsistenciaPantallaState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "TOTAL DE HORAS REALIZADAS EN EL MES",
+            "HORAS DE PRÁCTICAS PREPROFESIONALES",
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.88),
               fontSize: 11,
@@ -524,7 +524,7 @@ class _DetalleExtractoAsistenciaPantallaState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "META MENSUAL REGLAMENTARIA (36.00 hrs)",
+                      "META MENSUAL PRÁCTICAS (36.00 hrs)",
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.88),
                         fontSize: 10.5,
@@ -757,6 +757,9 @@ class _DetalleExtractoAsistenciaPantallaState
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
+                    final es_lideres = movimientos[i].tipo.contains("lider") ||
+                        movimientos[i].actividad.toLowerCase().contains("lider") ||
+                        movimientos[i].actividad.toLowerCase().contains("líder");
                     DetalleAsistenciaModal.mostrar(
                       context,
                       titulo:
@@ -766,8 +769,9 @@ class _DetalleExtractoAsistenciaPantallaState
                       lugar: movimientos[i].lugar,
                       ingreso: movimientos[i].hora_entrada,
                       salida: movimientos[i].hora_salida,
-                      horas_trabajadas:
-                          "${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
+                      horas_trabajadas: es_lideres
+                          ? "0.00 hrs (No suma horas a prácticas)"
+                          : "${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
                       distancia:
                           "${movimientos[i].distancia_gps.toInt()} m",
                       dentro_geocerca: movimientos[i].dentro_geocerca,
@@ -925,28 +929,60 @@ class _DetalleExtractoAsistenciaPantallaState
 
                         // Columna 3: Horas y Acumulado (columna bancaria derecha)
                         SizedBox(
-                          width: 86,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                "+${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: BumandColores.AZUL_DIACONIA,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Acum: ${movimientos[i].horas_acumuladas.toStringAsFixed(2)} h",
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
+                          width: 96,
+                          child: Builder(
+                            builder: (context) {
+                              final es_lideres = movimientos[i].tipo.contains("lider") ||
+                                  movimientos[i].actividad.toLowerCase().contains("lider") ||
+                                  movimientos[i].actividad.toLowerCase().contains("líder");
+                              if (es_lideres) {
+                                final puntual = movimientos[i].es_puntual;
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      puntual ? "✓ Asistencia" : "⚠ Con multa",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: puntual ? const Color(0xFF059669) : const Color(0xFFD97706),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      puntual ? "Sin multa · 0 hrs" : "Sujeto a multa",
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: puntual ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    "+${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: BumandColores.AZUL_DIACONIA,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "Acum: ${movimientos[i].horas_acumuladas.toStringAsFixed(2)} h",
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ),
                       ],
