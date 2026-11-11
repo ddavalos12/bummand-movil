@@ -6,7 +6,6 @@ import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/error-widget-personalizado.dart';
 import '../../justificaciones/servicios/justificaciones-servicio.dart';
-import '../../justificaciones/pantallas/permisos-pantalla.dart';
 import '../../pasajes/pantallas/detalle-historial-pasaje-pantalla.dart';
 import '../../pasajes/proveedores/pasajes-proveedor.dart';
 import '../proveedores/asistencia-proveedor.dart';
@@ -1434,34 +1433,7 @@ class _HistorialAsistenciaPantallaState
               _construirFiltrosPermisos(),
               const SizedBox(height: 12),
 
-              // 3. Botón para radicar nuevo permiso
-              SizedBox(
-                height: 44,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: BumandColores.AZUL_DIACONIA,
-                    side: const BorderSide(color: BumandColores.AZUL_DIACONIA),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PermisosPantalla(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text(
-                    "Radicar Nuevo Permiso / Justificación",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // 4. Listado o Estado Vacío
+              // 3. Listado o Estado Vacío
               if (filtradas.isEmpty)
                 _construirEstadoVacioPermisos()
               else

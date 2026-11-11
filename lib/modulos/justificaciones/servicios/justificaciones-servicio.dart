@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../nucleo/constantes/api-constantes.dart';
+import '../../../nucleo/errores/error-bumand.dart';
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 
@@ -81,6 +82,25 @@ class JustificacionesServicio {
     return Resultado.fallido('No se pudo subir el archivo probatorio al servidor');
   }
 
+  Future<Resultado<Map<String, dynamic>>> solicitarJustificacion({
+    required String tipo_incidencia,
+    int? referencia_id,
+    required String fecha_incidencia,
+    required String motivo,
+    required String descripcion,
+    String? archivo_prueba_url,
+    String? nombre_archivo_prueba,
+  }) =>
+      enviarJustificacion(
+        tipo_incidencia: tipo_incidencia,
+        referencia_id: referencia_id,
+        fecha_incidencia: fecha_incidencia,
+        motivo: motivo,
+        descripcion: descripcion,
+        archivo_prueba_url: archivo_prueba_url,
+        nombre_archivo_prueba: nombre_archivo_prueba,
+      );
+
   Future<Resultado<Map<String, dynamic>>> enviarJustificacion({
     required String tipo_incidencia,
     int? referencia_id,
@@ -115,6 +135,7 @@ class JustificacionesServicio {
       ];
 
       http.Response? respuesta;
+      Object? ultimo_error_red;
       for (final url in urls) {
         try {
           final res = await cliente_http.post(
@@ -122,24 +143,33 @@ class JustificacionesServicio {
             headers: cabeceras,
             body: jsonEncode(cuerpo),
           );
+          respuesta = res;
           if (res.statusCode == 200 || res.statusCode == 201) {
-            respuesta = res;
             break;
           }
-        } catch (_) {}
+          if (res.statusCode != 404) {
+            break;
+          }
+        } catch (err) {
+          ultimo_error_red = err;
+        }
       }
 
-      if (respuesta != null &&
-          (respuesta.statusCode == 200 || respuesta.statusCode == 201)) {
-        final dynamic datos = jsonDecode(respuesta.body);
-        return Resultado.exitoso(
-          datos is Map<String, dynamic>
-              ? datos
-              : {'mensaje': 'Justificación registrada'},
-        );
+      if (respuesta != null) {
+        if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
+          final dynamic datos = jsonDecode(respuesta.body);
+          return Resultado.exitoso(
+            datos is Map<String, dynamic>
+                ? datos
+                : {'mensaje': 'Justificación registrada'},
+          );
+        }
+
+        final error = ErrorBumand.desdeRespuesta(respuesta);
+        return Resultado.desdeErrorBumand(error);
       }
 
-      if (cola_offline != null) {
+      if (ultimo_error_red != null && cola_offline != null) {
         await cola_offline!.encolar(
           ruta: ApiConstantes.PUNTO_JUSTIFICACIONES,
           metodo: 'POST',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
@@ -206,7 +207,9 @@ class _EvaluacionSocioeconomicaPantallaState
     setState(() => _enviando = true);
 
     final estado_auth = ref.read(autenticacion_proveedor);
-    final becario_id = estado_auth.usuario?.id ?? 1;
+    final prefs = await SharedPreferences.getInstance();
+    final becario_id =
+        estado_auth.usuario?.id ?? prefs.getInt('usuario_id') ?? 1;
 
     final respuestas_dto = <String, dynamic>{
       for (final entry in _respuestas.entries)

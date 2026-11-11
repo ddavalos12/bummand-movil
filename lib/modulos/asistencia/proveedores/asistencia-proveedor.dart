@@ -64,6 +64,7 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     Position? posicion,
     Map<String, dynamic>? lugar,
     int? evento_id,
+    int? lugar_practica_id,
   }) async {
     state = const AsyncLoading();
     try {
@@ -85,7 +86,16 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
           return "Estás fuera del radio permitido para marcar ingreso";
         }
       }
-      final res = await _repo.registrarIngreso(tipo, pos, evento_id: evento_id);
+      final id_lugar = lugar_practica_id ??
+          (lugar?["id"] is int
+              ? lugar!["id"] as int
+              : int.tryParse((lugar?["id"] ?? lugar?["lugar_practica_id"] ?? '').toString()));
+      final res = await _repo.registrarIngreso(
+        tipo,
+        pos,
+        evento_id: evento_id,
+        lugar_practica_id: id_lugar,
+      );
       if (res.exito || res.error_bumand?.fueEncolado == true) {
         ref.invalidate(historial_asistencia_proveedor);
         ref.invalidate(cola_offline_conteo_proveedor);
@@ -105,6 +115,7 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     Position? posicion,
     Map<String, dynamic>? lugar,
     int? evento_id,
+    int? lugar_practica_id,
   }) async {
     state = const AsyncLoading();
     try {
@@ -126,7 +137,16 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
           return "Estás fuera del radio permitido para marcar salida";
         }
       }
-      final res = await _repo.registrarSalida(tipo, pos, evento_id: evento_id);
+      final id_lugar = lugar_practica_id ??
+          (lugar?["id"] is int
+              ? lugar!["id"] as int
+              : int.tryParse((lugar?["id"] ?? lugar?["lugar_practica_id"] ?? '').toString()));
+      final res = await _repo.registrarSalida(
+        tipo,
+        pos,
+        evento_id: evento_id,
+        lugar_practica_id: id_lugar,
+      );
       if (res.exito || res.error_bumand?.fueEncolado == true) {
         ref.invalidate(historial_asistencia_proveedor);
         ref.invalidate(cola_offline_conteo_proveedor);

@@ -1,12 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
 import '../modelos/pregunta-bienestar-modelo.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
 import 'formulario_f03_dialogo.dart';
+
+Future<int> _obtenerBecarioIdAutenticado(BuildContext context) async {
+  try {
+    final contenedor = ProviderScope.containerOf(context, listen: false);
+    final id_usuario = contenedor.read(autenticacion_proveedor).usuario?.id;
+    if (id_usuario != null && id_usuario > 0) {
+      return id_usuario;
+    }
+  } catch (_) {}
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final id_prefs = prefs.getInt('usuario_id');
+    if (id_prefs != null && id_prefs > 0) {
+      return id_prefs;
+    }
+  } catch (_) {}
+  return 1;
+}
 
 class DetalleEvaluacionModal extends StatelessWidget {
   final String numero_modulo;
@@ -2663,7 +2684,10 @@ class _ReceptorLideresClassroomModalState
   }
 
   Future<void> _cargarTareas() async {
-    final resultado = await _repositorio.obtenerTareasEscuelaLideres();
+    final becario_id = await _obtenerBecarioIdAutenticado(context);
+    final resultado = await _repositorio.obtenerTareasEscuelaLideres(
+      becario_id: becario_id,
+    );
     if (!mounted) return;
     if (resultado.exito && resultado.datos != null && resultado.datos!.isNotEmpty) {
       setState(() {
@@ -2722,21 +2746,62 @@ class _ReceptorLideresClassroomModalState
       _entregando_por_tarea[numero_tarea] = true;
     });
 
-    await _repositorio.subirEvidenciaTareaLideres(
+    final becario_id = await _obtenerBecarioIdAutenticado(context);
+    final nombre_archivo = evidencia['nombre'] as String;
+    final tamano_archivo = evidencia['tamano']?.toString();
+
+    final res_subida = await _repositorio.subirEvidenciaTareaLideres(
       tarea_numero: numero_tarea,
-      becario_id: 1,
+      becario_id: becario_id,
       bytes: evidencia['bytes'] as List<int>,
-      nombre_archivo: evidencia['nombre'] as String,
+      nombre_archivo: nombre_archivo,
     );
 
-    await _repositorio.entregarTareaLideres(
+    if (!mounted) return;
+    if (!res_subida.exito) {
+      setState(() {
+        _entregando_por_tarea[numero_tarea] = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res_subida.error ?? "Error al subir el archivo de evidencia."),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    final url_evidencia = (res_subida.datos?['archivo_evidencia_url'] ??
+            res_subida.datos?['url'] ??
+            '/uploads/escuela-lideres/$nombre_archivo')
+        .toString();
+
+    final res_entrega = await _repositorio.entregarTareaLideres(
       tarea_numero: numero_tarea,
-      becario_id: 1,
-      archivo_nombre: evidencia['nombre'] as String,
+      becario_id: becario_id,
+      periodo_id: 1,
+      archivo_nombre: nombre_archivo,
+      archivo_evidencia_url: url_evidencia,
+      tamano_archivo: tamano_archivo,
+      respuesta_texto: "Entrega semestral regular CETI",
+      enlace_externo: "",
       comentario: "Entrega semestral regular CETI",
     );
 
     if (!mounted) return;
+    if (!res_entrega.exito) {
+      setState(() {
+        _entregando_por_tarea[numero_tarea] = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res_entrega.error ?? "Error al registrar la entrega de la tarea."),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _entregando_por_tarea[numero_tarea] = false;
       _evidencias_seleccionadas.remove(numero_tarea);
@@ -2745,7 +2810,8 @@ class _ReceptorLideresClassroomModalState
       if (index != -1) {
         _tareas[index] = _tareas[index].copiarCon(
           estado: 'entregado',
-          evidencia_nombre: evidencia['nombre'] as String,
+          evidencia_nombre: nombre_archivo,
+          archivo_evidencia_url: url_evidencia,
           fecha_entrega:
               "${DateTime.now().day.toString().padLeft(2, '0')}/${DateTime.now().month.toString().padLeft(2, '0')}/${DateTime.now().year}",
         );
@@ -2847,14 +2913,25 @@ class _ReceptorLideresClassroomModalState
               final retro = retro_ctrl.text.trim();
               Navigator.of(ctx).pop();
 
-              await _repositorio.revisarTareaLideres(
+              final becario_id = await _obtenerBecarioIdAutenticado(context);
+              final res_rev = await _repositorio.revisarTareaLideres(
                 tarea_numero: tarea.numero,
-                becario_id: 1,
+                entrega_id: tarea.entrega_id,
+                becario_id: becario_id,
                 puntaje: puntaje,
                 retroalimentacion: retro,
               );
 
               if (!mounted) return;
+              if (!res_rev.exito) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(res_rev.error ?? "Error al guardar la revisión."),
+                    backgroundColor: const Color(0xFFDC2626),
+                  ),
+                );
+                return;
+              }
               setState(() {
                 final idx = _tareas.indexWhere((t) => t.numero == tarea.numero);
                 if (idx != -1) {
@@ -2996,7 +3073,7 @@ class _ReceptorLideresClassroomModalState
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      "$cantidad_revisadas de 12 revisadas",
+                      "$cantidad_revisadas de ${_tareas.length} revisadas",
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 11.5,
@@ -3509,13 +3586,15 @@ class _ReceptorSocioeconomicoModalState
 
     setState(() => _enviando = true);
 
+    final becario_id = await _obtenerBecarioIdAutenticado(context);
+
     final respuestas_dto = <String, dynamic>{
       for (final entry in _respuestas.entries)
         "pregunta_${entry.key}": entry.value,
     };
 
     final resultado = await _repositorio.enviarEvaluacionSocioeconomica(
-      becario_id: 1,
+      becario_id: becario_id,
       periodo_id: 1,
       respuestas: respuestas_dto,
     );

@@ -946,14 +946,17 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
                       style: TextStyle(fontSize: 12),
                     ),
                     onTap: () async {
+                      final navegador = Navigator.of(context, rootNavigator: true);
+                      final notificador = ref.read(autenticacion_proveedor.notifier);
                       Navigator.of(ctx).pop();
-                      await ref.read(autenticacion_proveedor.notifier).cerrarSesion();
-                      if (context.mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
+                      try {
+                        await notificador.cerrarSesion();
+                      } finally {
+                        navegador.pushAndRemoveUntil(
                           MaterialPageRoute(
                             builder: (_) => const InicioSesionPantalla(),
                           ),
-                          (_) => false,
+                          (route) => false,
                         );
                       }
                     },

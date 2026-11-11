@@ -20,6 +20,18 @@ class EvaluacionesRepositorio {
     return preferencias.getString('token');
   }
 
+  Future<int> _resolverBecarioId([int? becario_id]) async {
+    if (becario_id != null && becario_id > 1) return becario_id;
+    try {
+      final preferencias = await SharedPreferences.getInstance();
+      final id_guardado = preferencias.getInt('usuario_id');
+      if (id_guardado != null && id_guardado > 0) {
+        return id_guardado;
+      }
+    } catch (_) {}
+    return becario_id ?? 1;
+  }
+
   Future<Map<String, String>> _cabeceras() async {
     final token = await _obtenerToken();
     return {
@@ -107,11 +119,12 @@ class EvaluacionesRepositorio {
   }) async {
     final cliente_http = _obtenerCliente();
     try {
+      final id_real = await _resolverBecarioId(becario_id);
       final cabeceras = await _cabeceras();
-      final ruta = '${ApiConstantes.RUTA_BASE}/evaluaciones/receptor/socioeconomica';
+      final ruta = '${ApiConstantes.RUTA_BASE}/api/evaluaciones/receptor/socioeconomica';
 
       final cuerpo = {
-        'becario_id': becario_id,
+        'becario_id': id_real,
         'periodo_id': periodo_id,
         'respuestas': respuestas,
         if (observaciones != null && observaciones.isNotEmpty)
@@ -132,8 +145,8 @@ class EvaluacionesRepositorio {
 
       final error = ErrorBumand.desdeRespuesta(respuesta);
       return Resultado.desdeErrorBumand(error);
-    } catch (_) {
-      return Resultado.exitoso(null);
+    } catch (e) {
+      return Resultado.fallido('Error de conexión al enviar evaluación socioeconómica: $e');
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -404,14 +417,15 @@ class EvaluacionesRepositorio {
   }
 
   Future<Resultado<List<TareaEscuelaLideresModelo>>> obtenerTareasEscuelaLideres({
-    int becario_id = 1,
+    int? becario_id,
     int periodo_id = 1,
   }) async {
     final cliente_http = _obtenerCliente();
     try {
+      final id_real = await _resolverBecarioId(becario_id);
       final cabeceras = await _cabeceras();
       final ruta =
-          '${ApiConstantes.RUTA_BASE}/evaluaciones/escuela-lideres/tareas?becario_id=$becario_id&periodo_id=$periodo_id';
+          '${ApiConstantes.RUTA_BASE}/api/evaluaciones/escuela-lideres/tareas?becario_id=$id_real&periodo_id=$periodo_id';
 
       final respuesta = await cliente_http
           .get(Uri.parse(ruta), headers: cabeceras)
@@ -419,9 +433,16 @@ class EvaluacionesRepositorio {
 
       if (respuesta.statusCode == 200) {
         final cuerpo = jsonDecode(respuesta.body);
-        if (cuerpo is List && cuerpo.isNotEmpty) {
-          final tareas = cuerpo
-              .map((t) => TareaEscuelaLideresModelo.desdeJson(t as Map<String, dynamic>))
+        final List<dynamic>? lista_raw = cuerpo is List
+            ? cuerpo
+            : (cuerpo is Map && cuerpo['tareas'] is List
+                ? cuerpo['tareas'] as List<dynamic>
+                : null);
+        if (lista_raw != null && lista_raw.isNotEmpty) {
+          final tareas = lista_raw
+              .map((t) => TareaEscuelaLideresModelo.desdeJson(
+                    Map<String, dynamic>.from(t as Map),
+                  ))
               .toList();
           return Resultado.exitoso(tareas);
         }
@@ -436,25 +457,26 @@ class EvaluacionesRepositorio {
 
   Future<Resultado<Map<String, dynamic>>> subirEvidenciaTareaLideres({
     required int tarea_numero,
-    required int becario_id,
+    int? becario_id,
     required List<int> bytes,
     required String nombre_archivo,
   }) async {
     try {
       final token = await _obtenerToken();
+      final id_real = await _resolverBecarioId(becario_id);
       final ruta =
-          '${ApiConstantes.RUTA_BASE}/evaluaciones/escuela-lideres/tarea/$tarea_numero/evidencia';
+          '${ApiConstantes.RUTA_BASE}/api/evaluaciones/escuela-lideres/tareas/subir-evidencia';
 
       final peticion = http.MultipartRequest('POST', Uri.parse(ruta));
       if (token != null) {
         peticion.headers['Authorization'] = 'Bearer $token';
       }
-      peticion.fields['becario_id'] = becario_id.toString();
+      peticion.fields['becario_id'] = id_real.toString();
       peticion.fields['tarea_numero'] = tarea_numero.toString();
 
       peticion.files.add(
         http.MultipartFile.fromBytes(
-          'evidencia',
+          'archivo',
           bytes,
           filename: nombre_archivo,
         ),
@@ -467,32 +489,52 @@ class EvaluacionesRepositorio {
         final mapa = jsonDecode(respuesta.body) as Map<String, dynamic>;
         return Resultado.exitoso(mapa);
       }
-      return Resultado.exitoso({'archivo_nombre': nombre_archivo});
-    } catch (_) {
-      return Resultado.exitoso({'archivo_nombre': nombre_archivo});
+
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return Resultado.desdeErrorBumand(error);
+    } catch (e) {
+      return Resultado.fallido('Error de conexión al subir evidencia: $e');
     }
   }
 
   Future<Resultado<void>> entregarTareaLideres({
     required int tarea_numero,
-    required int becario_id,
+    int? becario_id,
+    int periodo_id = 1,
     required String archivo_nombre,
+    String? archivo_evidencia_url,
+    String? tamano_archivo,
+    String? respuesta_texto,
+    String? enlace_externo,
     String? comentario,
   }) async {
     final cliente_http = _obtenerCliente();
     try {
+      final id_real = await _resolverBecarioId(becario_id);
       final cabeceras = await _cabeceras();
       final ruta =
-          '${ApiConstantes.RUTA_BASE}/evaluaciones/escuela-lideres/tarea/$tarea_numero/entregar';
+          '${ApiConstantes.RUTA_BASE}/api/evaluaciones/escuela-lideres/tareas/entregar';
 
-      final cuerpo = {
-        'becario_id': becario_id,
+      final url_evidencia = (archivo_evidencia_url != null &&
+              archivo_evidencia_url.trim().isNotEmpty)
+          ? archivo_evidencia_url.trim()
+          : '/uploads/escuela-lideres/$archivo_nombre';
+
+      final cuerpo = <String, dynamic>{
+        'becario_id': id_real,
+        'periodo_id': periodo_id,
         'tarea_numero': tarea_numero,
-        'archivo_nombre': archivo_nombre,
-        if (comentario != null && comentario.isNotEmpty) 'comentario': comentario,
+        'respuesta_texto': respuesta_texto ?? comentario ?? '',
+        'enlace_externo': enlace_externo ?? '',
+        'archivo_evidencia_url': url_evidencia,
+        'nombre_archivo': archivo_nombre,
+        if (tamano_archivo != null && tamano_archivo.isNotEmpty)
+          'tamano_archivo': tamano_archivo,
+        if (comentario != null && comentario.isNotEmpty)
+          'comentario_becario': comentario,
       };
 
-      final respuesta = await cliente_http
+      var respuesta = await cliente_http
           .post(
             Uri.parse(ruta),
             headers: cabeceras,
@@ -500,12 +542,35 @@ class EvaluacionesRepositorio {
           )
           .timeout(const Duration(seconds: 5));
 
+      if (respuesta.statusCode == 400) {
+        final cuerpo_estricto = <String, dynamic>{
+          'becario_id': id_real,
+          'periodo_id': periodo_id,
+          'tarea_numero': tarea_numero,
+          'archivo_evidencia_url': url_evidencia,
+          'nombre_archivo': archivo_nombre,
+          if (tamano_archivo != null && tamano_archivo.isNotEmpty)
+            'tamano_archivo': tamano_archivo,
+          if ((comentario ?? respuesta_texto ?? '').isNotEmpty)
+            'comentario_becario': comentario ?? respuesta_texto,
+        };
+        respuesta = await cliente_http
+            .post(
+              Uri.parse(ruta),
+              headers: cabeceras,
+              body: jsonEncode(cuerpo_estricto),
+            )
+            .timeout(const Duration(seconds: 5));
+      }
+
       if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
         return Resultado.exitoso(null);
       }
-      return Resultado.exitoso(null);
-    } catch (_) {
-      return Resultado.exitoso(null);
+
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return Resultado.desdeErrorBumand(error);
+    } catch (e) {
+      return Resultado.fallido('Error de conexión al entregar tarea: $e');
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -513,21 +578,47 @@ class EvaluacionesRepositorio {
 
   Future<Resultado<void>> revisarTareaLideres({
     required int tarea_numero,
-    required int becario_id,
+    int? entrega_id,
+    int? becario_id,
     required double puntaje,
     required String retroalimentacion,
+    String estado = 'revisado',
   }) async {
     final cliente_http = _obtenerCliente();
     try {
+      final id_real = await _resolverBecarioId(becario_id);
       final cabeceras = await _cabeceras();
+
+      if (entrega_id != null && entrega_id > 0) {
+        final ruta_patch =
+            '${ApiConstantes.RUTA_BASE}/api/evaluaciones/escuela-lideres/entregas/$entrega_id/revisar';
+        final respuesta_patch = await cliente_http
+            .patch(
+              Uri.parse(ruta_patch),
+              headers: cabeceras,
+              body: jsonEncode({
+                'estado': estado,
+                'puntaje_obtenido': puntaje,
+                'comentario_revisor': retroalimentacion,
+              }),
+            )
+            .timeout(const Duration(seconds: 5));
+        if (respuesta_patch.statusCode == 200 || respuesta_patch.statusCode == 201) {
+          return Resultado.exitoso(null);
+        }
+      }
+
       final ruta =
-          '${ApiConstantes.RUTA_BASE}/evaluaciones/escuela-lideres/tarea/$tarea_numero/revisar';
+          '${ApiConstantes.RUTA_BASE}/api/evaluaciones/escuela-lideres/tarea/$tarea_numero/revisar';
 
       final cuerpo = {
-        'becario_id': becario_id,
+        'becario_id': id_real,
         'tarea_numero': tarea_numero,
+        'estado': estado,
         'puntaje': puntaje,
+        'puntaje_obtenido': puntaje,
         'retroalimentacion': retroalimentacion,
+        'comentario_revisor': retroalimentacion,
       };
 
       final respuesta = await cliente_http
@@ -541,9 +632,11 @@ class EvaluacionesRepositorio {
       if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
         return Resultado.exitoso(null);
       }
-      return Resultado.exitoso(null);
-    } catch (_) {
-      return Resultado.exitoso(null);
+
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return Resultado.desdeErrorBumand(error);
+    } catch (e) {
+      return Resultado.fallido('Error de conexión al revisar tarea: $e');
     } finally {
       if (cliente == null) cliente_http.close();
     }

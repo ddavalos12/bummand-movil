@@ -267,52 +267,83 @@ class BecarioAsignadoModulo3Modelo {
 
 class TareaEscuelaLideresModelo {
   final int numero;
+  final int? entrega_id;
   final String tema;
   final String descripcion;
   final double ponderacion;
   final String estado; // "pendiente", "entregado", "revisado"
   final String? evidencia_nombre;
+  final String? archivo_evidencia_url;
   final String? fecha_entrega;
   final double? puntaje_obtenido; // 0 - 100 pts
   final String? retroalimentacion;
 
   const TareaEscuelaLideresModelo({
     required this.numero,
+    this.entrega_id,
     required this.tema,
     required this.descripcion,
     required this.ponderacion,
     required this.estado,
     this.evidencia_nombre,
+    this.archivo_evidencia_url,
     this.fecha_entrega,
     this.puntaje_obtenido,
     this.retroalimentacion,
   });
 
   factory TareaEscuelaLideresModelo.desdeJson(Map<String, dynamic> json) {
+    final num_raw = json['numero'] ?? json['tarea_numero'] ?? 1;
+    final num_parsed = num_raw is int
+        ? num_raw
+        : int.tryParse(num_raw.toString()) ?? 1;
+    final canonicos = catalogoCanonico().where((c) => c.numero == num_parsed);
+    final canonico = canonicos.isNotEmpty ? canonicos.first : null;
+    final tema_val =
+        (json['tema'] ?? json['titulo_tarea'] ?? json['titulo'])?.toString();
+    final desc_val =
+        (json['descripcion'] ?? json['instrucciones'])?.toString();
+    final pond_raw = json['ponderacion'] ??
+        json['ponderacion_maxima'] ??
+        canonico?.ponderacion ??
+        8.33;
+    final entrega_id_raw = json['entrega_id'] ?? json['id'];
+
     return TareaEscuelaLideresModelo(
-      numero: json['numero'] is int
-          ? json['numero']
-          : int.tryParse(json['numero']?.toString() ?? '1') ?? 1,
-      tema: json['tema']?.toString() ?? 'Tarea Formativa CETI',
-      descripcion: json['descripcion']?.toString() ?? '',
-      ponderacion: double.tryParse(json['ponderacion']?.toString() ?? '8.33') ?? 8.33,
+      numero: num_parsed,
+      entrega_id: entrega_id_raw is int
+          ? entrega_id_raw
+          : int.tryParse(entrega_id_raw?.toString() ?? ''),
+      tema: (tema_val != null && tema_val.trim().isNotEmpty)
+          ? tema_val
+          : (canonico?.tema ?? 'Tarea Formativa CETI'),
+      descripcion: (desc_val != null && desc_val.trim().isNotEmpty)
+          ? desc_val
+          : (canonico?.descripcion ?? ''),
+      ponderacion: double.tryParse(pond_raw.toString()) ?? 8.33,
       estado: json['estado']?.toString() ?? 'pendiente',
-      evidencia_nombre: json['evidencia_nombre']?.toString(),
+      evidencia_nombre:
+          (json['evidencia_nombre'] ?? json['nombre_archivo'])?.toString(),
+      archivo_evidencia_url: json['archivo_evidencia_url']?.toString(),
       fecha_entrega: json['fecha_entrega']?.toString(),
       puntaje_obtenido: json['puntaje_obtenido'] != null
           ? double.tryParse(json['puntaje_obtenido'].toString())
           : null,
-      retroalimentacion: json['retroalimentacion']?.toString(),
+      retroalimentacion:
+          (json['retroalimentacion'] ?? json['comentario_revisor'])?.toString(),
     );
   }
 
   Map<String, dynamic> aJson() => {
     'numero': numero,
+    if (entrega_id != null) 'entrega_id': entrega_id,
     'tema': tema,
     'descripcion': descripcion,
     'ponderacion': ponderacion,
     'estado': estado,
     'evidencia_nombre': evidencia_nombre,
+    if (archivo_evidencia_url != null)
+      'archivo_evidencia_url': archivo_evidencia_url,
     'fecha_entrega': fecha_entrega,
     'puntaje_obtenido': puntaje_obtenido,
     'retroalimentacion': retroalimentacion,
@@ -320,22 +351,27 @@ class TareaEscuelaLideresModelo {
 
   TareaEscuelaLideresModelo copiarCon({
     int? numero,
+    int? entrega_id,
     String? tema,
     String? descripcion,
     double? ponderacion,
     String? estado,
     String? evidencia_nombre,
+    String? archivo_evidencia_url,
     String? fecha_entrega,
     double? puntaje_obtenido,
     String? retroalimentacion,
   }) {
     return TareaEscuelaLideresModelo(
       numero: numero ?? this.numero,
+      entrega_id: entrega_id ?? this.entrega_id,
       tema: tema ?? this.tema,
       descripcion: descripcion ?? this.descripcion,
       ponderacion: ponderacion ?? this.ponderacion,
       estado: estado ?? this.estado,
       evidencia_nombre: evidencia_nombre ?? this.evidencia_nombre,
+      archivo_evidencia_url:
+          archivo_evidencia_url ?? this.archivo_evidencia_url,
       fecha_entrega: fecha_entrega ?? this.fecha_entrega,
       puntaje_obtenido: puntaje_obtenido ?? this.puntaje_obtenido,
       retroalimentacion: retroalimentacion ?? this.retroalimentacion,

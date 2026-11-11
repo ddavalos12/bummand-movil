@@ -341,19 +341,26 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       } catch (_) {}
     }
 
+    final lugar_efectivo = lugar ?? _lugar_seleccionado;
+    final int? lugar_practica_id = (lugar_efectivo?['id'] is int)
+        ? lugar_efectivo!['id'] as int
+        : int.tryParse((lugar_efectivo?['id'] ?? '').toString());
+
     final notificador = ref.read(asistencia_notificador_proveedor.notifier);
     final error = ingreso
         ? await notificador.registrarIngreso(
             _tipo,
             posicion: _posicion_actual,
-            lugar: lugar,
+            lugar: lugar_efectivo,
             evento_id: evento_id,
+            lugar_practica_id: lugar_practica_id,
           )
         : await notificador.registrarSalida(
             _tipo,
             posicion: _posicion_actual,
-            lugar: lugar,
+            lugar: lugar_efectivo,
             evento_id: evento_id,
+            lugar_practica_id: lugar_practica_id,
           );
 
     if (error == null) {

@@ -63,7 +63,7 @@ class PasajesRepositorio {
   http.Client _obtenerCliente() => cliente ?? http.Client();
 
   Uri _url(String ruta) =>
-      Uri.parse('${ApiConstantes.RUTA_BASE}/pasajes$ruta');
+      Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_PASAJES}$ruta');
 
   Future<List<RecorridoModelo>> _obtenerRecorridosLocales() async {
     try {
@@ -261,6 +261,37 @@ class PasajesRepositorio {
     }
   }
 
+  Future<ResultadoPasaje<void>> declararRecorrido({
+    required String fecha,
+    required String tramo,
+    required String origen,
+    required String destino,
+    required double tarifa,
+    required String apoyo_realizado,
+    String? calles_declaradas,
+    String? medio_transporte,
+    String? detalle_tramos_json,
+    double? lat_origen,
+    double? lng_origen,
+    double? lat_destino,
+    double? lng_destino,
+  }) =>
+      agregarRecorrido(
+        fecha: fecha,
+        tramo: tramo,
+        origen: origen,
+        destino: destino,
+        tarifa: tarifa,
+        apoyo_realizado: apoyo_realizado,
+        calles_declaradas: calles_declaradas,
+        medio_transporte: medio_transporte,
+        detalle_tramos_json: detalle_tramos_json,
+        lat_origen: lat_origen,
+        lng_origen: lng_origen,
+        lat_destino: lat_destino,
+        lng_destino: lng_destino,
+      );
+
   Future<ResultadoPasaje<void>> agregarRecorrido({
     required String fecha,
     required String tramo,
@@ -277,14 +308,17 @@ class PasajesRepositorio {
     double? lng_destino,
   }) async {
     final cliente_http = _obtenerCliente();
+    final apoyo_seguro = apoyo_realizado.length > 250
+        ? apoyo_realizado.substring(0, 250)
+        : apoyo_realizado;
     final cuerpo = <String, dynamic>{
       'fecha': fecha,
       'tramo': tramo,
       'origen': origen,
       'destino': destino,
       'tarifa': tarifa,
-      'apoyoRealizado': apoyo_realizado,
-      'apoyo_realizado': apoyo_realizado,
+      'apoyoRealizado': apoyo_seguro,
+      'apoyo_realizado': apoyo_seguro,
     };
     if (calles_declaradas != null) {
       cuerpo['calles_declaradas'] = calles_declaradas;
@@ -316,7 +350,7 @@ class PasajesRepositorio {
     }
 
     try {
-      final respuesta = await cliente_http.post(
+      var respuesta = await cliente_http.post(
         _url('/recorridos'),
         headers: await _cabeceras(),
         body: jsonEncode(cuerpo),
@@ -326,29 +360,28 @@ class PasajesRepositorio {
         return ResultadoPasaje.exitoso(null);
       }
 
-      final datos = jsonDecode(respuesta.body) as Map<String, dynamic>?;
+      Map<String, dynamic>? datos;
+      try {
+        final decodificado = jsonDecode(respuesta.body);
+        if (decodificado is Map<String, dynamic>) {
+          datos = decodificado;
+        }
+      } catch (_) {}
       final codigo_backend = datos?['codigo']?.toString();
 
-      // Si el backend pide confirmar datos del periodo primero, lo confirmamos automáticamente y reintentamos
       if (codigo_backend == 'DATOS_NO_CONFIRMADOS' ||
           (respuesta.body.contains('confirmar') && datos?['periodo'] != null)) {
         final periodo_req = datos?['periodo']?.toString() ??
             fecha.substring(0, 7);
         await confirmarDatos(periodo_req);
-        final reintento = await cliente_http.post(
+        respuesta = await cliente_http.post(
           _url('/recorridos'),
           headers: await _cabeceras(),
           body: jsonEncode(cuerpo),
         );
-        if (reintento.statusCode == 201 || reintento.statusCode == 200) {
+        if (respuesta.statusCode == 201 || respuesta.statusCode == 200) {
           return ResultadoPasaje.exitoso(null);
         }
-      }
-
-      // Si un servidor antiguo sin reiniciar responde 403, guardamos localmente sin bloquear al usuario
-      if (respuesta.statusCode == 403 || respuesta.statusCode == 404) {
-        await _guardarRecorridoLocal(cuerpo);
-        return ResultadoPasaje.exitoso(null);
       }
 
       final error = ErrorBumand.desdeRespuesta(respuesta);
@@ -362,7 +395,7 @@ class PasajesRepositorio {
       await _guardarRecorridoLocal(cuerpo);
       if (cola_offline != null) {
         await cola_offline!.encolar(
-          ruta: '/pasajes/recorridos',
+          ruta: '${ApiConstantes.PUNTO_PASAJES}/recorridos',
           metodo: 'POST',
           cuerpo: cuerpo,
           tipo: 'pasajes_recorrido',
@@ -452,17 +485,29 @@ class PasajesRepositorio {
       if (respuesta.statusCode == 200) {
         final cuerpo = jsonDecode(respuesta.body);
         final List<dynamic> datos = cuerpo is List ? cuerpo : (cuerpo['datos'] ?? cuerpo['tarifas'] ?? []);
-        final tarifas = datos.map((e) {
-          final m = e as Map<String, dynamic>;
-          final costo = (m['costo_bs'] as num?)?.toDouble() ?? (m['monto'] as num?)?.toDouble() ?? 2.60;
-          final medio = (m['medio_transporte'] ?? m['nombre'] ?? 'Transporte').toString();
-          return {
+        final nombres_vistos = <String, int>{};
+        final tarifas = datos
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .where((m) => m['activo'] != false)
+            .map((m) {
+          final costo = double.tryParse((m['costo_bs'] ?? m['monto'] ?? '0').toString()) ?? 0.0;
+          final medio = (m['medio_transporte'] ?? m['nombre'] ?? 'Transporte').toString().trim();
+          final descripcion = (m['descripcion'] ?? '').toString().trim();
+          var nombre_unico = medio;
+          final conteo = (nombres_vistos[medio.toLowerCase()] ?? 0) + 1;
+          nombres_vistos[medio.toLowerCase()] = conteo;
+          if (conteo > 1) {
+            nombre_unico = descripcion.isNotEmpty
+                ? '$medio ($descripcion)'
+                : '$medio #${m['id'] ?? conteo}';
+          }
+          return <String, dynamic>{
             'id': m['id'],
             'medio_transporte': medio,
-            'descripcion': m['descripcion'] ?? '',
+            'descripcion': descripcion,
             'costo_bs': costo,
             'activo': m['activo'] ?? true,
-            'nombre': medio,
+            'nombre': nombre_unico,
             'monto': costo,
           };
         }).toList();

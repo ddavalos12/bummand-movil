@@ -288,28 +288,34 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
 
     final auth = ref.read(autenticacion_proveedor);
     final usuario = auth.usuario;
-    final int id_becario_real = widget.becario_id ?? usuario?.id ?? 1;
+    final preferencias = await SharedPreferences.getInstance();
+    final int id_becario_real =
+        widget.becario_id ?? usuario?.id ?? preferencias.getInt('usuario_id') ?? 1;
     final String nombre_becario_real = usuario?.nombre.isNotEmpty == true
         ? usuario!.nombre
         : widget.nombre_becario;
+    final String? ci_becario_real =
+        usuario?.ci ?? preferencias.getString('usuario_ci');
 
     final cuerpo = {
       "becario_id": id_becario_real,
       "becario_nombre": nombre_becario_real,
-      "periodo": "Semestre II - 2026",
+      if (ci_becario_real != null && ci_becario_real.isNotEmpty)
+        "becario_ci": ci_becario_real,
       "pastor_nombre": _pastor_nombre_ctrl.text.trim(),
       "pastor_correo": _pastor_correo_ctrl.text.trim(),
       "pastor_celular": _pastor_celular_ctrl.text.trim(),
       "iglesia_nombre": _iglesia_nombre_ctrl.text.trim(),
       "iglesia_direccion": _iglesia_dir_ctrl.text.trim(),
-      "frecuencia": _frecuencia,
-      "compromiso": _compromiso,
-      "cargo_iglesia": _cargo_iglesia,
-      "cumplimiento": _cumplimiento,
-      "opinion_general": _opinion_ctrl.text.trim(),
-      "declaracion_ci": _declara_ci_ctrl.text.trim(),
-      "fecha_recepcion": DateTime.now().toIso8601String(),
       "campos_formulario": {
+        "periodo": "Semestre II - 2026",
+        "frecuencia": _frecuencia,
+        "compromiso": _compromiso,
+        "cargo_iglesia": _cargo_iglesia,
+        "cumplimiento": _cumplimiento,
+        "opinion_general": _opinion_ctrl.text.trim(),
+        "declaracion_ci": _declara_ci_ctrl.text.trim(),
+        "fecha_recepcion": DateTime.now().toIso8601String(),
         "lider_nombre": _lider_nombre_ctrl.text.trim(),
         "lider_cargo": _lider_cargo_ctrl.text.trim(),
         "frecuencia_asistencia": _frecuencia,
@@ -325,7 +331,6 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
         "desarrollo_nuevos_lideres": _nuevos_lideres_ctrl.text.trim(),
         "fortalezas": _fortalezas_ctrl.text.trim(),
         "debilidades": _debilidades_ctrl.text.trim(),
-        "opinion_general": _opinion_ctrl.text.trim(),
         "declara_nombre": _declara_nombre_ctrl.text.trim(),
         "declara_ci": _declara_ci_ctrl.text.trim(),
         "declara_conforme": _declara_veridico,
@@ -334,7 +339,6 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
     };
 
     try {
-      final preferencias = await SharedPreferences.getInstance();
       final token = preferencias.getString('token');
 
       final cabeceras = {
@@ -343,7 +347,7 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
       };
 
       final url_primaria =
-          '${ApiConstantes.RUTA_BASE}/evaluaciones/f03/becario/$id_becario_real';
+          '${ApiConstantes.RUTA_BASE}/api/evaluaciones/f03/becario/$id_becario_real';
       var respuesta = await http
           .post(
             Uri.parse(url_primaria),

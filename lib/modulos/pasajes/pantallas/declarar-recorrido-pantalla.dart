@@ -339,13 +339,63 @@ class _DeclararRecorridoPantallaState
     final resultado = await repo.obtenerTarifas();
     if (mounted) {
       if (resultado.exito && resultado.datos != null && resultado.datos!.isNotEmpty) {
-        final lista = List<Map<String, dynamic>>.from(resultado.datos!);
-        if (!lista.any((t) => t['nombre'] == "Otro (escribir monto)...")) {
-          lista.add({"nombre": "Otro (escribir monto)...", "monto": 0.0});
+        final vistos = <String>{};
+        final lista = <Map<String, dynamic>>[];
+        for (final raw in resultado.datos!) {
+          if (raw['activo'] == false) continue;
+          final medio_base = (raw['nombre'] ?? raw['medio_transporte'] ?? 'Transporte').toString().trim();
+          if (medio_base == "Otro (escribir monto)...") continue;
+          final desc = (raw['descripcion'] ?? '').toString().trim();
+          final id_val = raw['id'];
+          final monto_val = double.tryParse((raw['costo_bs'] ?? raw['monto'] ?? '0').toString()) ?? 0.0;
+
+          var nombre_final = medio_base;
+          if (vistos.contains(nombre_final)) {
+            nombre_final = desc.isNotEmpty
+                ? "$medio_base ($desc)"
+                : "$medio_base (${id_val ?? lista.length + 1})";
+          }
+          while (vistos.contains(nombre_final)) {
+            nombre_final = "$nombre_final #${lista.length + 1}";
+          }
+          vistos.add(nombre_final);
+
+          lista.add({
+            ...raw,
+            "nombre": nombre_final,
+            "monto": monto_val,
+            "costo_bs": monto_val,
+          });
         }
+
+        final primera_tarifa = lista.isNotEmpty ? lista.first : null;
+        lista.add({"nombre": "Otro (escribir monto)...", "monto": 0.0});
+
         setState(() {
           _tarifas = lista;
           _cargando_tarifas = false;
+
+          if (primera_tarifa != null) {
+            final nombre_defecto = primera_tarifa["nombre"] as String;
+            final monto_defecto = (primera_tarifa["monto"] as num).toDouble();
+
+            for (final tramo in _tramos_ida) {
+              final existe = _tarifas.any((t) => t["nombre"] == tramo.nombre);
+              if (!existe) {
+                tramo.nombre = nombre_defecto;
+                tramo.monto = monto_defecto;
+                tramo.controlador_personalizado.text = monto_defecto.toStringAsFixed(2);
+              }
+            }
+            for (final tramo in _tramos_vuelta) {
+              final existe = _tarifas.any((t) => t["nombre"] == tramo.nombre);
+              if (!existe && tramo.nombre != "Ida en reversa") {
+                tramo.nombre = nombre_defecto;
+                tramo.monto = monto_defecto;
+                tramo.controlador_personalizado.text = monto_defecto.toStringAsFixed(2);
+              }
+            }
+          }
         });
       } else {
         setState(() => _cargando_tarifas = false);
@@ -1291,7 +1341,7 @@ class _DeclararRecorridoPantallaState
           ? "[$_tipo_actividad] $texto_apoyo | Calles: $calles_vuelta | Transporte: $medios_vuelta"
           : "[$_tipo_actividad] Calles: $calles_vuelta | Transporte: $medios_vuelta";
 
-      await repositorio.agregarRecorrido(
+      final vuelta = await repositorio.agregarRecorrido(
         fecha: fecha_str,
         tramo: "vuelta",
         origen: origen_vuelta.isNotEmpty ? origen_vuelta : destino,
@@ -1306,6 +1356,13 @@ class _DeclararRecorridoPantallaState
         lat_destino: _paradas_vuelta.last.posicion_gps?.latitude,
         lng_destino: _paradas_vuelta.last.posicion_gps?.longitude,
       );
+
+      if (!mounted) return;
+      if (!vuelta.exito) {
+        setState(() => _guardando = false);
+        _mensaje(vuelta.error ?? "Error al registrar la vuelta", es_error: true);
+        return;
+      }
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -1759,12 +1816,17 @@ class _DeclararRecorridoPantallaState
           TextButton.icon(
             onPressed: () {
               setState(() {
+                final tarifa_inicial = _tarifas.firstWhere(
+                  (t) => t["nombre"] != "Otro (escribir monto)...",
+                  orElse: () => {"nombre": "Minibús (dentro de El Alto)", "monto": 2.0},
+                );
+                final monto_ini = double.tryParse((tarifa_inicial["monto"] ?? tarifa_inicial["costo_bs"] ?? '2.0').toString()) ?? 2.0;
                 _tramos_ida.add(
                   _TramoTarifa(
-                    monto: 2.0,
-                    nombre: "Minibús (dentro de El Alto)",
+                    monto: monto_ini,
+                    nombre: tarifa_inicial["nombre"] as String,
                     controlador_personalizado:
-                        TextEditingController(text: "2.00"),
+                        TextEditingController(text: monto_ini.toStringAsFixed(2)),
                   ),
                 );
               });
@@ -1988,12 +2050,17 @@ class _DeclararRecorridoPantallaState
           TextButton.icon(
             onPressed: () {
               setState(() {
+                final tarifa_inicial = _tarifas.firstWhere(
+                  (t) => t["nombre"] != "Otro (escribir monto)...",
+                  orElse: () => {"nombre": "Minibús (dentro de El Alto)", "monto": 2.0},
+                );
+                final monto_ini = double.tryParse((tarifa_inicial["monto"] ?? tarifa_inicial["costo_bs"] ?? '2.0').toString()) ?? 2.0;
                 _tramos_vuelta.add(
                   _TramoTarifa(
-                    monto: 2.0,
-                    nombre: "Minibús (dentro de El Alto)",
+                    monto: monto_ini,
+                    nombre: tarifa_inicial["nombre"] as String,
                     controlador_personalizado:
-                        TextEditingController(text: "2.00"),
+                        TextEditingController(text: monto_ini.toStringAsFixed(2)),
                   ),
                 );
               });
@@ -2326,14 +2393,19 @@ class _DeclararRecorridoPantallaState
                     items: [
                       ..._tarifas.map((p) {
                         final nombre = p["nombre"] as String;
-                        final monto = (p["monto"] as num).toDouble();
+                        final monto = double.tryParse((p["monto"] ?? p["costo_bs"] ?? '0').toString()) ?? 0.0;
+                        final desc = (p["descripcion"] ?? "").toString().trim();
+                        final etiqueta = nombre == "Otro (escribir monto)..."
+                            ? nombre
+                            : (desc.isNotEmpty && !nombre.contains(desc)
+                                ? "Bs ${monto.toStringAsFixed(2)} — $nombre · $desc"
+                                : "Bs ${monto.toStringAsFixed(2)} — $nombre");
                         return DropdownMenuItem<String>(
                           value: nombre,
                           child: Text(
-                            nombre == "Otro (escribir monto)..."
-                                ? nombre
-                                : "Bs ${monto.toStringAsFixed(2)} — $nombre",
+                            etiqueta,
                             style: const TextStyle(fontSize: 12.5),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         );
                       }),
@@ -2342,7 +2414,7 @@ class _DeclararRecorridoPantallaState
                       if (nuevoNombre != null) {
                         final item = _tarifas
                             .firstWhere((p) => p["nombre"] == nuevoNombre, orElse: () => {"nombre": nuevoNombre, "monto": 0.0});
-                        final monto = (item["monto"] as num).toDouble();
+                        final monto = double.tryParse((item["monto"] ?? item["costo_bs"] ?? '0').toString()) ?? 0.0;
                         setState(() {
                           tramo.nombre = nuevoNombre;
                           if (nuevoNombre != "Otro (escribir monto)...") {

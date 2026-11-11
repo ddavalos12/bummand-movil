@@ -146,6 +146,7 @@ class AsistenciaRepositorio {
     Position posicion,
     String tipo, {
     int? evento_id,
+    int? lugar_practica_id,
   }) {
     final mapa = <String, dynamic>{
       "latitud": posicion.latitude,
@@ -157,6 +158,9 @@ class AsistenciaRepositorio {
     if (evento_id != null) {
       mapa["evento_id"] = evento_id;
     }
+    if (lugar_practica_id != null) {
+      mapa["lugar_practica_id"] = lugar_practica_id;
+    }
     return mapa;
   }
 
@@ -164,9 +168,15 @@ class AsistenciaRepositorio {
     String tipo,
     Position posicion, {
     int? evento_id,
+    int? lugar_practica_id,
   }) async {
     final cliente_http = _obtenerCliente();
-    final cuerpo = _cuerpoUbicacion(posicion, tipo, evento_id: evento_id);
+    final cuerpo = _cuerpoUbicacion(
+      posicion,
+      tipo,
+      evento_id: evento_id,
+      lugar_practica_id: lugar_practica_id,
+    );
     final ruta = ApiConstantes.PUNTO_ASISTENCIA_INGRESO;
 
     try {
@@ -209,9 +219,15 @@ class AsistenciaRepositorio {
     String tipo,
     Position posicion, {
     int? evento_id,
+    int? lugar_practica_id,
   }) async {
     final cliente_http = _obtenerCliente();
-    final cuerpo = _cuerpoUbicacion(posicion, tipo, evento_id: evento_id);
+    final cuerpo = _cuerpoUbicacion(
+      posicion,
+      tipo,
+      evento_id: evento_id,
+      lugar_practica_id: lugar_practica_id,
+    );
     final ruta = ApiConstantes.PUNTO_ASISTENCIA_SALIDA;
 
     try {
