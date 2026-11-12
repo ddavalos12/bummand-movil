@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -85,6 +85,7 @@ class JustificacionesServicio {
   Future<Resultado<Map<String, dynamic>>> solicitarJustificacion({
     required String tipo_incidencia,
     int? referencia_id,
+    int? becario_id,
     required String fecha_incidencia,
     required String motivo,
     required String descripcion,
@@ -93,6 +94,7 @@ class JustificacionesServicio {
   }) =>
       enviarJustificacion(
         tipo_incidencia: tipo_incidencia,
+        becario_id: becario_id,
         referencia_id: referencia_id,
         fecha_incidencia: fecha_incidencia,
         motivo: motivo,
@@ -104,6 +106,7 @@ class JustificacionesServicio {
   Future<Resultado<Map<String, dynamic>>> enviarJustificacion({
     required String tipo_incidencia,
     int? referencia_id,
+    int? becario_id,
     required String fecha_incidencia,
     required String motivo,
     required String descripcion,
@@ -119,6 +122,9 @@ class JustificacionesServicio {
     };
     if (referencia_id != null) {
       cuerpo['referencia_id'] = referencia_id;
+    }
+    if (becario_id != null) {
+      cuerpo['becario_id'] = becario_id;
     }
     if (archivo_prueba_url != null) {
       cuerpo['archivo_prueba_url'] = archivo_prueba_url;

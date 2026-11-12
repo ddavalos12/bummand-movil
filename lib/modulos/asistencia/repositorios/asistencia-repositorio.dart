@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
@@ -8,6 +8,7 @@ import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/errores/error-bumand.dart';
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../../../nucleo/utilidades/resultado.dart';
+import '../modelos/registro-auditoria-asistencia-modelo.dart';
 
 class AsistenciaRepositorio {
   final http.Client? cliente;
@@ -311,6 +312,110 @@ class AsistenciaRepositorio {
     }
   }
 
+  /// Obtiene los registros de auditoría institucional (`GET /api/asistencia`).
+  /// Si el backend no responde o devuelve una lista vacía, utiliza el catálogo
+  /// institucional semilla (idéntico a Web en `auditoria-asistencia.tsx`).
+  Future<Resultado<List<RegistroAuditoriaAsistencia>>>
+      obtenerRegistrosAuditoria() async {
+    final cliente_http = _obtenerCliente();
+    try {
+      final cabeceras = await _cabeceras();
+      final respuesta = await cliente_http
+          .get(
+            Uri.parse('${ApiConstantes.RUTA_BASE}/api/asistencia'),
+            headers: cabeceras,
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (respuesta.statusCode == 200) {
+        final decodificado = jsonDecode(respuesta.body);
+        if (decodificado is List && decodificado.isNotEmpty) {
+          final lista = decodificado
+              .whereType<Map>()
+              .map(
+                (e) => RegistroAuditoriaAsistencia.desdeMapa(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList();
+          return Resultado.exitoso(lista);
+        }
+      }
+    } catch (_) {
+      // Fallback transparente al catálogo institucional semilla.
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
+    return Resultado.exitoso(RegistroAuditoriaAsistencia.semillas());
+  }
+
+  /// Aprobación definitiva por Administración:
+  /// `PATCH /api/asistencia/:id/aprobar-administracion`.
+  Future<Resultado<Map<String, dynamic>>> aprobarAdministracion(
+    int id, {
+    String? observacion,
+  }) async {
+    final texto_observacion =
+        observacion ?? 'Convalidado y aprobado por Administración';
+    return _patchAuditoria(
+      '/api/asistencia/$id/aprobar-administracion',
+      {
+        'estado': 'aprobado_administracion',
+        'observacion_admin': texto_observacion,
+        'observacion': texto_observacion,
+      },
+    );
+  }
+
+  /// Revisión técnica del supervisor:
+  /// `PATCH /api/asistencia/:id/revisar-supervisor`.
+  Future<Resultado<Map<String, dynamic>>> revisarSupervisor(
+    int id, {
+    required String estado,
+    String? observacion,
+  }) async {
+    return _patchAuditoria(
+      '/api/asistencia/$id/revisar-supervisor',
+      {
+        'estado': estado,
+        if (observacion != null) ...{
+          'observacion_supervisor': observacion,
+          'observacion': observacion,
+        },
+      },
+    );
+  }
+
+  Future<Resultado<Map<String, dynamic>>> _patchAuditoria(
+    String ruta,
+    Map<String, dynamic> cuerpo,
+  ) async {
+    final cliente_http = _obtenerCliente();
+    try {
+      final cabeceras = await _cabeceras();
+      final respuesta = await cliente_http.patch(
+        Uri.parse('${ApiConstantes.RUTA_BASE}$ruta'),
+        headers: cabeceras,
+        body: jsonEncode(cuerpo),
+      );
+      if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
+        final datos = respuesta.body.isNotEmpty
+            ? jsonDecode(respuesta.body)
+            : <String, dynamic>{};
+        return Resultado.exitoso(
+          datos is Map<String, dynamic> ? datos : <String, dynamic>{},
+        );
+      }
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
+    } catch (_) {
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(ruta: ruta, metodo: 'PATCH'),
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
+  }
+
   Future<Resultado<String>> confirmarDatosPasajes(String periodo) async {
     final cliente_http = _obtenerCliente();
     try {
@@ -476,6 +581,14 @@ class MovimientoExtractoAsistencia {
   final bool confirmado_organizador;
   final bool es_manual;
   final String estado;
+  final int? registro_id;
+  final int? becario_id;
+  final String? becario_nombre;
+  final String? carrera;
+  final int minutos_retraso;
+  final double monto_multa_bs;
+  final bool confirmacion_presencial;
+  final String estado_aprobacion;
 
   MovimientoExtractoAsistencia({
     required this.fecha,
@@ -494,6 +607,14 @@ class MovimientoExtractoAsistencia {
     this.confirmado_organizador = true,
     this.es_manual = false,
     this.estado = "aprobado",
+    this.registro_id,
+    this.becario_id,
+    this.becario_nombre,
+    this.carrera,
+    this.minutos_retraso = 0,
+    this.monto_multa_bs = 0.0,
+    this.confirmacion_presencial = false,
+    this.estado_aprobacion = "pendiente",
   });
 
   factory MovimientoExtractoAsistencia.desdeMapa(
@@ -532,12 +653,24 @@ class MovimientoExtractoAsistencia {
 
     double horas = 4.0;
     if (es_escuela_lideres) {
-      horas = 0.0;
+      // Horas reales computadas (no se fuerzan a 0); no suman al acumulado de prácticas.
+      final h_real = mapa["horas_dia"] ?? mapa["horas_trabajadas"] ?? mapa["horasTrabajadas"];
+      final h_real_num = h_real == null
+          ? null
+          : double.tryParse(h_real.toString().replaceAll("h", "").trim());
+      horas = h_real_num ?? _calcularHorasEntre(h_in, h_out);
     } else if (mapa["horas_dia"] != null) {
       horas = double.tryParse(mapa["horas_dia"].toString()) ?? 4.0;
     } else if (mapa["horasTrabajadas"] != null) {
       final h_str = mapa["horasTrabajadas"].toString().replaceAll("h", "").trim();
       horas = double.tryParse(h_str) ?? 4.0;
+    }
+
+    final minutos_retraso =
+        int.tryParse((mapa["minutos_retraso"] ?? "0").toString()) ?? 0;
+    double monto_multa = double.tryParse((mapa["monto_multa_bs"] ?? "0").toString()) ?? 0.0;
+    if (monto_multa == 0.0 && es_escuela_lideres && minutos_retraso > 0) {
+      monto_multa = RegistroAuditoriaAsistencia.calcularMultaEscuelaLideres(minutos_retraso);
     }
 
     final acum = es_escuela_lideres
@@ -557,13 +690,36 @@ class MovimientoExtractoAsistencia {
       hora_salida: h_out,
       horas_dia: horas,
       horas_acumuladas: acum,
-      es_puntual: mapa["es_puntual"] != false,
+      es_puntual: mapa["es_puntual"] != false && minutos_retraso == 0,
       dentro_geocerca: mapa["dentro_geocerca"] != false,
       distancia_gps: double.tryParse(mapa["distancia"]?.toString() ?? "35") ?? 35.0,
       confirmado_organizador: mapa["confirmado_organizador"] != false,
       es_manual: mapa["es_registro_manual"] == true,
       estado: mapa["estado"]?.toString() ?? "aprobado",
+      registro_id: int.tryParse((mapa["id"] ?? mapa["registro_id"] ?? "").toString()),
+      becario_id: int.tryParse((mapa["becario_id"] ?? "").toString()),
+      becario_nombre: mapa["becario_nombre"]?.toString(),
+      carrera: mapa["carrera"]?.toString(),
+      minutos_retraso: minutos_retraso,
+      monto_multa_bs: monto_multa,
+      confirmacion_presencial: mapa["confirmacion_presencial"] == true ||
+          mapa["confirmado_organizador"] == true,
+      estado_aprobacion: mapa["estado_aprobacion"]?.toString() ?? "pendiente",
     );
+  }
+
+  static double _calcularHorasEntre(String ingreso, String salida) {
+    final a = ingreso.split(":");
+    final b = salida.split(":");
+    if (a.length < 2 || b.length < 2) return 0.0;
+    final h_a = int.tryParse(a[0]);
+    final m_a = int.tryParse(a[1]);
+    final h_b = int.tryParse(b[0]);
+    final m_b = int.tryParse(b[1]);
+    if (h_a == null || m_a == null || h_b == null || m_b == null) return 0.0;
+    final minutos = (h_b * 60 + m_b) - (h_a * 60 + m_a);
+    if (minutos <= 0) return 0.0;
+    return (minutos / 60 * 100).round() / 100;
   }
 
   Map<String, dynamic> aMapaRegistro() {

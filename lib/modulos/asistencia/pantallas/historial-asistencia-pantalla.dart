@@ -1,14 +1,17 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/error-widget-personalizado.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
+import '../../justificaciones/pantallas/solicitar-justificacion-dialogo.dart';
 import '../../justificaciones/servicios/justificaciones-servicio.dart';
 import '../../pasajes/pantallas/detalle-historial-pasaje-pantalla.dart';
 import '../../pasajes/proveedores/pasajes-proveedor.dart';
 import '../proveedores/asistencia-proveedor.dart';
+import '../widgets/auditoria-asistencia-vista.dart';
 import '../widgets/detalle_asistencia_modal.dart';
 import '../repositorios/asistencia-repositorio.dart';
 import 'detalle-extracto-asistencia-pantalla.dart';
@@ -33,6 +36,15 @@ class _HistorialAsistenciaPantallaState
       TextEditingController();
   String _mes_seleccionado_asistencia = "todos";
   String _filtro_actividad_inline = "todos";
+  bool _ver_auditoria_institucional = true;
+
+  RolAuditoria get _rol_actual {
+    final estado_auth = ref.read(autenticacion_proveedor);
+    final datos_perfil = ref.read(perfil_proveedor).asData?.value.datos;
+    return resolverRolAuditoria(
+      (estado_auth.usuario?.rol ?? datos_perfil?['rol'] ?? 'becario').toString(),
+    );
+  }
 
   @override
   void initState() {
@@ -58,10 +70,13 @@ class _HistorialAsistenciaPantallaState
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(autenticacion_proveedor);
+    ref.watch(perfil_proveedor);
+    final es_personal_institucional = _rol_actual != RolAuditoria.becario;
     return Scaffold(
       backgroundColor: _FONDO,
       appBar: BarraSuperiorBumand(
-        titulo: "Mi historial",
+        titulo: es_personal_institucional ? "Auditoría de asistencias" : "Mi historial",
         subtitulo: "Marcaciones, evaluaciones, pasajes y multas",
         acciones_adicionales: [
           IconButton(
@@ -70,6 +85,7 @@ class _HistorialAsistenciaPantallaState
             onPressed: () {
               ref.invalidate(historial_asistencia_proveedor);
               ref.invalidate(extractos_mensuales_proveedor);
+              ref.invalidate(auditoria_asistencia_proveedor);
               ref.invalidate(solicitudes_pasajes_proveedor);
               ref.invalidate(mis_justificaciones_proveedor);
             },
@@ -96,20 +112,20 @@ class _HistorialAsistenciaPantallaState
                 fontWeight: FontWeight.w500,
                 fontSize: 13,
               ),
-              tabs: const [
+              tabs: [
                 Tab(
-                  icon: Icon(Icons.fingerprint_rounded, size: 20),
-                  text: "Asistencias",
+                  icon: const Icon(Icons.fingerprint_rounded, size: 20),
+                  text: es_personal_institucional ? "Auditoría" : "Asistencias",
                 ),
-                Tab(
+                const Tab(
                   icon: Icon(Icons.assignment_late_outlined, size: 20),
                   text: "Permisos",
                 ),
-                Tab(
+                const Tab(
                   icon: Icon(Icons.directions_bus_rounded, size: 20),
                   text: "Pasajes",
                 ),
-                Tab(
+                const Tab(
                   icon: Icon(Icons.receipt_long_rounded, size: 20),
                   text: "Multas e Incidencias",
                 ),
@@ -146,7 +162,45 @@ class _HistorialAsistenciaPantallaState
     "Marzo",
   ];
 
+  /// Pestaña de asistencias: el becario ve sus extractos; Administrador y
+  /// Supervisor ven además la auditoría institucional (paridad con Web).
   Widget _construirPestanaAsistencias() {
+    final rol = _rol_actual;
+    if (rol == RolAuditoria.becario) return _construirPestanaExtractos();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: true,
+                icon: Icon(Icons.fact_check_outlined, size: 16),
+                label: Text("Auditoría institucional", style: TextStyle(fontSize: 12)),
+              ),
+              ButtonSegment(
+                value: false,
+                icon: Icon(Icons.calendar_month_outlined, size: 16),
+                label: Text("Extractos mensuales", style: TextStyle(fontSize: 12)),
+              ),
+            ],
+            selected: {_ver_auditoria_institucional},
+            onSelectionChanged: (s) =>
+                setState(() => _ver_auditoria_institucional = s.first),
+          ),
+        ),
+        Expanded(
+          child: _ver_auditoria_institucional
+              ? AuditoriaAsistenciaVista(rol: rol)
+              : _construirPestanaExtractos(),
+        ),
+      ],
+    );
+  }
+
+  Widget _construirPestanaExtractos() {
     final extractos_async = ref.watch(extractos_mensuales_proveedor);
 
     return RefreshIndicator(
@@ -859,27 +913,7 @@ class _HistorialAsistenciaPantallaState
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () {
-                    final es_lideres = movimientos[i].tipo.contains("lider") ||
-                        movimientos[i].actividad.toLowerCase().contains("lider") ||
-                        movimientos[i].actividad.toLowerCase().contains("líder");
-                    DetalleAsistenciaModal.mostrar(
-                      context,
-                      titulo:
-                          "Jornada ${movimientos[i].fecha_formateada} · ${movimientos[i].dia_semana}",
-                      subtitulo: movimientos[i].actividad,
-                      tipo_registro: movimientos[i].actividad,
-                      lugar: movimientos[i].lugar,
-                      ingreso: movimientos[i].hora_entrada,
-                      salida: movimientos[i].hora_salida,
-                      horas_trabajadas: es_lideres
-                          ? "0.00 hrs (No suma horas a prácticas)"
-                          : "${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
-                      distancia:
-                          "${movimientos[i].distancia_gps.toInt()} m",
-                      dentro_geocerca: movimientos[i].dentro_geocerca,
-                    );
-                  },
+                  onTap: () => _abrirDetalleMovimiento(movimientos[i]),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -1007,6 +1041,7 @@ class _HistorialAsistenciaPantallaState
                                   ],
                                 ),
                               ),
+                              _construirBadgesYAccionesMovimiento(movimientos[i]),
                             ],
                           ),
                         ),
@@ -1027,7 +1062,8 @@ class _HistorialAsistenciaPantallaState
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      puntual ? "✓ Asistencia" : "⚠ Con multa",
+                                      "${movimientos[i].horas_dia.toStringAsFixed(2)} hrs computadas",
+                                      textAlign: TextAlign.right,
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.bold,
@@ -1035,12 +1071,13 @@ class _HistorialAsistenciaPantallaState
                                       ),
                                     ),
                                     const SizedBox(height: 1),
-                                    Text(
-                                      puntual ? "Sin multa · 0 hrs" : "Sujeto a multa",
+                                    const Text(
+                                      "No suma a prácticas",
+                                      textAlign: TextAlign.right,
                                       style: TextStyle(
                                         fontSize: 9,
                                         fontWeight: FontWeight.w500,
-                                        color: puntual ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                        color: Color(0xFF64748B),
                                       ),
                                     ),
                                   ],
@@ -1078,6 +1115,201 @@ class _HistorialAsistenciaPantallaState
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  bool _movimientoEsEscuelaLideres(MovimientoExtractoAsistencia m) {
+    final actividad = m.actividad.toLowerCase();
+    return m.tipo.contains("lider") ||
+        actividad.contains("lider") ||
+        actividad.contains("líder");
+  }
+
+  bool _movimientoAprobadoAdministracion(MovimientoExtractoAsistencia m) =>
+      m.estado_aprobacion == 'aprobado_administracion' ||
+      m.estado == 'convalidado' ||
+      m.estado_aprobacion == 'convalidado';
+
+  void _abrirDetalleMovimiento(MovimientoExtractoAsistencia m) {
+    final es_lideres = _movimientoEsEscuelaLideres(m);
+    final aprobado = _movimientoAprobadoAdministracion(m);
+    final tardanza = !m.es_puntual || m.minutos_retraso > 0;
+    final requiere_justificar = !aprobado && (tardanza || !m.dentro_geocerca);
+    final multa_vigente = aprobado ? 0.0 : m.monto_multa_bs;
+    DetalleAsistenciaModal.mostrar(
+      context,
+      titulo: "Jornada ${m.fecha_formateada} · ${m.dia_semana}",
+      subtitulo: m.actividad,
+      tipo_registro: m.actividad,
+      lugar: m.lugar,
+      ingreso: m.hora_entrada,
+      salida: m.hora_salida,
+      horas_trabajadas: es_lideres
+          ? "${m.horas_dia.toStringAsFixed(2)} hrs computadas (No suma horas a prácticas)"
+          : "${m.horas_dia.toStringAsFixed(2)} hrs",
+      distancia: "${m.distancia_gps.toInt()} m",
+      dentro_geocerca: m.dentro_geocerca,
+      becario_nombre: m.becario_nombre,
+      carrera: m.carrera,
+      minutos_retraso: m.minutos_retraso,
+      monto_multa_bs: multa_vigente,
+      confirmacion_presencial: es_lideres ? m.confirmacion_presencial : null,
+      estado_aprobacion_texto:
+          aprobado ? "Aprobado por Administración (Exento de multa)" : null,
+      al_justificar: requiere_justificar ? () => _justificarMovimiento(m) : null,
+    );
+  }
+
+  Future<void> _justificarMovimiento(MovimientoExtractoAsistencia m) async {
+    final es_lideres = _movimientoEsEscuelaLideres(m);
+    final fecha =
+        "${m.fecha.year.toString().padLeft(4, '0')}-${m.fecha.month.toString().padLeft(2, '0')}-${m.fecha.day.toString().padLeft(2, '0')}";
+    final tipo = es_lideres ? 'escuela_lideres' : 'asistencia_practicas';
+    final enviada = await SolicitarJustificacionDialogo.mostrar(
+      context,
+      becario_id: m.becario_id,
+      becario_nombre: m.becario_nombre,
+      referencia_id: m.registro_id,
+      fecha_inicial: fecha,
+      tipo_inicial: tipo,
+      tipo_incidencia: tipo,
+      sede_nombre: m.lugar,
+      motivo_sugerido: m.minutos_retraso > 0
+          ? "Retraso de ${m.minutos_retraso} min registrado en marcación"
+          : null,
+    );
+    if (enviada == true) {
+      ref.invalidate(mis_justificaciones_proveedor);
+    }
+  }
+
+  Widget _badgeMovimiento(
+    String etiqueta,
+    Color fondo,
+    Color borde,
+    Color color_texto,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: fondo,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: borde),
+      ),
+      child: Text(
+        etiqueta,
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.bold,
+          color: color_texto,
+        ),
+      ),
+    );
+  }
+
+  /// Badges (Tardanza, Multa, Verificado presencial, Aprobado) y acciones
+  /// (Ver detalle, Justificar) de una fila del historial, idénticos a Web.
+  Widget _construirBadgesYAccionesMovimiento(MovimientoExtractoAsistencia m) {
+    final es_lideres = _movimientoEsEscuelaLideres(m);
+    final aprobado = _movimientoAprobadoAdministracion(m);
+    final tardanza = !m.es_puntual || m.minutos_retraso > 0;
+    final multa_vigente = aprobado ? 0.0 : m.monto_multa_bs;
+    final requiere_justificar = !aprobado && (tardanza || !m.dentro_geocerca);
+
+    if (!es_lideres && !tardanza && !aprobado) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              if (tardanza)
+                _badgeMovimiento(
+                  "⚠ Tardanza",
+                  const Color(0xFFFEF3C7),
+                  const Color(0xFFFDE68A),
+                  const Color(0xFF92400E),
+                ),
+              if (multa_vigente > 0)
+                _badgeMovimiento(
+                  "Multa Escuela de Líderes: Bs ${multa_vigente.toStringAsFixed(2)} (${m.minutos_retraso}m)",
+                  const Color(0xFFFFF1F2),
+                  const Color(0xFFFDA4AF),
+                  const Color(0xFFBE123C),
+                ),
+              if (aprobado)
+                _badgeMovimiento(
+                  "✓ Aprobado por Administración (Exento de multa)",
+                  const Color(0xFFD1FAE5),
+                  const Color(0xFF6EE7B7),
+                  const Color(0xFF065F46),
+                ),
+            ],
+          ),
+          if (es_lideres && m.confirmacion_presencial)
+            const Padding(
+              padding: EdgeInsets.only(top: 3),
+              child: Text(
+                "✓ Verificado presencial",
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF047857),
+                ),
+              ),
+            ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              InkWell(
+                onTap: () => _abrirDetalleMovimiento(m),
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(Icons.visibility_outlined,
+                      size: 18, color: Color(0xFF035683)),
+                ),
+              ),
+              if (requiere_justificar) ...[
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => _justificarMovimiento(m),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: BumandColores.AMARILLO_RADIANTE.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: BumandColores.AMARILLO_RADIANTE),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.assignment_turned_in_rounded,
+                            size: 13, color: Color(0xFF035683)),
+                        SizedBox(width: 4),
+                        Text(
+                          "Justificar",
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF035683),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

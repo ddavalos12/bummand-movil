@@ -1,9 +1,10 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../modelos/orden-confirmacion-modelo.dart';
+import '../modelos/registro-auditoria-asistencia-modelo.dart';
 import '../repositorios/asistencia-repositorio.dart';
 
 final asistencia_repositorio_proveedor = Provider(
@@ -201,6 +202,108 @@ final asistencia_notificador_proveedor =
     );
 
 final asistenciaNotificadorProveedor = asistencia_notificador_proveedor;
+/// Registros de auditoría institucional de asistencia (paridad con
+/// `AuditoriaAsistencia` de Web). Soporta aprobación por Administración,
+/// revisión de Supervisor y refresco tras justificar.
+class AuditoriaAsistenciaNotificador
+    extends AsyncNotifier<List<RegistroAuditoriaAsistencia>> {
+  AsistenciaRepositorio get _repo => ref.read(asistencia_repositorio_proveedor);
+
+  @override
+  Future<List<RegistroAuditoriaAsistencia>> build() async {
+    final resultado = await _repo.obtenerRegistrosAuditoria();
+    return resultado.datos ?? RegistroAuditoriaAsistencia.semillas();
+  }
+
+  Future<void> recargar() async {
+    state = await AsyncValue.guard(() => build());
+  }
+
+  /// Actualiza tras radicar una justificación para el registro indicado.
+  Future<void> actualizarTrasJustificar() async {
+    // Los registros semilla viven solo en memoria: recargar descartaría las
+    // aprobaciones locales, por lo que se conserva el estado actual.
+    final actual = state.value;
+    if (actual != null && actual.any((r) => r.es_semilla)) return;
+    await recargar();
+  }
+
+  void _reemplazar(
+    int id,
+    RegistroAuditoriaAsistencia Function(RegistroAuditoriaAsistencia) cambio,
+  ) {
+    final actual = state.value;
+    if (actual == null) return;
+    state = AsyncData([
+      for (final r in actual) r.id == id ? cambio(r) : r,
+    ]);
+  }
+
+  /// Aprueba por Administración: elimina la multa (0 Bs) y deja el registro
+  /// convalidado. Devuelve `null` si tuvo éxito o el mensaje de error.
+  Future<String?> aprobarAdministracion(
+    RegistroAuditoriaAsistencia registro, {
+    String? observacion,
+    String? nombre_administrador,
+  }) async {
+    final texto_observacion =
+        observacion ?? 'Convalidado y aprobado por Administración';
+    if (!registro.es_semilla) {
+      final res = await _repo.aprobarAdministracion(
+        registro.id,
+        observacion: texto_observacion,
+      );
+      if (!res.exito) {
+        return res.error ?? 'No se pudo aprobar por Administración';
+      }
+    }
+    _reemplazar(
+      registro.id,
+      (r) => r.copiarCon(
+        estado: RegistroAuditoriaAsistencia.ESTADO_CONVALIDADO,
+        estado_aprobacion:
+            RegistroAuditoriaAsistencia.ESTADO_APROBADO_ADMINISTRACION,
+        monto_multa_bs: 0,
+        convalidado_por: nombre_administrador ?? 'Administración Central',
+        observacion_admin: texto_observacion,
+      ),
+    );
+    return null;
+  }
+
+  /// Marca el registro como revisado por Supervisor (paso previo a Administración).
+  Future<String?> revisarSupervisor(
+    RegistroAuditoriaAsistencia registro, {
+    String? observacion,
+  }) async {
+    if (!registro.es_semilla) {
+      final res = await _repo.revisarSupervisor(
+        registro.id,
+        estado: RegistroAuditoriaAsistencia.ESTADO_REVISADO_SUPERVISOR,
+        observacion: observacion,
+      );
+      if (!res.exito) {
+        return res.error ?? 'No se pudo registrar la revisión del supervisor';
+      }
+    }
+    _reemplazar(
+      registro.id,
+      (r) => r.copiarCon(
+        estado: RegistroAuditoriaAsistencia.ESTADO_REVISADO_SUPERVISOR,
+        estado_aprobacion:
+            RegistroAuditoriaAsistencia.ESTADO_REVISADO_SUPERVISOR,
+      ),
+    );
+    return null;
+  }
+}
+
+final auditoria_asistencia_proveedor = AsyncNotifierProvider<
+    AuditoriaAsistenciaNotificador, List<RegistroAuditoriaAsistencia>>(
+  () => AuditoriaAsistenciaNotificador(),
+);
+
+final auditoriaAsistenciaProveedor = auditoria_asistencia_proveedor;
 
 class OrdenConfirmacionNotificador extends Notifier<OrdenConfirmacionModelo> {
   @override

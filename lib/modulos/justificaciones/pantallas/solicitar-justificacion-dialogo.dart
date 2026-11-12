@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -10,11 +10,28 @@ class SolicitarJustificacionDialogo extends ConsumerStatefulWidget {
   final String? titulo_evento;
   final String tipo_incidencia;
 
+  /// Contexto opcional de un registro de asistencia auditado (paridad con Web):
+  /// permite radicar la justificación a nombre del becario del registro.
+  final int? becario_id;
+  final String? becario_nombre;
+  final int? referencia_id;
+  final String? fecha_inicial; // yyyy-MM-dd
+  final String? tipo_inicial;
+  final String? sede_nombre;
+  final String? motivo_sugerido;
+
   const SolicitarJustificacionDialogo({
     super.key,
     this.evento_id,
     this.titulo_evento,
     this.tipo_incidencia = 'escuela_lideres',
+    this.becario_id,
+    this.becario_nombre,
+    this.referencia_id,
+    this.fecha_inicial,
+    this.tipo_inicial,
+    this.sede_nombre,
+    this.motivo_sugerido,
   });
 
   static Future<bool?> mostrar(
@@ -22,6 +39,13 @@ class SolicitarJustificacionDialogo extends ConsumerStatefulWidget {
     int? evento_id,
     String? titulo_evento,
     String tipo_incidencia = 'escuela_lideres',
+    int? becario_id,
+    String? becario_nombre,
+    int? referencia_id,
+    String? fecha_inicial,
+    String? tipo_inicial,
+    String? sede_nombre,
+    String? motivo_sugerido,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -32,6 +56,13 @@ class SolicitarJustificacionDialogo extends ConsumerStatefulWidget {
         evento_id: evento_id,
         titulo_evento: titulo_evento,
         tipo_incidencia: tipo_incidencia,
+        becario_id: becario_id,
+        becario_nombre: becario_nombre,
+        referencia_id: referencia_id,
+        fecha_inicial: fecha_inicial,
+        tipo_inicial: tipo_inicial,
+        sede_nombre: sede_nombre,
+        motivo_sugerido: motivo_sugerido,
       ),
     );
   }
@@ -63,8 +94,13 @@ class _SolicitarJustificacionDialogoState
   @override
   void initState() {
     super.initState();
-    _tipo_incidencia_seleccionada = widget.tipo_incidencia;
-    _fecha_seleccionada = DateTime.now();
+    _tipo_incidencia_seleccionada =
+        widget.tipo_inicial ?? widget.tipo_incidencia;
+    _fecha_seleccionada =
+        DateTime.tryParse(widget.fecha_inicial ?? '') ?? DateTime.now();
+    if ((widget.motivo_sugerido ?? '').trim().isNotEmpty) {
+      _motivo_controlador.text = widget.motivo_sugerido!.trim();
+    }
   }
 
   @override
@@ -79,7 +115,9 @@ class _SolicitarJustificacionDialogoState
     final fecha_elegida = await showDatePicker(
       context: context,
       initialDate: _fecha_seleccionada,
-      firstDate: ahora.subtract(const Duration(days: 30)),
+      firstDate: _fecha_seleccionada.isBefore(ahora.subtract(const Duration(days: 30)))
+          ? _fecha_seleccionada
+          : ahora.subtract(const Duration(days: 30)),
       lastDate: ahora.add(const Duration(days: 60)),
       builder: (ctx, child) {
         return Theme(
@@ -182,7 +220,8 @@ class _SolicitarJustificacionDialogoState
 
       final resultado = await servicio.enviarJustificacion(
         tipo_incidencia: _tipo_incidencia_seleccionada,
-        referencia_id: widget.evento_id,
+        referencia_id: widget.referencia_id ?? widget.evento_id,
+        becario_id: widget.becario_id,
         fecha_incidencia: fecha_str,
         motivo: _motivo_controlador.text.trim(),
         descripcion: _descripcion_controlador.text.trim(),
@@ -310,6 +349,49 @@ class _SolicitarJustificacionDialogoState
                 ],
               ),
               const Divider(height: 24),
+
+              // Contexto del registro de asistencia auditado (si aplica)
+              if (widget.becario_nombre != null || widget.sede_nombre != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7E0),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: BumandColores.AMARILLO_RADIANTE),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Registro de asistencia auditado',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF92400E),
+                        ),
+                      ),
+                      if (widget.becario_nombre != null)
+                        Text(
+                          widget.becario_nombre!,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            color: BumandColores.NEGRO,
+                          ),
+                        ),
+                      if (widget.sede_nombre != null)
+                        Text(
+                          widget.sede_nombre!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // Selector de Tipo de Incidencia
               const Text(
