@@ -8,6 +8,7 @@ import '../../../widgets-comunes/error-widget-personalizado.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
 import '../proveedores/evaluaciones-proveedor.dart';
+import '../widgets/botones-accion-evaluacion.dart';
 import '../widgets/detalle_evaluacion_modal.dart';
 import '../widgets/formulario_f03_dialogo.dart';
 import 'evaluacion-socioeconomica-pantalla.dart';
@@ -313,8 +314,13 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
     BuildContext context,
     BecarioAsignadoModulo3Modelo becario,
   ) {
+    final estado_lower = becario.estado_evaluacion.toLowerCase();
+    final es_aprobado = estado_lower.contains("aprob");
     final es_completada =
-        becario.estado_evaluacion.toLowerCase().contains("complet");
+        es_aprobado ||
+        estado_lower.contains("complet") ||
+        estado_lower.contains("evaluad");
+    final es_observado = estado_lower.contains("observ");
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -379,11 +385,15 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                 decoration: BoxDecoration(
                   color: es_completada
                       ? const Color(0xFFDCFCE7)
+                      : es_observado
+                      ? const Color(0xFFFFF1F2)
                       : const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: es_completada
                         ? const Color(0xFF86EFAC)
+                        : es_observado
+                        ? const Color(0xFFFDA4AF)
                         : const Color(0xFFFDE68A),
                   ),
                 ),
@@ -391,20 +401,32 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      es_completada ? Icons.check_circle : Icons.hourglass_top,
+                      es_completada
+                          ? Icons.check_circle
+                          : es_observado
+                          ? Icons.warning_amber_rounded
+                          : Icons.hourglass_top,
                       size: 12,
                       color: es_completada
                           ? const Color(0xFF15803D)
+                          : es_observado
+                          ? const Color(0xFFE11D48)
                           : const Color(0xFFB45309),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      es_completada
+                      es_aprobado
+                          ? "Aprobado (${becario.puntaje_actual?.toStringAsFixed(0) ?? '94'})"
+                          : es_completada
                           ? "Evaluado (${becario.puntaje_actual?.toStringAsFixed(0) ?? '94'})"
+                          : es_observado
+                          ? "Observado"
                           : "Pendiente",
                       style: TextStyle(
                         color: es_completada
                             ? const Color(0xFF15803D)
+                            : es_observado
+                            ? const Color(0xFF9F1239)
                             : const Color(0xFFB45309),
                         fontWeight: FontWeight.bold,
                         fontSize: 10.5,
@@ -421,37 +443,38 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                es_completada
-                    ? "Evaluación previa disponible para edición"
-                    : "Requiere validación OTP de identidad",
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade500,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _iniciarEvaluacionSupervisor(context, becario),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: es_completada
-                      ? const Color(0xFF0D9488)
-                      : BumandColores.AZUL_DIACONIA,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              Expanded(
+                child: Text(
+                  es_aprobado
+                      ? "Evaluación convalidada en sistema"
+                      : es_completada
+                      ? "Evaluación disponible para edición"
+                      : "Requiere validación OTP",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade500,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
-                icon: Icon(
-                  es_completada ? Icons.edit_note_rounded : Icons.lock_person_outlined,
-                  size: 16,
-                ),
-                label: Text(
-                  es_completada ? "Editar Módulo 3" : "Evaluar / Editar Módulo 3",
-                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                ),
+              ),
+              const SizedBox(width: 8),
+              BotonesAccionEvaluacion(
+                estado: es_completada
+                    ? EstadoAccionEvaluacion.completado
+                    : es_observado
+                    ? EstadoAccionEvaluacion.observado
+                    : EstadoAccionEvaluacion.pendiente,
+                texto_revisar: "Revisar",
+                al_revisar: () => _iniciarEvaluacionSupervisor(context, becario),
+                texto_pendiente: "Evaluar",
+                icono_pendiente: Icons.person_outline,
+                al_ejecutar_pendiente: () =>
+                    _iniciarEvaluacionSupervisor(context, becario),
+                texto_completado: es_aprobado ? "Aprobado" : "Evaluado",
+                al_hacer_clic_completado: () =>
+                    _iniciarEvaluacionSupervisor(context, becario),
+                al_hacer_clic_observado: () =>
+                    _iniciarEvaluacionSupervisor(context, becario),
               ),
             ],
           ),
@@ -506,7 +529,25 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
       backgroundColor: BumandColores.AZUL_DIACONIA,
       onRefresh: () async => ref.invalidate(evaluacion_consolidada_proveedor),
       child: evaluacion_async.when(
-        data: (_) {
+        data: (resultado) {
+          final desglose = resultado.datos?.desglose_modulos ?? const [];
+          String estadoModuloReal(int numero, String respaldo) {
+            for (final mod in desglose) {
+              if (mod.modulo_id == numero && mod.estado.trim().isNotEmpty) {
+                final e = mod.estado.toLowerCase();
+                if (e.contains("aprob")) return "Aprobado";
+                if (e.contains("complet") || e.contains("evaluad")) {
+                  return "Completado";
+                }
+                if (e.contains("revis")) return "Revisado";
+                if (e.contains("recib")) return "Documentos Recibidos";
+                if (e.contains("enviad")) return "Enviado";
+                if (e.contains("observ")) return "Observado";
+                return "Pendiente";
+              }
+            }
+            return respaldo;
+          }
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -612,7 +653,10 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                   numero: item["numero"] as int,
                   titulo: item["titulo"] as String,
                   subtitulo: item["subtitulo"] as String,
-                  estado: item["estado"] as String,
+                  estado: estadoModuloReal(
+                    item["numero"] as int,
+                    item["estado"] as String,
+                  ),
                   accion: item["accion"] as String,
                 ),
               const SizedBox(height: 8),
@@ -667,16 +711,39 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
     required String accion,
   }) {
     final color_icono = _obtenerColorModulo(numero);
+    final estado_lower = estado.toLowerCase();
     final es_completado =
-        estado.toLowerCase().contains("complet") ||
-        estado.toLowerCase().contains("recib");
+        estado_lower.contains("complet") ||
+        estado_lower.contains("recib") ||
+        estado_lower.contains("aprob") ||
+        estado_lower.contains("revis") ||
+        estado_lower.contains("enviad");
+    final es_observado = estado_lower.contains("observ");
+
+    final texto_accion_pendiente = numero == 2
+        ? "Subir"
+        : numero == 3
+        ? "Evaluar QR"
+        : numero == 4
+        ? "Entregar"
+        : "Completar";
+
+    final texto_estado_completado = estado_lower.contains("aprob")
+        ? "Aprobado"
+        : estado_lower.contains("revis")
+        ? "Revisado"
+        : estado_lower.contains("recib") || estado_lower.contains("enviad")
+        ? "Enviado"
+        : "Completado";
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _BORDE),
+        border: Border.all(
+          color: es_completado ? const Color(0xFF86EFAC) : _BORDE,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -756,11 +823,15 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                       decoration: BoxDecoration(
                         color: es_completado
                             ? const Color(0xFFECFDF5)
+                            : es_observado
+                            ? const Color(0xFFFFF1F2)
                             : const Color(0xFFFEF3C7),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: es_completado
                               ? const Color(0xFF86EFAC)
+                              : es_observado
+                              ? const Color(0xFFFDA4AF)
                               : const Color(0xFFFDE68A),
                         ),
                       ),
@@ -769,6 +840,8 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                         style: TextStyle(
                           color: es_completado
                               ? const Color(0xFF047857)
+                              : es_observado
+                              ? const Color(0xFF9F1239)
                               : const Color(0xFFB45309),
                           fontWeight: FontWeight.bold,
                           fontSize: 10.5,
@@ -784,30 +857,35 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Módulo receptor 0$numero",
+                      "Módulo 0$numero",
                       style: TextStyle(
                         fontSize: 11.5,
                         color: Colors.grey.shade500,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          accion,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: color_icono,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.chevron_right,
-                          size: 16,
-                          color: color_icono,
-                        ),
-                      ],
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: BotonesAccionEvaluacion(
+                        estado: es_completado
+                            ? EstadoAccionEvaluacion.completado
+                            : es_observado
+                            ? EstadoAccionEvaluacion.observado
+                            : EstadoAccionEvaluacion.pendiente,
+                        texto_revisar: "Revisar",
+                        al_revisar: () => _abrirModuloReceptor(context, numero),
+                        texto_pendiente: texto_accion_pendiente,
+                        icono_pendiente: numero == 3
+                            ? Icons.qr_code_rounded
+                            : Icons.verified_user_outlined,
+                        al_ejecutar_pendiente: () =>
+                            _abrirModuloReceptor(context, numero),
+                        texto_completado: texto_estado_completado,
+                        al_hacer_clic_completado: () =>
+                            _abrirModuloReceptor(context, numero),
+                        al_hacer_clic_observado: () =>
+                            _abrirModuloReceptor(context, numero),
+                      ),
                     ),
                   ],
                 ),

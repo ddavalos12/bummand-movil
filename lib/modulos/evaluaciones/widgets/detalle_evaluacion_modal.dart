@@ -9,6 +9,7 @@ import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
 import '../modelos/pregunta-bienestar-modelo.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
+import 'botones-accion-evaluacion.dart';
 import 'formulario_f03_dialogo.dart';
 
 Future<int> _obtenerBecarioIdAutenticado(BuildContext context) async {
@@ -1066,10 +1067,19 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
             ),
             const SizedBox(height: 20),
 
-            SizedBox(
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: () {
+            Builder(
+              builder: (context) {
+                final estado_rec = (_docActual["record_estado"] ?? "").toLowerCase();
+                final estado_his = (_docActual["historial_estado"] ?? "").toLowerCase();
+                final ambos_aprobados =
+                    estado_rec.contains("aprob") && estado_his.contains("aprob");
+                final alguno_enviado =
+                    estado_rec.contains("enviad") ||
+                    estado_his.contains("enviad") ||
+                    estado_rec.contains("aprob") ||
+                    estado_his.contains("aprob");
+
+                void confirmarEnvio() {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -1080,20 +1090,21 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                       duration: Duration(seconds: 3),
                     ),
                   );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: BumandColores.AZUL_DIACONIA,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text(
-                  "Finalizar y Confirmar Envío",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+                }
+
+                return BotonesAccionEvaluacion(
+                  expandir: true,
+                  mostrar_revisar: false,
+                  estado: (ambos_aprobados || alguno_enviado)
+                      ? EstadoAccionEvaluacion.completado
+                      : EstadoAccionEvaluacion.pendiente,
+                  texto_pendiente: "Confirmar Envío",
+                  icono_pendiente: Icons.check_circle_outline,
+                  al_ejecutar_pendiente: confirmarEnvio,
+                  texto_completado: ambos_aprobados ? "Aprobado" : "Enviado",
+                  al_hacer_clic_completado: confirmarEnvio,
+                );
+              },
             ),
           ],
         ),
@@ -2487,29 +2498,32 @@ class _FormularioSupervisorEvaluadorState
                 const SizedBox(height: 24),
 
                 // Botón Enviar
-                SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: _enviando ? null : _enviarEvaluacionMentor,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: BumandColores.AZUL_DIACONIA,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: _enviando
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.check_circle_outline),
-                    label: Text(
-                      _enviando ? "Guardando..." : "Enviar Evaluación del Mentor",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                Builder(
+                  builder: (context) {
+                    final estado_previo =
+                        widget.evaluacion_previa?['estado']?.toString().toLowerCase() ??
+                        '';
+                    final es_aprobado = estado_previo.contains('aprob');
+                    final es_evaluado = widget.evaluacion_previa != null;
+
+                    return BotonesAccionEvaluacion(
+                      expandir: true,
+                      mostrar_revisar: false,
+                      estado: (es_aprobado || es_evaluado)
+                          ? EstadoAccionEvaluacion.completado
+                          : EstadoAccionEvaluacion.pendiente,
+                      texto_pendiente:
+                          _enviando ? "Guardando..." : "Enviar Evaluación",
+                      icono_pendiente: Icons.check_circle_outline,
+                      al_ejecutar_pendiente: _enviarEvaluacionMentor,
+                      texto_completado: es_aprobado
+                          ? "Aprobado"
+                          : (_enviando ? "Actualizando..." : "Evaluado (Actualizar)"),
+                      al_hacer_clic_completado:
+                          es_aprobado ? null : _enviarEvaluacionMentor,
+                      cargando: _enviando,
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
               ],
@@ -3412,6 +3426,22 @@ class _ReceptorLideresClassroomModalState
                 ],
               ),
             ],
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: BotonesAccionEvaluacion(
+                estado: EstadoAccionEvaluacion.completado,
+                mostrar_revisar: !widget.es_becario,
+                texto_revisar: "Revisar",
+                al_revisar: widget.es_becario
+                    ? null
+                    : () => _abrirDialogoCalificar(tarea),
+                texto_completado: "Revisado",
+                al_hacer_clic_completado: widget.es_becario
+                    ? null
+                    : () => _abrirDialogoCalificar(tarea),
+              ),
+            ),
           ] else if (es_entregado) ...[
             Container(
               padding: const EdgeInsets.all(10),
@@ -3420,117 +3450,138 @@ class _ReceptorLideresClassroomModalState
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFBFDBFE)),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF2563EB)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      "Evidencia: ${tarea.evidencia_nombre ?? 'informe_evidencia.pdf'} ${tarea.fecha_entrega != null ? '· ${tarea.fecha_entrega}' : ''}",
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF1E40AF),
-                        fontWeight: FontWeight.w600,
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF2563EB)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "Evidencia: ${tarea.evidencia_nombre ?? 'informe_evidencia.pdf'} ${tarea.fecha_entrega != null ? '· ${tarea.fecha_entrega}' : ''}",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF1E40AF),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: BotonesAccionEvaluacion(
+                      estado: widget.es_becario
+                          ? EstadoAccionEvaluacion.completado
+                          : EstadoAccionEvaluacion.pendiente,
+                      mostrar_revisar: !widget.es_becario,
+                      texto_revisar: "Revisar",
+                      al_revisar: widget.es_becario
+                          ? null
+                          : () => _abrirDialogoCalificar(tarea),
+                      texto_pendiente: "Calificar",
+                      al_ejecutar_pendiente: widget.es_becario
+                          ? null
+                          : () => _abrirDialogoCalificar(tarea),
+                      texto_completado: "Entregado",
                     ),
                   ),
-                  if (!widget.es_becario)
-                    TextButton(
-                      onPressed: () => _abrirDialogoCalificar(tarea),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: const Text("Calificar como Revisado", style: TextStyle(fontSize: 11)),
-                    ),
                 ],
               ),
             ),
           ] else ...[
-            if (evidencia_temp != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.attach_file, size: 16, color: BumandColores.AZUL_DIACONIA),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        "${evidencia_temp['nombre']} (${evidencia_temp['tamano']})",
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
+            if (widget.es_becario) ...[
+              if (evidencia_temp != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.attach_file, size: 16, color: BumandColores.AZUL_DIACONIA),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "${evidencia_temp['nombre']} (${evidencia_temp['tamano']})",
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () {
-                        setState(() => _evidencias_seleccionadas.remove(tarea.numero));
-                      },
-                    ),
-                  ],
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          setState(() => _evidencias_seleccionadas.remove(tarea.numero));
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
+                const SizedBox(height: 8),
+              ],
+              Row(
+                children: [
+                  OutlinedButton.icon(
                     onPressed: () => _seleccionarEvidencia(tarea.numero),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      side: const BorderSide(color: Color(0xFFCBD5E1)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: const Size(0, 34),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      side: const BorderSide(color: BumandColores.azulCieloSuave, width: 1.2),
+                      shape: const StadiumBorder(),
                     ),
                     icon: Icon(
                       evidencia_temp == null ? Icons.upload_file : Icons.replay,
                       size: 15,
-                      color: const Color(0xFF475569),
+                      color: BumandColores.azulCieloSuave,
                     ),
                     label: Text(
-                      evidencia_temp == null ? "Adjuntar evidencia" : "Cambiar",
-                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569)),
+                      evidencia_temp == null ? "Adjuntar" : "Cambiar",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: BumandColores.azulMarinoSecundario,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: esta_entregando ? null : () => _entregarTarea(tarea.numero),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: esta_entregando
-                        ? const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.send_rounded, size: 14),
-                    label: Text(
-                      esta_entregando ? "Enviando..." : "Entregar Tarea",
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: BotonesAccionEvaluacion(
+                      expandir: true,
+                      mostrar_revisar: false,
+                      estado: EstadoAccionEvaluacion.pendiente,
+                      texto_pendiente: esta_entregando ? "Enviando..." : "Entregar",
+                      icono_pendiente: Icons.send_rounded,
+                      al_ejecutar_pendiente: () => _entregarTarea(tarea.numero),
+                      cargando: esta_entregando,
                     ),
                   ),
+                ],
+              ),
+            ] else ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: BotonesAccionEvaluacion(
+                  estado: EstadoAccionEvaluacion.pendiente,
+                  texto_revisar: "Revisar",
+                  al_revisar: () => _abrirDialogoCalificar(tarea),
+                  texto_pendiente: "Calificar",
+                  al_ejecutar_pendiente: () => _abrirDialogoCalificar(tarea),
                 ),
-              ],
-            ),
+              ),
+            ],
           ],
         ],
       ),
@@ -3553,6 +3604,7 @@ class _ReceptorSocioeconomicoModalState
   List<PreguntaBienestarModelo> _preguntas = PreguntaBienestarModelo.catalogoCanonico();
   final Map<int, String> _respuestas = {};
   bool _enviando = false;
+  bool _enviado_exitosamente = false;
 
   @override
   void initState() {
@@ -3603,6 +3655,7 @@ class _ReceptorSocioeconomicoModalState
     setState(() => _enviando = false);
 
     if (resultado.exito) {
+      setState(() => _enviado_exitosamente = true);
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -3912,32 +3965,20 @@ class _ReceptorSocioeconomicoModalState
           const SizedBox(height: 10),
 
           // Botón Enviar Ficha Socioeconómica
-          SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _enviando ? null : _enviarCuestionarioBienestar,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.amarilloRadiante,
-                  foregroundColor: BumandColores.azulMarinoSecundario,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: _enviando
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: BumandColores.NEGRO),
-                    )
-                  : const Icon(Icons.send_rounded),
-              label: Text(
-                _enviando
-                    ? "Enviando..."
-                    : "Enviar Cuestionario ($respondidas_conteo/$total_preguntas)",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
+          BotonesAccionEvaluacion(
+            expandir: true,
+            mostrar_revisar: false,
+            estado: _enviado_exitosamente
+                ? EstadoAccionEvaluacion.completado
+                : EstadoAccionEvaluacion.pendiente,
+            texto_pendiente: _enviando
+                ? "Enviando..."
+                : "Enviar Cuestionario ($respondidas_conteo/$total_preguntas)",
+            icono_pendiente: Icons.send_rounded,
+            al_ejecutar_pendiente: _enviarCuestionarioBienestar,
+            texto_completado: "Enviado",
+            al_hacer_clic_completado: _enviarCuestionarioBienestar,
+            cargando: _enviando,
           ),
         ],
       ),

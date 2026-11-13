@@ -9,6 +9,7 @@ import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../../../nucleo/utilidades/descargador_archivo.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
+import 'botones-accion-evaluacion.dart';
 
 class FormularioF03Dialogo extends ConsumerStatefulWidget {
   final String nombre_becario;
@@ -71,6 +72,7 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
   bool _declara_veridico = false;
   String? _mensaje_error;
   bool _enviando = false;
+  bool _enviado_exitosamente = false;
 
   List<Map<String, dynamic>> _iglesias = [];
   bool _cargando_iglesias = false;
@@ -409,7 +411,10 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
     }
 
     if (!mounted) return;
-    setState(() => _enviando = false);
+    setState(() {
+      _enviando = false;
+      _enviado_exitosamente = true;
+    });
     Navigator.of(context).pop();
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -691,36 +696,20 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
 
                   const SizedBox(height: 16),
 
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: _enviando ? null : _enviarRecepcion,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: BumandColores.amarilloRadiante,
-                    foregroundColor: BumandColores.azulMarinoSecundario,
-                                                shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      icon: _enviando
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: BumandColores.NEGRO,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded),
-                      label: Text(
-                        _enviando ? "Registrando recepción..." : "Enviar Formulario a Recepción",
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                  BotonesAccionEvaluacion(
+                    expandir: true,
+                    mostrar_revisar: false,
+                    estado: _enviado_exitosamente
+                        ? EstadoAccionEvaluacion.completado
+                        : EstadoAccionEvaluacion.pendiente,
+                    texto_pendiente: _enviando
+                        ? "Registrando recepción..."
+                        : "Enviar Formulario a Recepción",
+                    icono_pendiente: Icons.send_rounded,
+                    al_ejecutar_pendiente: _enviarRecepcion,
+                    texto_completado: "Enviado",
+                    al_hacer_clic_completado: _enviarRecepcion,
+                    cargando: _enviando,
                   ),
                   const SizedBox(height: 10),
                   SizedBox(

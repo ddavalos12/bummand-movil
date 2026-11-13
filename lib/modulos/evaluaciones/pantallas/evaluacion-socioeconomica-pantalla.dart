@@ -8,6 +8,7 @@ import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/pregunta-bienestar-modelo.dart';
 import '../proveedores/evaluaciones-proveedor.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
+import '../widgets/botones-accion-evaluacion.dart';
 
 class EvaluacionSocioeconomicaPantalla extends ConsumerStatefulWidget {
   const EvaluacionSocioeconomicaPantalla({super.key});
@@ -760,39 +761,20 @@ class _EvaluacionSocioeconomicaPantallaState
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton.icon(
-            onPressed: _enviando ? null : _enviarEvaluacionSocioeconomica,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _DORADO_DIACONIA,
-              foregroundColor: BumandColores.azulMarinoSecundario,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            icon: _enviando
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: BumandColores.NEGRO,
-                    ),
-                  )
-                : const Icon(Icons.send_rounded),
-            label: Text(
-              _enviando
-                  ? "Enviando cuestionario..."
-                  : "Enviar Evaluación Socioeconómica ($respondidas_conteo/$total_preguntas)",
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ),
+        child: BotonesAccionEvaluacion(
+          expandir: true,
+          mostrar_revisar: false,
+          estado: _enviado_exitosamente
+              ? EstadoAccionEvaluacion.completado
+              : EstadoAccionEvaluacion.pendiente,
+          texto_pendiente: _enviando
+              ? "Enviando cuestionario..."
+              : "Enviar Evaluación ($respondidas_conteo/$total_preguntas)",
+          icono_pendiente: Icons.send_rounded,
+          al_ejecutar_pendiente: _enviarEvaluacionSocioeconomica,
+          texto_completado: "Enviado",
+          al_hacer_clic_completado: _enviarEvaluacionSocioeconomica,
+          cargando: _enviando,
         ),
       ),
     );
