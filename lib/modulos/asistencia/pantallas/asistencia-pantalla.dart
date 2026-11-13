@@ -825,56 +825,6 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                 ),
                 const SizedBox(height: 14),
 
-                // 4. Banner institucional "Sin Multa (Permiso Aprobado)" para jornada con permiso
-                if (tiene_permiso_viernes_aprobado &&
-                    (ahora.weekday == DateTime.friday ||
-                        _tipo == TipoAsistencia.escuelaLideres.valor)) ...[
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF10B981)),
-                    ),
-                    child: const Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.verified_rounded,
-                          color: Color(0xFF047857),
-                          size: 24,
-                        ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Sin Multa (Permiso Aprobado) — Bs 0.00",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: Color(0xFF065F46),
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                "Cuentas con permiso formal aprobado por Administración para esta jornada. Quedas exento(a) de retención económica.",
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: Color(0xFF047857),
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
                 // 5. Advertencia de multas oficiales para Escuela de Líderes (Viernes pasadas 14:35 si NO tiene permiso)
                 if (es_escuela_lideres_viernes &&
                     minutos_retraso_actual > 0 &&
