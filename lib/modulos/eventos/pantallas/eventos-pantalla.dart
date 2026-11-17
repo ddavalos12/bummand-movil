@@ -193,7 +193,7 @@ class _EventosPantallaState extends ConsumerState<EventosPantalla>
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                "Marcado correctamente por el supervisor ${evento.mi_asistencia!.hora_marcacion.isNotEmpty ? '(${evento.mi_asistencia!.hora_marcacion})' : ''}",
+                                "Marcado correctamente por el Mentor ${evento.mi_asistencia!.hora_marcacion.isNotEmpty ? '(${evento.mi_asistencia!.hora_marcacion})' : ''}",
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
@@ -291,7 +291,7 @@ class _EventosPantallaState extends ConsumerState<EventosPantalla>
                   return EstadoVacioWidget(
                     titulo: "No hay acciones de servicio programadas",
                     mensaje:
-                        "Las acciones de servicio diaconal y encuentros convocados por tus supervisores aparecerán aquí.",
+                        "Las acciones de servicio diaconal y encuentros convocados por tus Mentores aparecerán aquí.",
                     icono: Icons.event_busy_outlined,
                     texto_boton_accion: "Actualizar lista",
                     alPresionarAccion: () =>
@@ -744,7 +744,7 @@ class _RadarEventoCard extends StatelessWidget {
                   ),
                   SizedBox(width: 8),
                   Text(
-                    "Marcado correctamente por el supervisor",
+                    "Marcado correctamente por el Mentor",
                     style: TextStyle(
                       color: Color(0xFF065F46),
                       fontWeight: FontWeight.bold,

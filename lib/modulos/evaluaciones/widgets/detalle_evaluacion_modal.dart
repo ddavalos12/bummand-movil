@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
@@ -1417,7 +1420,7 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Text(
-                  "Módulo 03 · Acceso QR Supervisor",
+                  "Módulo 03 · Acceso QR Mentor",
                   style: TextStyle(
                     color: BumandColores.AZUL_DIACONIA,
                     fontSize: 12,
@@ -1432,7 +1435,7 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
             ],
           ),
           const Text(
-            "Evaluación del Mentor / Supervisor",
+            "Evaluación del Mentor",
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -1441,7 +1444,7 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
           ),
           const SizedBox(height: 4),
           Text(
-            "Muestra este código QR a tu Supervisor/Tutor de área para que realice tu evaluación. El becario no tiene acceso a las preguntas.",
+            "Muestra este código QR a tu Mentor/Tutor de área para que realice tu evaluación. El becario no tiene acceso a las preguntas.",
             style: TextStyle(
               fontSize: 12.5,
               color: Colors.grey.shade700,
@@ -1519,7 +1522,7 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
               ),
               icon: const Icon(Icons.person_pin_circle_outlined),
               label: const Text(
-                "¿Eres el Supervisor/Tutor? Evaluar aquí",
+                "¿Eres el Mentor/Tutor? Evaluar aquí",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -1592,7 +1595,7 @@ class _DialogoVerificacionSupervisorState
     final entrada = _codigo_ctrl.text.trim();
     if (entrada.isEmpty) {
       setState(() {
-        _mensaje_error = "Ingresa el código de 6 dígitos enviado a su supervisor específico.";
+        _mensaje_error = "Ingresa el código de 6 dígitos enviado a su Mentor específico.";
       });
       return;
     }
@@ -1627,7 +1630,7 @@ class _DialogoVerificacionSupervisorState
         (resultado.datos?['verificado'] == true ||
             resultado.datos?['valido'] == true)) {
       final nombre =
-          resultado.datos?['supervisor_nombre']?.toString() ?? "Supervisor Asignado";
+          resultado.datos?['supervisor_nombre']?.toString() ?? "Mentor Asignado";
       Navigator.of(context).pop({
         'verificado': true,
         'supervisor_nombre': nombre,
@@ -1743,7 +1746,7 @@ class _DialogoVerificacionSupervisorState
             const SizedBox(height: 14),
 
             const Text(
-              "Código de 6 dígitos de su Supervisor",
+              "Código de 6 dígitos de su Mentor",
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -1795,7 +1798,7 @@ class _DialogoVerificacionSupervisorState
                 label: Text(
                   _enviando_codigo
                       ? "Enviando código..."
-                      : "Reenviar código al supervisor",
+                      : "Reenviar código al Mentor",
                   style: const TextStyle(fontSize: 11.5),
                 ),
               ),
@@ -2264,7 +2267,7 @@ class _FormularioSupervisorEvaluadorState
                       Expanded(
                         child: Text(
                           widget.modalidad_llenado == 'perfil_supervisor'
-                              ? "Perfil Móvil del Supervisor · Código OTP Validado${widget.evaluacion_previa != null ? ' (Modo Edición)' : ''}"
+                              ? "Perfil Móvil del Mentor · Código OTP Validado${widget.evaluacion_previa != null ? ' (Modo Edición)' : ''}"
                               : "Celular del Estudiante · Código OTP Validado",
                           style: TextStyle(
                             fontSize: 11.5,
@@ -2921,6 +2924,58 @@ class _ReceptorLideresClassroomModalState
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text("Cancelar"),
           ),
+          OutlinedButton(
+            onPressed: () async {
+              final retro = retro_ctrl.text.trim().isEmpty
+                  ? "Entrega observada. Por favor corrige y vuelve a subir tu tarea."
+                  : retro_ctrl.text.trim();
+              Navigator.of(ctx).pop();
+
+              final becario_id = await _obtenerBecarioIdAutenticado(context);
+              final res_rev = await _repositorio.revisarTareaLideres(
+                tarea_numero: tarea.numero,
+                entrega_id: tarea.entrega_id,
+                becario_id: becario_id,
+                puntaje: 0,
+                retroalimentacion: retro,
+                estado: 'observado',
+              );
+
+              if (!mounted) return;
+              if (!res_rev.exito) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(res_rev.error ?? "Error al observar la tarea."),
+                    backgroundColor: const Color(0xFFDC2626),
+                  ),
+                );
+                return;
+              }
+              setState(() {
+                final idx = _tareas.indexWhere((t) => t.numero == tarea.numero);
+                if (idx != -1) {
+                  _tareas[idx] = _tareas[idx].copiarCon(
+                    estado: 'observado',
+                    puntaje_obtenido: 0,
+                    retroalimentacion: retro,
+                  );
+                }
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Tarea ${tarea.numero} marcada como OBSERVADA / RECHAZADA."),
+                  backgroundColor: const Color(0xFFDC2626),
+                ),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFDC2626),
+              side: const BorderSide(color: Color(0xFFEF4444)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text("Rechazar / Observar"),
+          ),
           ElevatedButton(
             onPressed: () async {
               final puntaje = double.tryParse(puntaje_ctrl.text.trim()) ?? 95.0;
@@ -2934,6 +2989,7 @@ class _ReceptorLideresClassroomModalState
                 becario_id: becario_id,
                 puntaje: puntaje,
                 retroalimentacion: retro,
+                estado: 'revisado',
               );
 
               if (!mounted) return;
@@ -2959,7 +3015,7 @@ class _ReceptorLideresClassroomModalState
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text("✓ Tarea ${tarea.numero} calificada y sellada como REVISADA."),
+                  content: Text("✓ Tarea ${tarea.numero} aprobada y sellada como REVISADA."),
                   backgroundColor: const Color(0xFF15803D),
                 ),
               );
@@ -2969,24 +3025,206 @@ class _ReceptorLideresClassroomModalState
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text("Guardar Revisión"),
+            child: const Text("Aprobar Revisión"),
           ),
         ],
       ),
     );
   }
 
+  String _resolverUrlRecurso(String url_cruda) {
+    final limpia = url_cruda.trim();
+    if (limpia.startsWith('http://') || limpia.startsWith('https://')) {
+      return limpia;
+    }
+    if (limpia.startsWith('/')) {
+      return '${ApiConstantes.RUTA_BASE}$limpia';
+    }
+    return '${ApiConstantes.RUTA_BASE}/$limpia';
+  }
+
+  void _abrirModalRecursoLectura({
+    required String titulo,
+    required String url_cruda,
+    required bool es_pdf,
+  }) {
+    final url_completa = _resolverUrlRecurso(url_cruda);
+    String? estado_descarga;
+    bool verificando = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx_st, setStateModal) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Row(
+            children: [
+              Icon(
+                es_pdf ? Icons.picture_as_pdf_rounded : Icons.link_rounded,
+                color: es_pdf ? const Color(0xFFDC2626) : BumandColores.AZUL_DIACONIA,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  es_pdf ? "Material PDF de Lectura" : "Enlace de Lectura",
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titulo,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: SelectableText(
+                  url_completa,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: BumandColores.azulMarinoSecundario,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (estado_descarga != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Text(
+                    estado_descarga!,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF15803D),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("Cerrar"),
+            ),
+            if (es_pdf)
+              OutlinedButton.icon(
+                onPressed: verificando
+                    ? null
+                    : () async {
+                        setStateModal(() => verificando = true);
+                        try {
+                          final resp = await http
+                              .get(Uri.parse(url_completa))
+                              .timeout(const Duration(seconds: 8));
+                          if (resp.statusCode == 200) {
+                            final kb = (resp.bodyBytes.length / 1024).toStringAsFixed(1);
+                            setStateModal(() {
+                              verificando = false;
+                              estado_descarga =
+                                  "✓ Archivo disponible ($kb KB). Usa 'Copiar enlace' para abrirlo en tu navegador o visor PDF.";
+                            });
+                          } else {
+                            setStateModal(() {
+                              verificando = false;
+                              estado_descarga =
+                                  "El servidor respondió código ${resp.statusCode}. Copia el enlace para abrirlo en el navegador.";
+                            });
+                          }
+                        } catch (_) {
+                          setStateModal(() {
+                            verificando = false;
+                            estado_descarga =
+                                "Enlace listo. Cópialo para descargarlo desde el navegador.";
+                          });
+                        }
+                      },
+                icon: verificando
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download_rounded, size: 16),
+                label: Text(verificando ? "Verificando..." : "Descargar / Verificar"),
+              ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: url_completa));
+                if (ctx.mounted) {
+                  Navigator.of(ctx).pop();
+                }
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Enlace copiado al portapapeles para abrir en el navegador"),
+                    backgroundColor: BumandColores.AZUL_DIACONIA,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: BumandColores.AZUL_DIACONIA,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text("Copiar enlace"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    bool esEstadoObservado(TareaEscuelaLideresModelo t) {
+      final est = t.estado.toLowerCase();
+      return est.contains("observ") || est.contains("rechaz");
+    }
+
+    bool esEstadoRevisado(TareaEscuelaLideresModelo t) {
+      final est = t.estado.toLowerCase();
+      return !esEstadoObservado(t) &&
+          (est.contains("revisad") || est.contains("aprob"));
+    }
+
     final tareas_filtradas = _tareas.where((t) {
-      if (_filtro == "Pendientes") return t.estado.toLowerCase().contains("pendiente");
-      if (_filtro == "Entregadas") return t.estado.toLowerCase().contains("entregad");
-      if (_filtro == "Revisadas") return t.estado.toLowerCase().contains("revisad");
+      if (_filtro == "Pendientes") {
+        return t.estado.toLowerCase().contains("pendiente");
+      }
+      if (_filtro == "Entregadas") {
+        return t.estado.toLowerCase().contains("entregad");
+      }
+      if (_filtro == "Observadas") return esEstadoObservado(t);
+      if (_filtro == "Revisadas") return esEstadoRevisado(t);
       return true;
     }).toList();
 
-    final cantidad_revisadas =
-        _tareas.where((t) => t.estado.toLowerCase().contains("revisad")).length;
+    final cantidad_revisadas = _tareas.where(esEstadoRevisado).length;
+    final cantidad_observadas = _tareas.where(esEstadoObservado).length;
     final cantidad_entregadas =
         _tareas.where((t) => t.estado.toLowerCase().contains("entregad")).length;
     final cantidad_pendientes =
@@ -3135,6 +3373,15 @@ class _ReceptorLideresClassroomModalState
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (cantidad_observadas > 0)
+                      Text(
+                        "• $cantidad_observadas Observadas",
+                        style: const TextStyle(
+                          color: Color(0xFFFCA5A5),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -3153,6 +3400,10 @@ class _ReceptorLideresClassroomModalState
                 const SizedBox(width: 6),
                 _construirChipFiltro("Entregadas", cantidad_entregadas),
                 const SizedBox(width: 6),
+                if (cantidad_observadas > 0) ...[
+                  _construirChipFiltro("Observadas", cantidad_observadas),
+                  const SizedBox(width: 6),
+                ],
                 _construirChipFiltro("Revisadas", cantidad_revisadas),
               ],
             ),
@@ -3202,9 +3453,201 @@ class _ReceptorLideresClassroomModalState
     );
   }
 
+  Widget _construirControlesEntregaBecario(
+    TareaEscuelaLideresModelo tarea,
+    Map<String, dynamic>? evidencia_temp,
+    bool esta_entregando, {
+    String texto_boton_enviar = "Entregar",
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (evidencia_temp != null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.attach_file,
+                  size: 16,
+                  color: BumandColores.AZUL_DIACONIA,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    "${evidencia_temp['nombre']} (${evidencia_temp['tamano']})",
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () {
+                    setState(() => _evidencias_seleccionadas.remove(tarea.numero));
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _seleccionarEvidencia(tarea.numero),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: const Size(0, 34),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                side: const BorderSide(
+                  color: BumandColores.azulCieloSuave,
+                  width: 1.2,
+                ),
+                shape: const StadiumBorder(),
+              ),
+              icon: Icon(
+                evidencia_temp == null ? Icons.upload_file : Icons.replay,
+                size: 15,
+                color: BumandColores.azulCieloSuave,
+              ),
+              label: Text(
+                evidencia_temp == null ? "Adjuntar" : "Cambiar",
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: BumandColores.azulMarinoSecundario,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BotonesAccionEvaluacion(
+                expandir: true,
+                mostrar_revisar: false,
+                estado: EstadoAccionEvaluacion.pendiente,
+                texto_pendiente:
+                    esta_entregando ? "Enviando..." : texto_boton_enviar,
+                icono_pendiente: Icons.send_rounded,
+                al_ejecutar_pendiente: () => _entregarTarea(tarea.numero),
+                cargando: esta_entregando,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _construirSeccionLecturas(TareaEscuelaLideresModelo tarea) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F9FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBAE6FD)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "📚 Material de Lectura y Enlaces",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: BumandColores.azulMarinoSecundario,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final pdf in tarea.lecturas_pdf)
+                ElevatedButton.icon(
+                  onPressed: () => _abrirModalRecursoLectura(
+                    titulo: pdf['nombre'] ?? 'Lectura PDF',
+                    url_cruda: pdf['url'] ?? '',
+                    es_pdf: true,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFFB91C1C),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    side: const BorderSide(color: Color(0xFFFCA5A5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                  label: Text(
+                    "Ver / Descargar PDF: ${pdf['nombre'] ?? 'Material'}",
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              for (final enlace in tarea.enlaces_lectura)
+                ElevatedButton.icon(
+                  onPressed: () => _abrirModalRecursoLectura(
+                    titulo: enlace['titulo'] ?? 'Enlace de lectura',
+                    url_cruda: enlace['url'] ?? '',
+                    es_pdf: false,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: BumandColores.AZUL_DIACONIA,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    side: const BorderSide(color: Color(0xFF7DD3FC)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.link_rounded, size: 16),
+                  label: Text(
+                    "Abrir Enlace: ${enlace['titulo'] ?? enlace['url'] ?? 'Recurso'}",
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _construirTarjetaTarea(TareaEscuelaLideresModelo tarea) {
-    final es_revisado = tarea.estado.toLowerCase().contains("revisad");
-    final es_entregado = tarea.estado.toLowerCase().contains("entregad");
+    final estado_lower = tarea.estado.toLowerCase();
+    final es_observado =
+        estado_lower.contains("observ") || estado_lower.contains("rechaz");
+    final es_revisado = !es_observado &&
+        (estado_lower.contains("revisad") || estado_lower.contains("aprob"));
+    final es_entregado =
+        !es_observado && !es_revisado && estado_lower.contains("entregad");
 
     final evidencia_temp = _evidencias_seleccionadas[tarea.numero];
     final esta_entregando = _entregando_por_tarea[tarea.numero] == true;
@@ -3216,10 +3659,14 @@ class _ReceptorLideresClassroomModalState
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: es_revisado
-              ? const Color(0xFF86EFAC)
-              : (es_entregado ? const Color(0xFF93C5FD) : const Color(0xFFE2E8F0)),
-          width: es_revisado ? 1.5 : 1,
+          color: es_observado
+              ? const Color(0xFFEF4444)
+              : (es_revisado
+                  ? const Color(0xFF86EFAC)
+                  : (es_entregado
+                      ? const Color(0xFF93C5FD)
+                      : const Color(0xFFE2E8F0))),
+          width: (es_revisado || es_observado) ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -3239,9 +3686,13 @@ class _ReceptorLideresClassroomModalState
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: es_revisado
-                      ? const Color(0xFF15803D)
-                      : (es_entregado ? const Color(0xFF2563EB) : const Color(0xFF64748B)),
+                  color: es_observado
+                      ? const Color(0xFFDC2626)
+                      : (es_revisado
+                          ? const Color(0xFF15803D)
+                          : (es_entregado
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFF64748B))),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -3280,7 +3731,31 @@ class _ReceptorLideresClassroomModalState
                 ),
               ),
               const SizedBox(width: 6),
-              if (es_revisado)
+              if (es_observado)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline, size: 12, color: Color(0xFFDC2626)),
+                      SizedBox(width: 3),
+                      Text(
+                        "Observada",
+                        style: TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (es_revisado)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -3294,7 +3769,7 @@ class _ReceptorLideresClassroomModalState
                       Icon(Icons.check, size: 12, color: Color(0xFF15803D)),
                       SizedBox(width: 3),
                       Text(
-                        "Revisado",
+                        "Aprobada",
                         style: TextStyle(
                           color: Color(0xFF15803D),
                           fontWeight: FontWeight.bold,
@@ -3347,8 +3822,71 @@ class _ReceptorLideresClassroomModalState
           ),
           const SizedBox(height: 10),
 
-          // SELLO DESTACADO "REVISADO"
-          if (es_revisado) ...[
+          if (tarea.lecturas_pdf.isNotEmpty || tarea.enlaces_lectura.isNotEmpty)
+            _construirSeccionLecturas(tarea),
+
+          if (es_observado) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFEF4444), width: 1.2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Tarea Rechazada / Observada por el Mentor",
+                          style: TextStyle(
+                            color: Color(0xFFDC2626),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (tarea.retroalimentacion != null &&
+                      tarea.retroalimentacion!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      "Motivo: ${tarea.retroalimentacion}",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF991B1B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (widget.es_becario)
+              _construirControlesEntregaBecario(
+                tarea,
+                evidencia_temp,
+                esta_entregando,
+                texto_boton_enviar: "Volver a entregar",
+              )
+            else
+              Align(
+                alignment: Alignment.centerRight,
+                child: BotonesAccionEvaluacion(
+                  estado: EstadoAccionEvaluacion.pendiente,
+                  texto_revisar: "Revisar",
+                  al_revisar: () => _abrirDialogoCalificar(tarea),
+                  texto_pendiente: "Recalificar",
+                  al_ejecutar_pendiente: () => _abrirDialogoCalificar(tarea),
+                ),
+              ),
+          ] else if (es_revisado) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -3362,9 +3900,9 @@ class _ReceptorLideresClassroomModalState
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      widget.es_becario
-                          ? "REVISADO"
-                          : "REVISADO · ${tarea.puntaje_obtenido?.toStringAsFixed(0) ?? '95'}/100 pts",
+                      tarea.puntaje_obtenido != null
+                          ? "Tarea Aprobada · ${tarea.puntaje_obtenido!.toStringAsFixed(0)}/100 pts"
+                          : "Tarea Aprobada",
                       style: const TextStyle(
                         color: Color(0xFF15803D),
                         fontWeight: FontWeight.bold,
@@ -3380,7 +3918,8 @@ class _ReceptorLideresClassroomModalState
                 ],
               ),
             ),
-            if (tarea.retroalimentacion != null) ...[
+            if (tarea.retroalimentacion != null &&
+                tarea.retroalimentacion!.trim().isNotEmpty) ...[
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
@@ -3397,7 +3936,7 @@ class _ReceptorLideresClassroomModalState
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        "Retroalimentación: ${tarea.retroalimentacion}",
+                        "Comentario del Mentor: ${tarea.retroalimentacion}",
                         style: const TextStyle(
                           fontSize: 11.5,
                           fontStyle: FontStyle.italic,
@@ -3436,7 +3975,7 @@ class _ReceptorLideresClassroomModalState
                 al_revisar: widget.es_becario
                     ? null
                     : () => _abrirDialogoCalificar(tarea),
-                texto_completado: "Revisado",
+                texto_completado: "Aprobada",
                 al_hacer_clic_completado: widget.es_becario
                     ? null
                     : () => _abrirDialogoCalificar(tarea),
@@ -3494,83 +4033,13 @@ class _ReceptorLideresClassroomModalState
               ),
             ),
           ] else ...[
-            if (widget.es_becario) ...[
-              if (evidencia_temp != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.attach_file, size: 16, color: BumandColores.AZUL_DIACONIA),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          "${evidencia_temp['nombre']} (${evidencia_temp['tamano']})",
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () {
-                          setState(() => _evidencias_seleccionadas.remove(tarea.numero));
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _seleccionarEvidencia(tarea.numero),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      minimumSize: const Size(0, 34),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      side: const BorderSide(color: BumandColores.azulCieloSuave, width: 1.2),
-                      shape: const StadiumBorder(),
-                    ),
-                    icon: Icon(
-                      evidencia_temp == null ? Icons.upload_file : Icons.replay,
-                      size: 15,
-                      color: BumandColores.azulCieloSuave,
-                    ),
-                    label: Text(
-                      evidencia_temp == null ? "Adjuntar" : "Cambiar",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: BumandColores.azulMarinoSecundario,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: BotonesAccionEvaluacion(
-                      expandir: true,
-                      mostrar_revisar: false,
-                      estado: EstadoAccionEvaluacion.pendiente,
-                      texto_pendiente: esta_entregando ? "Enviando..." : "Entregar",
-                      icono_pendiente: Icons.send_rounded,
-                      al_ejecutar_pendiente: () => _entregarTarea(tarea.numero),
-                      cargando: esta_entregando,
-                    ),
-                  ),
-                ],
-              ),
-            ] else ...[
+            if (widget.es_becario)
+              _construirControlesEntregaBecario(
+                tarea,
+                evidencia_temp,
+                esta_entregando,
+              )
+            else ...[
               Align(
                 alignment: Alignment.centerRight,
                 child: BotonesAccionEvaluacion(

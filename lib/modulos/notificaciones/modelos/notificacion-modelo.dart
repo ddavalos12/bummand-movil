@@ -62,14 +62,50 @@ class NotificacionModelo {
     return t.contains('salida') || t.contains('recordatorio');
   }
 
+  bool get esPermiso {
+    final t = tipo.toLowerCase();
+    final m = mensaje.toLowerCase();
+    return t.contains('justific') ||
+        t.contains('permiso') ||
+        m.contains('permiso') ||
+        m.contains('justific');
+  }
+
+  bool get esTarea {
+    final t = tipo.toLowerCase();
+    final m = mensaje.toLowerCase();
+    return t.contains('tarea') ||
+        t.contains('escuela') ||
+        m.contains('tarea') ||
+        m.contains('escuela de líderes');
+  }
+
+  bool get esAprobado {
+    final t = tipo.toLowerCase();
+    final m = mensaje.toLowerCase();
+    return t.contains('aprob') || m.contains('aprob');
+  }
+
+  bool get esRechazadoObservado {
+    final t = tipo.toLowerCase();
+    final m = mensaje.toLowerCase();
+    return t.contains('rechaz') ||
+        t.contains('observ') ||
+        m.contains('rechaz') ||
+        m.contains('observ');
+  }
+
   bool get esPasajeObservado {
     final t = tipo.toLowerCase();
-    return t.contains('pasaje') || t.contains('observad');
+    final m = mensaje.toLowerCase();
+    return t.contains('pasaje') ||
+        m.contains('pasaje') ||
+        (t.contains('observad') && !esTarea && !esPermiso);
   }
 
   bool get esEvaluacion {
     final t = tipo.toLowerCase();
-    return t.contains('evalua');
+    return t.contains('evalua') || esTarea;
   }
 
   bool get esMultaAplicada {
@@ -94,6 +130,8 @@ class NotificacionModelo {
     if (esAsistenciaConfirmadaOrganizador) return 'Confirmada por organizador';
     if (esOrdenConfirmacionDatos) return 'Orden administrativa';
     if (esRecordatorioSalida) return 'Recordatorio de salida';
+    if (esPermiso) return 'Permiso / Justificación';
+    if (esTarea) return 'Tarea Escuela de Líderes';
     if (esPasajeObservado) return 'Pasaje observado';
     if (esEvaluacion) return 'Evaluación';
     return 'Aviso';

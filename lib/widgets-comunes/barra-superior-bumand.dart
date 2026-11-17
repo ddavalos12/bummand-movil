@@ -8,6 +8,7 @@ import '../modulos/autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modulos/autenticacion/pantallas/inicio-sesion-pantalla.dart';
 import '../modulos/autenticacion/pantallas/mi-perfil-pantalla.dart';
 import '../modulos/notificaciones/pantallas/notificaciones-pantalla.dart';
+import '../modulos/notificaciones/proveedores/notificaciones-proveedor.dart';
 import '../modulos/inicio/pantallas/acerca-de-pantalla.dart';
 
 
@@ -1098,17 +1099,60 @@ class BarraSuperiorBumand extends ConsumerWidget implements PreferredSizeWidget 
           const SizedBox(width: 2),
         ],
         if (mostrar_perfil) ...[
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, size: 20),
-            tooltip: "Notificaciones y códigos",
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-            visualDensity: VisualDensity.compact,
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const NotificacionesPantalla(),
-                ),
+          Consumer(
+            builder: (context, ref_campana, _) {
+              final conteo_async = ref_campana.watch(notificaciones_conteo_proveedor);
+              final conteo_no_leidas = conteo_async.asData?.value ?? 0;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, size: 20),
+                    tooltip: "Notificaciones y códigos",
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificacionesPantalla(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (conteo_no_leidas > 0)
+                    Positioned(
+                      right: 2,
+                      top: 2,
+                      child: IgnorePointer(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDC2626),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 1.2),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            conteo_no_leidas > 99 ? '99+' : '$conteo_no_leidas',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),

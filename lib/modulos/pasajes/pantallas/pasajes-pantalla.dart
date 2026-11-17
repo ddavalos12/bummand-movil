@@ -92,7 +92,7 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
         title: const Text("Enviar formulario mensual"),
         content: Text(
           "Se enviará tu formulario de ${FormatoPasajes.periodo(solicitud.periodo)} "
-          "por ${FormatoPasajes.bs(solicitud.monto_devolucion)} a tu supervisor para su revisión.\n\n"
+          "por ${FormatoPasajes.bs(solicitud.monto_devolucion)} a tu Mentor para su revisión.\n\n"
           "Después ya no podrás agregar recorridos de ese mes, "
           "salvo que te lo devuelvan con observaciones.",
         ),
@@ -251,19 +251,94 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: _Monto(
-                    etiqueta: "Total declarado",
-                    valor: FormatoPasajes.bs(s.monto_total),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _Monto(
+                        etiqueta: "Total declarado",
+                        valor: FormatoPasajes.bs(s.monto_total),
+                      ),
+                    ),
+                    Expanded(
+                      child: _Monto(
+                        etiqueta: "Reembolso 80%",
+                        valor: FormatoPasajes.bs(s.monto_devolucion),
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: _Monto(
-                    etiqueta: "Devolución (80%)",
-                    valor: FormatoPasajes.bs(s.monto_devolucion),
-                    destacado: true,
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Reembolso 80%:",
+                            style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                          ),
+                          Text(
+                            FormatoPasajes.bs(s.monto_devolucion),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "(-) Descuento por Multas:",
+                            style: TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
+                          ),
+                          Text(
+                            "- ${FormatoPasajes.bs(s.multas_asistencia_bs)}",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: s.multas_asistencia_bs > 0
+                                  ? const Color(0xFFDC2626)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Líquido Pagable (Neto):",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF047857),
+                            ),
+                          ),
+                          Text(
+                            FormatoPasajes.bs(s.monto_liquido_pagable),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF047857),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -294,7 +369,7 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "Observación del supervisor: ${s.observaciones}",
+                      "Observación del Mentor: ${s.observaciones}",
                     ),
                   ),
                 ],
@@ -357,7 +432,7 @@ class _ChipEstado extends StatelessWidget {
     final (texto, color) = switch (estado) {
       "borrador" => ("Borrador", Colors.grey.shade700),
       "pendiente" => ("1. Pendiente", BumandColores.NARANJA_OSCURO),
-      "revisado_supervisor" => ("2. Revisado por Supervisor", BumandColores.AZUL_DIACONIA),
+      "revisado_supervisor" => ("2. Revisado por Mentor", BumandColores.AZUL_DIACONIA),
       "aprobado_administracion" || "aprobado" => ("✓ Aprobado por Administración", Colors.green.shade700),
       "rechazado" => ("Con observaciones", Colors.red.shade700),
       _ => (estado, Colors.grey.shade700),
@@ -421,7 +496,7 @@ class _LineaProgresoPasajes extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               const Text(
-                "Paso 1: Supervisor",
+                "Paso 1: Mentor",
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -481,9 +556,9 @@ class _LineaProgresoPasajes extends StatelessWidget {
   String _etiquetaEstado(String estado) {
     switch (estado) {
       case 'pendiente':
-        return '● Paso 1 en curso: Pendiente de revisión del Supervisor';
+        return '● Paso 1 en curso: Pendiente de revisión del Mentor';
       case 'revisado_supervisor':
-        return '✓ Paso 1 completado: Revisado por Supervisor → Esperando aprobación final de Administración';
+        return '✓ Paso 1 completado: Revisado por Mentor → Esperando aprobación final de Administración';
       case 'aprobado_administracion':
       case 'aprobado':
         return '✓ Paso 2 completado: Aprobado por Administración — Planilla autorizada para desembolso';
@@ -514,11 +589,9 @@ class _LineaProgresoPasajes extends StatelessWidget {
 class _Monto extends StatelessWidget {
   final String etiqueta;
   final String valor;
-  final bool destacado;
   const _Monto({
     required this.etiqueta,
     required this.valor,
-    this.destacado = false,
   });
 
   @override
@@ -530,10 +603,7 @@ class _Monto extends StatelessWidget {
         Text(etiqueta, style: tema.bodySmall),
         Text(
           valor,
-          style: (destacado ? tema.titleLarge : tema.titleMedium)?.copyWith(
-            fontWeight: destacado ? FontWeight.bold : null,
-            color: destacado ? Colors.green.shade800 : null,
-          ),
+          style: tema.titleMedium,
         ),
       ],
     );

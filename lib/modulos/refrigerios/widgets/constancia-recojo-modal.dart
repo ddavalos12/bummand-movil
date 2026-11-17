@@ -211,7 +211,7 @@ class ConstanciaRecojoModal extends ConsumerWidget {
                           const SizedBox(height: 8),
                           _construirFila(
                             icono: Icons.verified_user_rounded,
-                            etiqueta: 'Supervisor que entregó',
+                            etiqueta: 'Mentor que entregó',
                             valor: refrigerio.responsable_entrega,
                           ),
                         ],

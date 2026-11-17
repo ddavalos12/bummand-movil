@@ -1333,7 +1333,7 @@ class _MiPerfilPantallaState extends ConsumerState<MiPerfilPantalla>
                     ),
                     const SizedBox(width: 8),
                     _construirChipFiltro(
-                      etiqueta: 'Supervisores',
+                      etiqueta: 'Mentores',
                       valor: 'supervisor',
                     ),
                     const SizedBox(width: 8),
@@ -1782,7 +1782,7 @@ class _MiPerfilPantallaState extends ConsumerState<MiPerfilPantalla>
                       ),
                       DropdownMenuItem(
                         value: 'supervisor',
-                        child: Text('Supervisor'),
+                        child: Text('Mentor'),
                       ),
                       DropdownMenuItem(
                         value: 'becario',
@@ -1965,7 +1965,7 @@ class _MiPerfilPantallaState extends ConsumerState<MiPerfilPantalla>
                       ),
                       DropdownMenuItem(
                         value: 'supervisor',
-                        child: Text('Supervisor'),
+                        child: Text('Mentor'),
                       ),
                       DropdownMenuItem(
                         value: 'becario',

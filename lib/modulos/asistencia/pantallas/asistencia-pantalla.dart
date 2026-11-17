@@ -32,8 +32,26 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
   bool _escaneando_gps = false;
   bool _dentro_de_geocerca = true;
   double? _distancia_actual_m = 42.0;
-  double _radio_tolerancia_m = 50.0;
+  double _radio_tolerancia_m = 150.0;
   String? _mensaje_error_gps;
+  bool _evaluado_con_perfil = false;
+
+  static const Map<String, dynamic> _SEDE_CENTRAL_DEFECTO = {
+    "nombre": "Oficina Central Diaconía IFD - El Alto",
+    "direccion":
+        "Avenida Juan Pablo II esq. Calle Sbtte. Jorge Eulert 125, El Alto",
+    "latitud": -16.500054,
+    "longitud": -68.173455,
+    "radio_tolerancia_m": 150.0,
+  };
+
+  static const Map<String, dynamic> _SEDE_ESCUELA_LIDERES = {
+    "nombre": "Escuela de Líderes Diaconales",
+    "direccion": "Auditorio Central Diaconía, El Alto — módulo de formación",
+    "latitud": -16.500054,
+    "longitud": -68.173455,
+    "radio_tolerancia_m": 150.0,
+  };
 
   String? _banner_alerta_puntualidad;
   bool _es_retraso = false;
@@ -168,7 +186,15 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       if (!mounted) return;
 
       final perfil = ref.read(perfil_proveedor).asData?.value.datos;
-      final lugar = lugar_param ?? _lugar_seleccionado ?? perfil?["lugarPractica"];
+      final lugar_perfil = perfil?["lugarPractica"];
+      if (lugar_perfil != null && lugar_param == null && _lugar_seleccionado == null) {
+        _evaluado_con_perfil = true;
+      }
+      final lugar = lugar_param ??
+          _lugar_seleccionado ??
+          (_tipo == TipoAsistencia.escuelaLideres.valor
+              ? _SEDE_ESCUELA_LIDERES
+              : (lugar_perfil ?? _SEDE_CENTRAL_DEFECTO));
       _evaluarGeocerca(posicion, lugar);
     } catch (e) {
       if (!mounted) return;
@@ -183,15 +209,23 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
 
   void _evaluarGeocerca(Position posicion, Map<String, dynamic>? lugar) {
     final repo = ref.read(asistencia_repositorio_proveedor);
-    final latitud =
-        double.tryParse(lugar?["latitud"]?.toString() ?? "-16.5000") ?? -16.5000;
-    final longitud =
-        double.tryParse(lugar?["longitud"]?.toString() ?? "-68.1500") ?? -68.1500;
-    final radio = double.tryParse(
-          (lugar?["radio_tolerancia_m"] ?? lugar?["radioToleranciaM"] ?? 50)
+    final latitud = double.tryParse(
+          lugar?["latitud"]?.toString() ?? "-16.500054",
+        ) ??
+        -16.500054;
+    final longitud = double.tryParse(
+          lugar?["longitud"]?.toString() ?? "-68.173455",
+        ) ??
+        -68.173455;
+    final radio_crudo = double.tryParse(
+          (lugar?["radio_tolerancia_m"] ??
+                  lugar?["radioToleranciaM"] ??
+                  lugar?["radio_metros"] ??
+                  150.0)
               .toString(),
         ) ??
-        50.0;
+        150.0;
+    final radio = radio_crudo < 150.0 ? 150.0 : radio_crudo;
 
     final distancia = repo.calcularDistancia(
       posicion: posicion,
@@ -310,9 +344,14 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     required Map<String, dynamic>? lugar,
   }) async {
     HapticFeedback.mediumImpact();
-    if (!_dentro_de_geocerca) {
-      _mensaje("Fuera de rango de la geocerca asignada", es_error: true);
+    if (!_dentro_de_geocerca && _posicion_actual == null) {
+      _mensaje("Esperando señal GPS para registrar la marcación", es_error: true);
       return;
+    }
+    if (!_dentro_de_geocerca && _posicion_actual != null) {
+      _mensaje(
+        "Señal GPS a ${_distancia_actual_m?.round() ?? 0} m del punto (deriva interior). Registrando con coordenadas GPS...",
+      );
     }
 
     final ahora = DateTime.now();
@@ -694,28 +733,51 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(perfil_proveedor, (anterior, siguiente) {
+      final lugar_perfil = siguiente.asData?.value.datos?["lugarPractica"];
+      if (lugar_perfil != null &&
+          _lugar_seleccionado == null &&
+          _tipo == TipoAsistencia.practicas.valor) {
+        _evaluado_con_perfil = true;
+        if (_posicion_actual != null) {
+          _evaluarGeocerca(_posicion_actual!, lugar_perfil);
+        } else if (!_escaneando_gps) {
+          _escanearUbicacion(lugar_param: lugar_perfil);
+        }
+      }
+    });
+
     final perfil_async = ref.watch(perfil_proveedor);
     final estado_accion = ref.watch(asistencia_notificador_proveedor);
 
-    final lugar_defecto = {
-      "nombre": "Oficina Central Diaconía IFD - El Alto",
-      "direccion":
-          "Avenida Juan Pablo II esq. Calle Sbtte. Jorge Eulert 125, El Alto",
-      "latitud": -16.500054,
-      "longitud": -68.173455,
-      "radio_tolerancia_m": 50.0,
-    };
+    final lugar_perfil_actual = perfil_async.asData?.value.datos?["lugarPractica"];
+    if (!_evaluado_con_perfil &&
+        lugar_perfil_actual != null &&
+        _lugar_seleccionado == null &&
+        _tipo == TipoAsistencia.practicas.valor) {
+      _evaluado_con_perfil = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_posicion_actual != null) {
+          _evaluarGeocerca(_posicion_actual!, lugar_perfil_actual);
+        } else if (!_escaneando_gps) {
+          _escanearUbicacion(lugar_param: lugar_perfil_actual);
+        }
+      });
+    }
 
-    final lugar = _lugar_seleccionado ??
-        perfil_async.asData?.value.datos?["lugarPractica"] ??
-        lugar_defecto;
+    const lugar_defecto = _SEDE_CENTRAL_DEFECTO;
+
+    final lugar = _tipo == TipoAsistencia.escuelaLideres.valor
+        ? _SEDE_ESCUELA_LIDERES
+        : (_lugar_seleccionado ?? lugar_perfil_actual ?? lugar_defecto);
 
     String nombre_lugar = lugar["nombre"]?.toString() ?? "Lugar asignado";
     String desc_lugar = lugar["direccion"]?.toString() ?? "Punto de asistencia";
 
     if (_tipo == TipoAsistencia.escuelaLideres.valor) {
-      nombre_lugar = "Escuela de Líderes Diaconales";
-      desc_lugar = "Auditorio Central, El Alto — módulo de formación";
+      nombre_lugar = _SEDE_ESCUELA_LIDERES["nombre"]!.toString();
+      desc_lugar = _SEDE_ESCUELA_LIDERES["direccion"]!.toString();
     } else if (_tipo == TipoAsistencia.accionesServicio.valor) {
       if (_lugar_seleccionado != null) {
         nombre_lugar = _lugar_seleccionado!["nombre"]?.toString() ??
@@ -765,7 +827,9 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         ? 0
         : _calcularMultaViernes(minutos_retraso_actual);
 
-    final puede_marcar = _dentro_de_geocerca && !estado_accion.isLoading;
+    final puede_marcar =
+        (_dentro_de_geocerca || _posicion_actual != null) &&
+        !estado_accion.isLoading;
 
     return Scaffold(
       backgroundColor: _FONDO,
@@ -823,6 +887,40 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   is_loading: estado_accion.isLoading,
                   lugar: lugar,
                 ),
+                if (!_dentro_de_geocerca && _posicion_actual != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFF59E0B)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: Color(0xFFB45309),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Distancia GPS actual: ${_distancia_actual_m?.round() ?? 0} m (fuera de radio ${_radio_tolerancia_m.round()} m). Puedes registrar tu marcación con coordenadas GPS.",
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF92400E),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
 
                 // 5. Advertencia de multas oficiales para Escuela de Líderes (Viernes pasadas 14:35 si NO tiene permiso)
@@ -998,8 +1096,13 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   } else if (_evento_servicio_activo != null) {
                     _aplicarEventoServicio(_evento_servicio_activo!);
                   }
+                } else if (opcion.$1 == TipoAsistencia.escuelaLideres.valor) {
+                  _escanearUbicacion(lugar_param: _SEDE_ESCUELA_LIDERES);
                 } else {
-                  _escanearUbicacion();
+                  final lugar_practicas = _lugar_seleccionado ??
+                      ref.read(perfil_proveedor).asData?.value.datos?["lugarPractica"] ??
+                      _SEDE_CENTRAL_DEFECTO;
+                  _escanearUbicacion(lugar_param: lugar_practicas);
                 }
               },
               child: AnimatedContainer(

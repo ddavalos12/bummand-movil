@@ -93,7 +93,7 @@ class CodigosError {
     ERR_2001: 'Acérquese al punto geográfico autorizado del lugar de práctica o iglesia y active alta precisión GPS.',
     ERR_2002: 'Registre su asistencia únicamente dentro del rango horario asignado a su turno o actividad.',
     ERR_2003: 'La marcación de ingreso ya fue registrada previamente hoy. Registre su salida al finalizar.',
-    ERR_2004: 'No se detectó un ingreso previo registrado hoy. Notifique a su supervisor pastoral o tutor.',
+    ERR_2004: 'No se detectó un ingreso previo registrado hoy. Notifique a su Mentor pastoral o tutor.',
 
     ERR_3001: 'Conserve los recorridos en estado borrador. Podrá remitir la declaración oficial a partir del día 24.',
     ERR_3002: 'Verifique que los montos declarados coincidan exactamente con las rutas y tarifas autorizadas.',

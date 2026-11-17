@@ -533,17 +533,55 @@ class _DetalleExtractoAsistenciaPantallaState
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      cumplio
-                          ? "+${diferencia.toStringAsFixed(2)} hrs · $porcentaje% Cumplido"
-                          : "En progreso · Faltan ${(meta - horas).toStringAsFixed(2)} hrs · $porcentaje%",
-                      style: const TextStyle(
-                        color: BumandColores.AMARILLO_RADIANTE, // #FFB600
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.2,
+                    if (cumplio)
+                      Text(
+                        "+${diferencia.toStringAsFixed(2)} hrs · $porcentaje% Cumplido",
+                        style: const TextStyle(
+                          color: BumandColores.AMARILLO_RADIANTE,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.2,
+                        ),
+                      )
+                    else
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          border: Border.all(
+                            color: const Color(0xFFEF4444),
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: Color(0xFFDC2626),
+                              size: 22,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "¡Le faltan ${(meta - horas).toStringAsFixed(2)} horas para cumplir las 36 hrs!",
+                                style: const TextStyle(
+                                  color: Color(0xFFDC2626),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  fontFamily: 'Poppins',
+                                  height: 1.25,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

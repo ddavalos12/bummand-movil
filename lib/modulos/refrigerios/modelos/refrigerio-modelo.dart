@@ -218,7 +218,7 @@ class RefrigerioModelo {
       case 'rendido':
         return 'Rendido (Pendiente Revisión)';
       case 'revisado_supervisor':
-        return 'Revisado por Supervisor';
+        return 'Revisado por Mentor';
       case 'aprobado_administracion':
         return 'Aprobado por Administración (Devolución 100%)';
       default:

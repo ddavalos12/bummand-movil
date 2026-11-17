@@ -64,6 +64,8 @@ class _NotificacionesPantallaState
                     const SizedBox(width: 8),
                     _construirChipFiltro("pasajes", "Pasajes"),
                     const SizedBox(width: 8),
+                    _construirChipFiltro("permisos", "Permisos"),
+                    const SizedBox(width: 8),
                     _construirChipFiltro("evaluacion", "Evaluaciones"),
                     const SizedBox(width: 8),
                     _construirChipFiltro("avisos", "Avisos"),
@@ -150,6 +152,9 @@ class _NotificacionesPantallaState
     if (_filtro_actual == "pasajes") {
       return lista.where((n) => n.esPasajeObservado).toList();
     }
+    if (_filtro_actual == "permisos") {
+      return lista.where((n) => n.esPermiso).toList();
+    }
     if (_filtro_actual == "evaluacion") {
       return lista.where((n) => n.esEvaluacion).toList();
     }
@@ -160,6 +165,7 @@ class _NotificacionesPantallaState
                 !n.esMultaAplicada &&
                 !n.esRecordatorioSalida &&
                 !n.esPasajeObservado &&
+                !n.esPermiso &&
                 !n.esEvaluacion,
           )
           .toList();
@@ -213,6 +219,32 @@ class _TarjetaNotificacion extends StatelessWidget {
         etiqueta: "Recordatorio de salida",
       );
     }
+    if (notificacion.esPermiso || notificacion.esTarea) {
+      if (notificacion.esRechazadoObservado) {
+        return _ConfiguracionTipoAlerta(
+          icono: Icons.cancel_rounded,
+          color_icono: const Color(0xFFDC2626),
+          color_fondo_icono: const Color(0xFFFEE2E2),
+          etiqueta: notificacion.esPermiso
+              ? "Permiso Rechazado / Observado"
+              : "Tarea Rechazada / Observada",
+          estado_chip: "Rechazado / Observado",
+          es_aprobado_chip: false,
+        );
+      }
+      if (notificacion.esAprobado) {
+        return _ConfiguracionTipoAlerta(
+          icono: Icons.check_circle_rounded,
+          color_icono: const Color(0xFF15803D),
+          color_fondo_icono: const Color(0xFFDCFCE7),
+          etiqueta: notificacion.esPermiso
+              ? "Permiso Aprobado"
+              : "Tarea Aprobada",
+          estado_chip: "Aprobado",
+          es_aprobado_chip: true,
+        );
+      }
+    }
     if (notificacion.esPasajeObservado) {
       return const _ConfiguracionTipoAlerta(
         icono: Icons.warning_amber_rounded,
@@ -222,6 +254,26 @@ class _TarjetaNotificacion extends StatelessWidget {
       );
     }
     if (notificacion.esEvaluacion) {
+      if (notificacion.esRechazadoObservado) {
+        return const _ConfiguracionTipoAlerta(
+          icono: Icons.cancel_rounded,
+          color_icono: Color(0xFFDC2626),
+          color_fondo_icono: Color(0xFFFEE2E2),
+          etiqueta: "Evaluación / Tarea Observada",
+          estado_chip: "Rechazado / Observado",
+          es_aprobado_chip: false,
+        );
+      }
+      if (notificacion.esAprobado) {
+        return const _ConfiguracionTipoAlerta(
+          icono: Icons.check_circle_rounded,
+          color_icono: Color(0xFF15803D),
+          color_fondo_icono: Color(0xFFDCFCE7),
+          etiqueta: "Evaluación / Tarea Aprobada",
+          estado_chip: "Aprobado",
+          es_aprobado_chip: true,
+        );
+      }
       return const _ConfiguracionTipoAlerta(
         icono: Icons.rate_review_outlined,
         color_icono: Color(0xFF7C3AED),
@@ -297,22 +349,74 @@ class _TarjetaNotificacion extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: configuracion.color_fondo_icono,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          configuracion.etiqueta,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: configuracion.color_icono,
-                          ),
+                      Flexible(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: configuracion.color_fondo_icono,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                configuracion.etiqueta,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: configuracion.color_icono,
+                                ),
+                              ),
+                            ),
+                            if (configuracion.estado_chip != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: configuracion.es_aprobado_chip == true
+                                      ? const Color(0xFFDCFCE7)
+                                      : const Color(0xFFFEE2E2),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: configuracion.es_aprobado_chip == true
+                                        ? const Color(0xFF86EFAC)
+                                        : const Color(0xFFFCA5A5),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      configuracion.es_aprobado_chip == true
+                                          ? Icons.check_circle_rounded
+                                          : Icons.cancel_rounded,
+                                      size: 11,
+                                      color: configuracion.es_aprobado_chip == true
+                                          ? const Color(0xFF15803D)
+                                          : const Color(0xFFDC2626),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      configuracion.estado_chip!,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: configuracion.es_aprobado_chip == true
+                                            ? const Color(0xFF15803D)
+                                            : const Color(0xFFDC2626),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       if (!notificacion.leido)
@@ -399,6 +503,8 @@ class _ConfiguracionTipoAlerta {
   final Color color_fondo_icono;
   final String etiqueta;
   final String? detalle_adicional;
+  final String? estado_chip;
+  final bool? es_aprobado_chip;
 
   const _ConfiguracionTipoAlerta({
     required this.icono,
@@ -406,5 +512,7 @@ class _ConfiguracionTipoAlerta {
     required this.color_fondo_icono,
     required this.etiqueta,
     this.detalle_adicional,
+    this.estado_chip,
+    this.es_aprobado_chip,
   });
 }

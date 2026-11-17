@@ -7,6 +7,7 @@ import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../asistencia/pantallas/asistencia-pantalla.dart';
 import '../../asistencia/pantallas/historial-asistencia-pantalla.dart';
 import '../../asistencia/proveedores/asistencia-proveedor.dart';
+import '../../asistencia/repositorios/asistencia-repositorio.dart';
 import '../../evaluaciones/pantallas/evaluaciones-pantalla.dart';
 import '../../justificaciones/pantallas/permisos-pantalla.dart';
 import '../../pasajes/pantallas/declarar-recorrido-pantalla.dart';
@@ -111,6 +112,10 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
     final nombre_completo = datos_perfil?["nombre"] ?? "María Catunta Laime";
     final partes_nombre = nombre_completo.split(' ');
     final primer_nombre = partes_nombre.isNotEmpty ? partes_nombre.first : "María";
+    final extractos_async = ref.watch(extractos_mensuales_proveedor);
+    final extracto_actual = extractos_async.asData?.value.isNotEmpty == true
+        ? extractos_async.asData!.value.first
+        : null;
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
@@ -179,7 +184,13 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+
+          if (es_becario && extracto_actual != null) ...[
+            _construirTarjetaResumenAsistencia(extracto_actual),
+            const SizedBox(height: 14),
+          ] else
+            const SizedBox(height: 2),
 
           // Tarjetas de Acceso Directo a los Módulos Clave (Fiel a 16.jpeg y 17.jpeg)
           _construirItemMenu(
@@ -276,8 +287,8 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
               fondo_icono: const Color(0xFFE0F2FE),
               titulo: "Seguimiento y Retroalimentación",
               subtitulo: es_supervisor
-                  ? "Citas y acuerdos con tus becarios supervisados"
-                  : "Citas y acuerdos con tu supervisor",
+                  ? "Citas y acuerdos con tus becarios asignados"
+                  : "Citas y acuerdos con tu Mentor",
               alTocar: () {
                 ref.read(menu_principal_proveedor.notifier).ocultar();
                 Navigator.of(context).push(
@@ -288,6 +299,164 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
               },
             ),
             const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _construirTarjetaResumenAsistencia(ExtractoMensualAsistencia extracto) {
+    final pct_cumplimiento = extracto.porcentaje_cumplido.clamp(0, 100);
+    final pct_puntualidad = extracto.tasa_puntualidad.clamp(0, 100);
+    final tiene_permiso_compensado =
+        extracto.dias_permiso_aprobado > 0 ||
+        extracto.horas_compensadas_permiso > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            BumandColores.azulMarinoProfundo,
+            BumandColores.azulMarinoSecundario,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: BumandColores.azulMarinoProfundo.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.verified_outlined,
+                color: BumandColores.amarilloRadiante,
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  "Mi Asistencia y Puntualidad",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  extracto.mes_nombre,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Cumplimiento",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "$pct_cumplimiento% (${extracto.horas_totales.toStringAsFixed(1)}/${extracto.meta_mensual.toStringAsFixed(0)} h)",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Puntualidad",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "$pct_puntualidad%",
+                        style: const TextStyle(
+                          color: Color(0xFF4ADE80),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (tiene_permiso_compensado) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFF4ADE80).withValues(alpha: 0.5),
+                ),
+              ),
+              child: const Text(
+                "✓ Permisos aprobados compensados al 100%",
+                style: TextStyle(
+                  color: Color(0xFFDCFCE7),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ],
       ),

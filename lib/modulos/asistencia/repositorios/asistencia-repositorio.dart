@@ -130,7 +130,7 @@ class AsistenciaRepositorio {
     required Position posicion,
     required double latitud_destino,
     required double longitud_destino,
-    double radio_tolerancia_m = 100,
+    double radio_tolerancia_m = 150.0,
   }) {
     if (posicion.isMocked) return false;
     final distancia_m = Geolocator.distanceBetween(
@@ -139,8 +139,9 @@ class AsistenciaRepositorio {
       latitud_destino,
       longitud_destino,
     );
-    final margen = posicion.accuracy.clamp(0.0, 10.0);
-    return distancia_m <= (radio_tolerancia_m + margen);
+    final radio_efectivo = radio_tolerancia_m < 150.0 ? 150.0 : radio_tolerancia_m;
+    final margen = posicion.accuracy.clamp(0.0, 120.0);
+    return distancia_m <= (radio_efectivo + margen);
   }
 
   Map<String, dynamic> _cuerpoUbicacion(
@@ -753,7 +754,9 @@ class ExtractoMensualAsistencia {
   final int porcentaje_cumplido; // 106
   final String estado; // "META CUMPLIDA" o "EN PROGRESO"
   final int jornadas_totales;
-  final int tasa_puntualidad; // e.g. 99
+  final int tasa_puntualidad;
+  final double horas_compensadas_permiso;
+  final int dias_permiso_aprobado;
   final List<MovimientoExtractoAsistencia> movimientos;
 
   ExtractoMensualAsistencia({
@@ -769,6 +772,8 @@ class ExtractoMensualAsistencia {
     required this.estado,
     required this.jornadas_totales,
     required this.tasa_puntualidad,
+    this.horas_compensadas_permiso = 0.0,
+    this.dias_permiso_aprobado = 0,
     required this.movimientos,
   });
 
@@ -784,14 +789,47 @@ class ExtractoMensualAsistencia {
       }
     }
 
-    final double total = movs.isNotEmpty
-        ? movs.last.horas_acumuladas
-        : (double.tryParse(mapa["horas_totales"]?.toString() ?? "") ??
-            double.tryParse(mapa["horas_acumuladas"]?.toString() ?? "") ??
-            0.0);
+    final double horas_compensadas = double.tryParse(
+          mapa["horas_compensadas_permiso"]?.toString() ?? "",
+        ) ??
+        0.0;
+    final int dias_permiso = int.tryParse(
+          mapa["dias_permiso_aprobado"]?.toString() ?? "",
+        ) ??
+        0;
+
+    final double total_movs = movs.isNotEmpty ? movs.last.horas_acumuladas : 0.0;
+    final double? total_backend = double.tryParse(
+      (mapa["horas_totales"] ?? mapa["horas_acumuladas"] ?? "").toString(),
+    );
+    double total = (total_backend != null && total_backend > total_movs)
+        ? total_backend
+        : (total_movs > 0 ? total_movs : (total_backend ?? 0.0));
+    if (total_backend == null && horas_compensadas > 0) {
+      total += horas_compensadas;
+    }
+
     final double meta = double.tryParse(mapa["meta_horas"]?.toString() ?? "") ?? 36.0;
     final double diff = total - meta;
-    final int pct = meta > 0 ? ((total / meta) * 100).round() : 0;
+    final int? pct_backend = int.tryParse(
+      (mapa["porcentaje_cumplimiento"] ?? mapa["porcentaje_cumplido"] ?? "").toString(),
+    );
+    final int pct = pct_backend ?? (meta > 0 ? ((total / meta) * 100).round() : 0);
+
+    int tasa_punt = int.tryParse(mapa["tasa_puntualidad"]?.toString() ?? "") ?? 100;
+    if (mapa["tasa_puntualidad"] == null && movs.isNotEmpty) {
+      final puntuales = movs.where((m) {
+        final est = m.estado.toLowerCase();
+        return m.es_puntual ||
+            est.contains('permiso') ||
+            est.contains('justificad') ||
+            est.contains('convalidad');
+      }).length;
+      tasa_punt = ((puntuales / movs.length) * 100).round().clamp(0, 100);
+    } else if (dias_permiso > 0 && tasa_punt < 100) {
+      tasa_punt = 100;
+    }
+
     final mesNom = mapa["mes_nombre"]?.toString() ?? "Noviembre 2026";
     final mesCorto = mapa["mes_corto"]?.toString() ?? mesNom.split(" ")[0];
 
@@ -809,7 +847,9 @@ class ExtractoMensualAsistencia {
       porcentaje_cumplido: pct,
       estado: total >= meta ? "META CUMPLIDA" : "EN PROGRESO",
       jornadas_totales: int.tryParse(mapa["jornadas_totales"]?.toString() ?? "") ?? movs.length,
-      tasa_puntualidad: int.tryParse(mapa["tasa_puntualidad"]?.toString() ?? "100") ?? 100,
+      tasa_puntualidad: tasa_punt,
+      horas_compensadas_permiso: horas_compensadas,
+      dias_permiso_aprobado: dias_permiso,
       movimientos: movs,
     );
   }

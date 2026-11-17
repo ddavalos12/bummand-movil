@@ -619,16 +619,54 @@ class _HistorialAsistenciaPantallaState
                           ),
                         ),
                         const SizedBox(height: 3),
-                        Text(
-                          cumplio
-                              ? "+${diferencia.toStringAsFixed(2)} hrs · ${extracto.porcentaje_cumplido}% Cumplido"
-                              : "En progreso · Faltan ${(meta - horas).toStringAsFixed(2)} hrs",
-                          style: const TextStyle(
-                            color: BumandColores.AMARILLO_RADIANTE,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                        if (cumplio)
+                          Text(
+                            "+${diferencia.toStringAsFixed(2)} hrs · ${extracto.porcentaje_cumplido}% Cumplido",
+                            style: const TextStyle(
+                              color: BumandColores.AMARILLO_RADIANTE,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        else
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEE2E2),
+                              border: Border.all(
+                                color: const Color(0xFFEF4444),
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Color(0xFFDC2626),
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    "¡Le faltan ${(meta - horas).toStringAsFixed(2)} horas para cumplir las 36 hrs!",
+                                    style: const TextStyle(
+                                      color: Color(0xFFDC2626),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      fontFamily: 'Poppins',
+                                      height: 1.25,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -1722,7 +1760,7 @@ class _HistorialAsistenciaPantallaState
                 ),
                 SizedBox(height: 3),
                 Text(
-                  "1° Paso: Revisión del Supervisor asignado.\n"
+                  "1° Paso: Revisión del Mentor asignado.\n"
                   "2° Paso: Aprobación definitiva por Administración.\n"
                   "Los permisos de viernes aprobados cuentan con exención total de multa.",
                   style: TextStyle(
@@ -1848,7 +1886,7 @@ class _HistorialAsistenciaPantallaState
     IconData icono_estado = Icons.hourglass_top_rounded;
 
     if (estado == 'revisado_supervisor') {
-      estado_legible = '2. Revisado por Supervisor';
+      estado_legible = '2. Revisado por Mentor';
       color_estado = const Color(0xFF0284C7);
       fondo_estado = const Color(0xFFE0F2FE);
       icono_estado = Icons.supervised_user_circle_rounded;
@@ -2016,7 +2054,7 @@ class _HistorialAsistenciaPantallaState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Revisión Supervisor${fecha_sup != null ? ' ($fecha_sup)' : ''}:",
+                    "Revisión Mentor${fecha_sup != null ? ' ($fecha_sup)' : ''}:",
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -2146,6 +2184,14 @@ class _HistorialAsistenciaPantallaState
             0.0,
             (acc, s) => acc + s.monto_devolucion,
           );
+          final total_multas = lista.fold<double>(
+            0.0,
+            (acc, s) => acc + s.multas_asistencia_bs,
+          );
+          final total_liquido = lista.fold<double>(
+            0.0,
+            (acc, s) => acc + s.monto_liquido_pagable,
+          );
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -2173,34 +2219,64 @@ class _HistorialAsistenciaPantallaState
                       ),
                     ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  child: Column(
                     children: [
-                      _kpiMetricaBlanco(
-                        "Bs. ${total_acumulado.toStringAsFixed(2)}",
-                        "Total declarado",
-                        Icons.payments_outlined,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _kpiMetricaBlanco(
+                            "Bs. ${total_acumulado.toStringAsFixed(2)}",
+                            "Total declarado",
+                            Icons.payments_outlined,
+                          ),
+                          Container(
+                            height: 36,
+                            width: 1,
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                          _kpiMetricaBlanco(
+                            "Bs. ${total_devolucion.toStringAsFixed(2)}",
+                            "Reembolso 80%",
+                            Icons.savings_outlined,
+                          ),
+                          Container(
+                            height: 36,
+                            width: 1,
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                          _kpiMetricaBlanco(
+                            "Bs. ${total_liquido.toStringAsFixed(2)}",
+                            "Líquido Pagable",
+                            Icons.account_balance_wallet_outlined,
+                          ),
+                        ],
                       ),
-                      Container(
-                        height: 36,
-                        width: 1,
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
-                      _kpiMetricaBlanco(
-                        "Bs. ${total_devolucion.toStringAsFixed(2)}",
-                        "Devolución (80%)",
-                        Icons.savings_outlined,
-                      ),
-                      Container(
-                        height: 36,
-                        width: 1,
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
-                      _kpiMetricaBlanco(
-                        "${lista.length}",
-                        "Períodos",
-                        Icons.calendar_month_outlined,
-                      ),
+                      if (total_multas > 0) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.22),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0xFFFCA5A5).withValues(alpha: 0.6),
+                            ),
+                          ),
+                          child: Text(
+                            "(-) Descuento por Multas acumulado: Bs. ${total_multas.toStringAsFixed(2)}",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Color(0xFFFECACA),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 );
@@ -2320,10 +2396,10 @@ class _HistorialAsistenciaPantallaState
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      "Devolución (80%)",
+                                      "Reembolso 80%",
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: Color(0xFF047857),
+                                        color: Color(0xFF475569),
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -2331,14 +2407,78 @@ class _HistorialAsistenciaPantallaState
                                       "Bs. ${item.monto_devolucion.toStringAsFixed(2)}",
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        color: Color(0xFF047857),
+                                        fontSize: 14,
+                                        color: Color(0xFF0F172A),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      "(-) Descuento por Multas:",
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: Color(0xFFDC2626),
+                                      ),
+                                    ),
+                                    Text(
+                                      "- Bs. ${item.multas_asistencia_bs.toStringAsFixed(2)}",
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: item.multas_asistencia_bs > 0
+                                            ? const Color(0xFFDC2626)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      "Líquido Pagable (Neto):",
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF047857),
+                                      ),
+                                    ),
+                                    Text(
+                                      "Bs. ${item.monto_liquido_pagable.toStringAsFixed(2)}",
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF047857),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                           if (item.observaciones != null &&
                               item.observaciones!.isNotEmpty) ...[
@@ -2431,7 +2571,7 @@ class _HistorialAsistenciaPantallaState
       case "pendiente":
         return "1. PENDIENTE";
       case "revisado_supervisor":
-        return "2. REVISADO SUPERVISOR";
+        return "2. REVISADO MENTOR";
       case "aprobado_administracion":
         return "✓ APROBADO ADMIN";
       case "aprobado":

@@ -229,7 +229,7 @@ class _PermisosPantallaState extends ConsumerState<PermisosPantalla> {
             ),
             SizedBox(height: 10),
             Text(
-              "• 1° Nivel: Revisión del Supervisor asignado.\n"
+              "• 1° Nivel: Revisión del Mentor asignado.\n"
               "• 2° Nivel: Aprobación definitiva por Administración (con exención de multa si es viernes).",
               style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
             ),
@@ -371,7 +371,7 @@ class _PermisosPantallaState extends ConsumerState<PermisosPantalla> {
                           ),
                           SizedBox(height: 3),
                           Text(
-                            "Toda inasistencia o retraso justificado con receta o certificado médico cuenta con exención total de multas tras la aprobación de Supervisor y Administración.",
+                            "Toda inasistencia o retraso justificado con receta o certificado médico cuenta con exención total de multas tras la aprobación de Mentor y Administración.",
                             style: TextStyle(
                               fontSize: 11.5,
                               color: Color(0xFF64748B),

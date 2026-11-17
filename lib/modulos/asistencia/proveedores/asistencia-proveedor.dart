@@ -70,22 +70,9 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final pos = posicion ?? await _repo.obtenerPosicionActual();
-      if (lugar != null && lugar["latitud"] != null && lugar["longitud"] != null) {
-        final latitud = double.tryParse(lugar["latitud"].toString()) ?? 0.0;
-        final longitud = double.tryParse(lugar["longitud"].toString()) ?? 0.0;
-        final radio = double.tryParse(
-          (lugar["radio_tolerancia_m"] ?? lugar["radioToleranciaM"] ?? 100).toString(),
-        ) ?? 100.0;
-        final dentro = _repo.validarGeocerca(
-          posicion: pos,
-          latitud_destino: latitud,
-          longitud_destino: longitud,
-          radio_tolerancia_m: radio,
-        );
-        if (!dentro) {
-          state = const AsyncError("Fuera de rango", StackTrace.empty);
-          return "Estás fuera del radio permitido para marcar ingreso";
-        }
+      if (pos.isMocked) {
+        state = const AsyncError("Ubicación simulada", StackTrace.empty);
+        return "Ubicación simulada detectada. Desactiva aplicaciones de GPS falso para marcar.";
       }
       final id_lugar = lugar_practica_id ??
           (lugar?["id"] is int
@@ -121,22 +108,9 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final pos = posicion ?? await _repo.obtenerPosicionActual();
-      if (lugar != null && lugar["latitud"] != null && lugar["longitud"] != null) {
-        final latitud = double.tryParse(lugar["latitud"].toString()) ?? 0.0;
-        final longitud = double.tryParse(lugar["longitud"].toString()) ?? 0.0;
-        final radio = double.tryParse(
-          (lugar["radio_tolerancia_m"] ?? lugar["radioToleranciaM"] ?? 100).toString(),
-        ) ?? 100.0;
-        final dentro = _repo.validarGeocerca(
-          posicion: pos,
-          latitud_destino: latitud,
-          longitud_destino: longitud,
-          radio_tolerancia_m: radio,
-        );
-        if (!dentro) {
-          state = const AsyncError("Fuera de rango", StackTrace.empty);
-          return "Estás fuera del radio permitido para marcar salida";
-        }
+      if (pos.isMocked) {
+        state = const AsyncError("Ubicación simulada", StackTrace.empty);
+        return "Ubicación simulada detectada. Desactiva aplicaciones de GPS falso para marcar.";
       }
       final id_lugar = lugar_practica_id ??
           (lugar?["id"] is int
@@ -283,7 +257,7 @@ class AuditoriaAsistenciaNotificador
         observacion: observacion,
       );
       if (!res.exito) {
-        return res.error ?? 'No se pudo registrar la revisión del supervisor';
+        return res.error ?? 'No se pudo registrar la revisión del Mentor';
       }
     }
     _reemplazar(

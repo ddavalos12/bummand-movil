@@ -137,7 +137,7 @@ class EvaluacionConsolidadaModelo {
         DetalleModuloEvaluacion(
           modulo_id: 3,
           nombre: "Evaluación del Mentor / Prácticas",
-          evaluador_rol: "Supervisor Diaconía",
+          evaluador_rol: "Mentor Diaconía",
           peso_porcentaje: 25,
           puntaje: 0.0,
           contribucion_ponderada: 0.0,
@@ -271,12 +271,14 @@ class TareaEscuelaLideresModelo {
   final String tema;
   final String descripcion;
   final double ponderacion;
-  final String estado; // "pendiente", "entregado", "revisado"
+  final String estado; // "pendiente", "entregado", "revisado", "observado"
   final String? evidencia_nombre;
   final String? archivo_evidencia_url;
   final String? fecha_entrega;
   final double? puntaje_obtenido; // 0 - 100 pts
   final String? retroalimentacion;
+  final List<Map<String, String>> lecturas_pdf;
+  final List<Map<String, String>> enlaces_lectura;
 
   const TareaEscuelaLideresModelo({
     required this.numero,
@@ -290,6 +292,8 @@ class TareaEscuelaLideresModelo {
     this.fecha_entrega,
     this.puntaje_obtenido,
     this.retroalimentacion,
+    this.lecturas_pdf = const [],
+    this.enlaces_lectura = const [],
   });
 
   factory TareaEscuelaLideresModelo.desdeJson(Map<String, dynamic> json) {
@@ -308,6 +312,55 @@ class TareaEscuelaLideresModelo {
         canonico?.ponderacion ??
         8.33;
     final entrega_id_raw = json['entrega_id'] ?? json['id'];
+
+    final List<Map<String, String>> pdfs = [];
+    final pdfs_raw = json['lecturas_pdf'];
+    if (pdfs_raw is List) {
+      for (final item in pdfs_raw) {
+        if (item is Map) {
+          final url = (item['url'] ?? '').toString().trim();
+          if (url.isNotEmpty) {
+            pdfs.add({
+              'nombre': (item['nombre'] ?? item['titulo'] ?? 'Material PDF')
+                  .toString(),
+              'url': url,
+            });
+          }
+        }
+      }
+    }
+    final pdf_individual = json['lectura_pdf_url']?.toString().trim() ?? '';
+    if (pdf_individual.isNotEmpty &&
+        !pdfs.any((p) => p['url'] == pdf_individual)) {
+      pdfs.add({
+        'nombre': (json['lectura_pdf_nombre'] ?? 'Lectura PDF').toString(),
+        'url': pdf_individual,
+      });
+    }
+
+    final List<Map<String, String>> enlaces = [];
+    final enlaces_raw = json['enlaces_lectura'];
+    if (enlaces_raw is List) {
+      for (final item in enlaces_raw) {
+        if (item is Map) {
+          final url = (item['url'] ?? '').toString().trim();
+          if (url.isNotEmpty) {
+            enlaces.add({
+              'titulo': (item['titulo'] ?? item['nombre'] ?? url).toString(),
+              'url': url,
+            });
+          }
+        }
+      }
+    }
+    final enlace_individual = json['enlace_lectura']?.toString().trim() ?? '';
+    if (enlace_individual.isNotEmpty &&
+        !enlaces.any((e) => e['url'] == enlace_individual)) {
+      enlaces.add({
+        'titulo': 'Enlace de lectura',
+        'url': enlace_individual,
+      });
+    }
 
     return TareaEscuelaLideresModelo(
       numero: num_parsed,
@@ -331,6 +384,8 @@ class TareaEscuelaLideresModelo {
           : null,
       retroalimentacion:
           (json['retroalimentacion'] ?? json['comentario_revisor'])?.toString(),
+      lecturas_pdf: pdfs,
+      enlaces_lectura: enlaces,
     );
   }
 
@@ -347,6 +402,8 @@ class TareaEscuelaLideresModelo {
     'fecha_entrega': fecha_entrega,
     'puntaje_obtenido': puntaje_obtenido,
     'retroalimentacion': retroalimentacion,
+    'lecturas_pdf': lecturas_pdf,
+    'enlaces_lectura': enlaces_lectura,
   };
 
   TareaEscuelaLideresModelo copiarCon({
@@ -361,6 +418,8 @@ class TareaEscuelaLideresModelo {
     String? fecha_entrega,
     double? puntaje_obtenido,
     String? retroalimentacion,
+    List<Map<String, String>>? lecturas_pdf,
+    List<Map<String, String>>? enlaces_lectura,
   }) {
     return TareaEscuelaLideresModelo(
       numero: numero ?? this.numero,
@@ -375,6 +434,8 @@ class TareaEscuelaLideresModelo {
       fecha_entrega: fecha_entrega ?? this.fecha_entrega,
       puntaje_obtenido: puntaje_obtenido ?? this.puntaje_obtenido,
       retroalimentacion: retroalimentacion ?? this.retroalimentacion,
+      lecturas_pdf: lecturas_pdf ?? this.lecturas_pdf,
+      enlaces_lectura: enlaces_lectura ?? this.enlaces_lectura,
     );
   }
 

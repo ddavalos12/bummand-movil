@@ -702,7 +702,7 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _construirEtiqueta('Supervisor / Responsable de Entrega'),
+                        _construirEtiqueta('Mentor / Responsable de Entrega'),
                         const SizedBox(height: 4),
                         TextFormField(
                           controller: _responsable_ctrl,

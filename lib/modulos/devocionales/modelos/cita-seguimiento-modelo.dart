@@ -46,7 +46,7 @@ class CitaSeguimientoModelo {
           0,
       supervisor_nombre: json['supervisor_nombre']?.toString() ??
           json['supervisorNombre']?.toString() ??
-          'Supervisor Diaconal',
+          'Mentor Diaconal',
       becario_id: (json['becario_id'] as num?)?.toInt() ??
           (json['becarioId'] as num?)?.toInt() ??
           0,

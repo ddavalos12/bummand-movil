@@ -276,6 +276,13 @@ class _DetalleHistorialPasajePantallaState
     final double monto_devolucion = _solicitud.monto_devolucion > 0
         ? _solicitud.monto_devolucion
         : (monto_declarado * 0.8);
+    final double multas_bs = _solicitud.multas_asistencia_bs;
+    final double liquido_pagable = _solicitud.multas_asistencia_bs > 0 ||
+            _solicitud.monto_liquido_pagable > 0
+        ? (_solicitud.monto_devolucion > 0
+            ? _solicitud.monto_liquido_pagable
+            : (monto_devolucion - multas_bs).clamp(0.0, double.infinity))
+        : monto_devolucion;
 
     return Scaffold(
       backgroundColor: BumandColores.AZUL_DIACONIA,
@@ -394,7 +401,7 @@ class _DetalleHistorialPasajePantallaState
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  "DEVOLUCIÓN DEL 80%",
+                                  "REEMBOLSO 80%",
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.85),
                                     fontSize: 11,
@@ -402,11 +409,61 @@ class _DetalleHistorialPasajePantallaState
                                     letterSpacing: 0.8,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 Text(
-                                  "Bs ${monto_devolucion.toStringAsFixed(2)}",
+                                  "Bs. ${monto_devolucion.toStringAsFixed(2)}",
                                   style: const TextStyle(
                                     color: Color(0xFFFACC15),
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "(-) Descuento por Multas:",
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      "- Bs. ${multas_bs.toStringAsFixed(2)}",
+                                      style: TextStyle(
+                                        color: multas_bs > 0
+                                            ? const Color(0xFFFECACA)
+                                            : Colors.white70,
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Divider(
+                                  color: Colors.white.withValues(alpha: 0.22),
+                                  height: 1,
+                                  thickness: 1,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  "LÍQUIDO PAGABLE (NETO)",
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  "Bs. ${liquido_pagable.toStringAsFixed(2)}",
+                                  style: const TextStyle(
+                                    color: Color(0xFF4ADE80),
                                     fontSize: 30,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: -0.5,

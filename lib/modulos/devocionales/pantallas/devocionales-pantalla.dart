@@ -436,7 +436,7 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
               ),
               const SizedBox(height: 20),
               const Text(
-                'Módulo Exclusivo para Supervisor y Becarios',
+                'Módulo Exclusivo para Mentor y Becarios',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
@@ -1454,7 +1454,7 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
           children: [
             const Expanded(
               child: Text(
-                'Mis Citas de Seguimiento con mi Supervisor',
+                'Mis Citas de Seguimiento con mi Mentor',
                 style: TextStyle(
                   fontSize: 15.5,
                   fontWeight: FontWeight.bold,
@@ -1512,7 +1512,7 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'No tienes citas agendadas actualmente con tu supervisor pastoral.',
+                        'No tienes citas agendadas actualmente con tu Mentor pastoral.',
                         style: TextStyle(
                           fontSize: 12.5,
                           color: Color(0xFF64748B),

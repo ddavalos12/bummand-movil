@@ -64,7 +64,7 @@ void abrirDetalleRegistroAuditoria(
     estado_aprobacion_texto: registro.esta_aprobado_administracion
         ? 'Aprobado por Administración (Exento de multa)'
         : (registro.esta_revisado_supervisor
-            ? 'Revisado por Supervisor'
+            ? 'Revisado por Mentor'
             : 'Pendiente'),
     al_justificar: registro.requiere_convalidacion
         ? () => justificarRegistroAuditoria(context, ref, registro)
@@ -126,7 +126,7 @@ Future<void> revisarRegistroSupervisor(
           error == null ? const Color(0xFF10B981) : const Color(0xFFDC2626),
       content: Text(
         error ??
-            'Marcación revisada por Supervisor: se elevó a Administración la jornada de ${registro.becario_nombre}.',
+            'Marcación revisada por Mentor: se elevó a Administración la jornada de ${registro.becario_nombre}.',
       ),
     ),
   );
@@ -555,7 +555,7 @@ class FilaAuditoriaAsistencia extends ConsumerWidget {
                     icon: const Icon(Icons.check,
                         size: 16, color: BumandColores.AZUL_CIELO_SUAVE),
                     label: const Text(
-                      'Marcar Revisado por Supervisor',
+                      'Marcar Revisado por Mentor',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -627,7 +627,7 @@ class FilaAuditoriaAsistencia extends ConsumerWidget {
         ];
       case 'revisado_supervisor':
         return [
-          _chip('Revisado por Supervisor',
+          _chip('Revisado por Mentor',
               fondo: const Color(0xFFF0F9FF),
               borde: const Color(0xFF7DD3FC),
               color_texto: const Color(0xFF075985),
