@@ -2799,7 +2799,6 @@ class _ReceptorLideresClassroomModalState
     final res_entrega = await _repositorio.entregarTareaLideres(
       tarea_numero: numero_tarea,
       becario_id: becario_id,
-      periodo_id: 1,
       archivo_nombre: nombre_archivo,
       archivo_evidencia_url: url_evidencia,
       tamano_archivo: tamano_archivo,

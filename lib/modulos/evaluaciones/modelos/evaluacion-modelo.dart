@@ -395,8 +395,8 @@ class TareaEscuelaLideresModelo {
           (json['evidencia_nombre'] ?? json['nombre_archivo'])?.toString(),
       archivo_evidencia_url: json['archivo_evidencia_url']?.toString(),
       fecha_entrega: json['fecha_entrega']?.toString(),
-      puntaje_obtenido: json['puntaje_obtenido'] != null
-          ? double.tryParse(json['puntaje_obtenido'].toString())
+      puntaje_obtenido: (json['calificacion_100'] ?? json['puntaje_obtenido']) != null
+          ? double.tryParse((json['calificacion_100'] ?? json['puntaje_obtenido']).toString())
           : null,
       retroalimentacion:
           (json['retroalimentacion'] ?? json['comentario_revisor'])?.toString(),

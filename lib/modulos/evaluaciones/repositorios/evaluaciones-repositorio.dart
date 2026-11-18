@@ -455,14 +455,15 @@ class EvaluacionesRepositorio {
 
   Future<Resultado<List<TareaEscuelaLideresModelo>>> obtenerTareasEscuelaLideres({
     int? becario_id,
-    int periodo_id = 1,
+    int? periodo_id,
   }) async {
     final cliente_http = _obtenerCliente();
     try {
       final id_real = await _resolverBecarioId(becario_id);
       final cabeceras = await _cabeceras();
+      final sufijo_periodo = periodo_id != null ? '&periodo_id=$periodo_id' : '';
       final ruta =
-          '${ApiConstantes.RUTA_BASE}/api/evaluaciones/escuela-lideres/tareas?becario_id=$id_real&periodo_id=$periodo_id';
+          '${ApiConstantes.RUTA_BASE}/api/evaluaciones/escuela-lideres/tareas?becario_id=$id_real$sufijo_periodo';
 
       final respuesta = await cliente_http
           .get(Uri.parse(ruta), headers: cabeceras)
@@ -537,7 +538,7 @@ class EvaluacionesRepositorio {
   Future<Resultado<void>> entregarTareaLideres({
     required int tarea_numero,
     int? becario_id,
-    int periodo_id = 1,
+    int? periodo_id,
     required String archivo_nombre,
     String? archivo_evidencia_url,
     String? tamano_archivo,
@@ -559,7 +560,7 @@ class EvaluacionesRepositorio {
 
       final cuerpo = <String, dynamic>{
         'becario_id': id_real,
-        'periodo_id': periodo_id,
+        'periodo_id': ?periodo_id,
         'tarea_numero': tarea_numero,
         'respuesta_texto': respuesta_texto ?? comentario ?? '',
         'enlace_externo': enlace_externo ?? '',
@@ -582,7 +583,7 @@ class EvaluacionesRepositorio {
       if (respuesta.statusCode == 400) {
         final cuerpo_estricto = <String, dynamic>{
           'becario_id': id_real,
-          'periodo_id': periodo_id,
+          'periodo_id': ?periodo_id,
           'tarea_numero': tarea_numero,
           'archivo_evidencia_url': url_evidencia,
           'nombre_archivo': archivo_nombre,
