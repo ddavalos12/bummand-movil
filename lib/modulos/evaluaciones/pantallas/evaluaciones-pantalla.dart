@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/error-widget-personalizado.dart';
@@ -54,9 +55,8 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
 
   void _abrirModuloReceptor(BuildContext context, int numero) {
     final auth = ref.read(autenticacion_proveedor);
-    final rol_usuario = auth.usuario?.rol.toLowerCase() ?? 'becario';
-    final es_supervisor_o_admin =
-        rol_usuario.contains('supervisor') || rol_usuario.contains('admin');
+    final rol_usuario = auth.usuario?.rol;
+    final es_supervisor_o_admin = esRolMentorOAdmin(rol_usuario);
 
     switch (numero) {
       case 1:
@@ -115,9 +115,8 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(autenticacion_proveedor);
-    final rol_usuario = auth.usuario?.rol.toLowerCase() ?? 'becario';
-    final es_supervisor_o_admin =
-        rol_usuario.contains('supervisor') || rol_usuario.contains('admin');
+    final rol_usuario = auth.usuario?.rol;
+    final es_supervisor_o_admin = esRolMentorOAdmin(rol_usuario);
 
     final subtitulo_app_bar = es_supervisor_o_admin && _pestana_supervisor == 0
         ? "Supervisión Módulo 3 · Prácticas y Mentoría"
@@ -202,6 +201,9 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
 
   Widget _construirVistaListaSupervisor(BuildContext context) {
     final becarios_async = ref.watch(becarios_asignados_modulo3_proveedor);
+    final auth = ref.watch(autenticacion_proveedor);
+    final es_mentor = esRolMentor(auth.usuario?.rol) && !esRolAdmin(auth.usuario?.rol);
+    final mentor_id = auth.usuario?.id;
 
     return RefreshIndicator(
       color: BumandColores.NARANJA_OSCURO,
@@ -266,6 +268,33 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
             ),
           ),
           const SizedBox(height: 14),
+          if (es_mentor) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0F2FE),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBAE6FD)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.filter_alt_outlined, size: 15, color: Color(0xFF0369A1)),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "Mostrando solo tus becarios designados",
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0369A1),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           const Text(
             "Becarios asignados para evaluación y seguimiento:",
             style: TextStyle(
@@ -277,8 +306,19 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
           const SizedBox(height: 8),
           becarios_async.when(
             data: (resultado) {
-              final lista =
-                  resultado.datos ?? BecarioAsignadoModulo3Modelo.listaEjemplo();
+              var lista = resultado.datos ??
+                  (es_mentor && mentor_id != null
+                      ? BecarioAsignadoModulo3Modelo.listaEjemplo()
+                          .where((b) => b.supervisor_id == mentor_id)
+                          .toList()
+                      : BecarioAsignadoModulo3Modelo.listaEjemplo());
+              if (es_mentor &&
+                  mentor_id != null &&
+                  lista.any((b) => b.supervisor_id != null)) {
+                lista = lista
+                    .where((b) => b.supervisor_id == mentor_id)
+                    .toList();
+              }
               if (lista.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -720,22 +760,6 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
         estado_lower.contains("enviad");
     final es_observado = estado_lower.contains("observ");
 
-    final texto_accion_pendiente = numero == 2
-        ? "Subir"
-        : numero == 3
-        ? "Evaluar QR"
-        : numero == 4
-        ? "Entregar"
-        : "Completar";
-
-    final texto_estado_completado = estado_lower.contains("aprob")
-        ? "Aprobado"
-        : estado_lower.contains("revis")
-        ? "Revisado"
-        : estado_lower.contains("recib") || estado_lower.contains("enviad")
-        ? "Enviado"
-        : "Completado";
-
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -857,35 +881,30 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Módulo 0$numero",
+                      "Módulo receptor 0$numero",
                       style: TextStyle(
                         fontSize: 11.5,
                         color: Colors.grey.shade500,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: BotonesAccionEvaluacion(
-                        estado: es_completado
-                            ? EstadoAccionEvaluacion.completado
-                            : es_observado
-                            ? EstadoAccionEvaluacion.observado
-                            : EstadoAccionEvaluacion.pendiente,
-                        texto_revisar: "Revisar",
-                        al_revisar: () => _abrirModuloReceptor(context, numero),
-                        texto_pendiente: texto_accion_pendiente,
-                        icono_pendiente: numero == 3
-                            ? Icons.qr_code_rounded
-                            : Icons.verified_user_outlined,
-                        al_ejecutar_pendiente: () =>
-                            _abrirModuloReceptor(context, numero),
-                        texto_completado: texto_estado_completado,
-                        al_hacer_clic_completado: () =>
-                            _abrirModuloReceptor(context, numero),
-                        al_hacer_clic_observado: () =>
-                            _abrirModuloReceptor(context, numero),
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          accion,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: color_icono,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 16,
+                          color: color_icono,
+                        ),
+                      ],
                     ),
                   ],
                 ),

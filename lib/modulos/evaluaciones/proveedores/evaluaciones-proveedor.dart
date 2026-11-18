@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
@@ -22,7 +23,12 @@ final evaluacion_consolidada_proveedor =
 final becarios_asignados_modulo3_proveedor =
     FutureProvider.autoDispose<Resultado<List<BecarioAsignadoModulo3Modelo>>>((ref) async {
   final repo = ref.watch(evaluaciones_repositorio_proveedor);
-  return repo.obtenerBecariosAsignadosModulo3();
+  final auth = ref.watch(autenticacion_proveedor);
+  final usuario = auth.usuario;
+  return repo.obtenerBecariosAsignadosModulo3(
+    usuario_id: usuario?.id,
+    es_mentor: esRolMentor(usuario?.rol),
+  );
 });
 
 final tareas_escuela_lideres_proveedor =

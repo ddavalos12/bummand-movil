@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/errores/error-bumand.dart';
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../modelos/registro-auditoria-asistencia-modelo.dart';
 
@@ -268,10 +269,43 @@ class AsistenciaRepositorio {
     }
   }
 
-  Future<Resultado<List<Map<String, dynamic>>>> obtenerHistorial() async {
+  Future<Resultado<List<Map<String, dynamic>>>> obtenerHistorial({
+    bool es_mentor = false,
+    bool es_admin = false,
+    int? usuario_id,
+  }) async {
     final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
+      if (es_mentor || es_admin) {
+        final respuesta_general = await cliente_http.get(
+          Uri.parse(
+            '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_ASISTENCIA_HISTORIAL}',
+          ),
+          headers: cabeceras,
+        );
+        if (respuesta_general.statusCode != 200) {
+          final error = ErrorBumand.desdeRespuesta(respuesta_general);
+          return Resultado.desdeErrorBumand(error);
+        }
+        var lista = (jsonDecode(respuesta_general.body) as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+        if (es_mentor && !es_admin && usuario_id != null && lista.isNotEmpty) {
+          final ids_asignados = await FiltroMentor.obtenerIdsBecariosAsignados(
+            cliente: cliente,
+            mentor_id: usuario_id,
+          );
+          lista = FiltroMentor.filtrarMapasParaMentor(
+            lista,
+            mentor_id: usuario_id,
+            becarios_asignados_ids: ids_asignados,
+          );
+        }
+        return Resultado.exitoso(lista);
+      }
+
       // 1. Intentar endpoint específico de asistencias del becario (/asistencia/mis-asistencias)
       final url_mis_asistencias = Uri.parse(
         '${ApiConstantes.RUTA_BASE}/api/asistencia/mis-asistencias',
@@ -314,10 +348,13 @@ class AsistenciaRepositorio {
   }
 
   /// Obtiene los registros de auditoría institucional (`GET /api/asistencia`).
-  /// Si el backend no responde o devuelve una lista vacía, utiliza el catálogo
-  /// institucional semilla (idéntico a Web en `auditoria-asistencia.tsx`).
+  /// Si el usuario autenticado es Mentor (`es_mentor == true`), filtra
+  /// estrictamente para devolver únicamente sus becarios designados.
   Future<Resultado<List<RegistroAuditoriaAsistencia>>>
-      obtenerRegistrosAuditoria() async {
+      obtenerRegistrosAuditoria({
+    bool es_mentor = false,
+    int? usuario_id,
+  }) async {
     final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
@@ -330,16 +367,35 @@ class AsistenciaRepositorio {
 
       if (respuesta.statusCode == 200) {
         final decodificado = jsonDecode(respuesta.body);
-        if (decodificado is List && decodificado.isNotEmpty) {
-          final lista = decodificado
-              .whereType<Map>()
-              .map(
-                (e) => RegistroAuditoriaAsistencia.desdeMapa(
-                  Map<String, dynamic>.from(e),
-                ),
-              )
-              .toList();
-          return Resultado.exitoso(lista);
+        if (decodificado is List) {
+          if (decodificado.isNotEmpty) {
+            var lista = decodificado
+                .whereType<Map>()
+                .map(
+                  (e) => RegistroAuditoriaAsistencia.desdeMapa(
+                    Map<String, dynamic>.from(e),
+                  ),
+                )
+                .toList();
+            if (es_mentor && usuario_id != null) {
+              final ids_asignados =
+                  await FiltroMentor.obtenerIdsBecariosAsignados(
+                cliente: cliente,
+                mentor_id: usuario_id,
+              );
+              lista = FiltroMentor.filtrarParaMentor<RegistroAuditoriaAsistencia>(
+                lista,
+                mentor_id: usuario_id,
+                obtenerSupervisorId: (r) => r.supervisor_id,
+                obtenerBecarioId: (r) => r.becario_id,
+                becarios_asignados_ids: ids_asignados,
+              );
+            }
+            return Resultado.exitoso(lista);
+          }
+          if (es_mentor) {
+            return Resultado.exitoso(const <RegistroAuditoriaAsistencia>[]);
+          }
         }
       }
     } catch (_) {
@@ -347,7 +403,12 @@ class AsistenciaRepositorio {
     } finally {
       if (cliente == null) cliente_http.close();
     }
-    return Resultado.exitoso(RegistroAuditoriaAsistencia.semillas());
+    var semillas = RegistroAuditoriaAsistencia.semillas();
+    if (es_mentor && usuario_id != null) {
+      semillas =
+          semillas.where((r) => r.supervisor_id == usuario_id).toList();
+    }
+    return Resultado.exitoso(semillas);
   }
 
   /// Aprobación definitiva por Administración:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
@@ -393,8 +394,8 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
         .toString()
         .toLowerCase()
         .trim();
-    final es_admin = rol_crudo == 'admin' || rol_crudo == 'administrador';
-    final es_supervisor = rol_crudo == 'supervisor';
+    final es_admin = esRolAdmin(rol_crudo);
+    final es_supervisor = esRolMentor(rol_crudo) && !es_admin;
 
     if (es_admin) {
       return _construirVistaAdmin(context);

@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/error-widget-personalizado.dart';
@@ -1689,12 +1690,26 @@ class _HistorialAsistenciaPantallaState
           ],
         ),
         data: (resultado) {
-          final solicitudes = resultado.datos ?? [];
+          final usuario = ref.read(autenticacion_proveedor).usuario;
+          final es_mentor = _rol_actual == RolAuditoria.supervisor;
+          var solicitudes = resultado.datos ?? [];
+          if (es_mentor && usuario != null) {
+            solicitudes = solicitudes.where((s) {
+              final sup_id = FiltroMentor.extraerSupervisorId(s);
+              return sup_id == null || sup_id == usuario.id;
+            }).toList();
+          }
           final filtradas = _filtrarSolicitudesPermisos(solicitudes);
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 80),
             children: [
+              if (es_mentor) ...[
+                _construirBadgeFiltroMentor(
+                  "Mostrando permisos de tus becarios designados",
+                ),
+                const SizedBox(height: 10),
+              ],
               // 1. Tarjeta informativa del flujo institucional de 2 niveles
               _construirTarjetaInformativaPermisos(),
               const SizedBox(height: 12),
@@ -1857,6 +1872,9 @@ class _HistorialAsistenciaPantallaState
     final obs_adm = s['observacion_admin']?.toString();
     final fecha_sup = s['fecha_revision_supervisor']?.toString();
     final fecha_adm = s['fecha_aprobacion_admin']?.toString();
+    final becario_nombre = _rol_actual != RolAuditoria.becario
+        ? FiltroMentor.extraerBecarioNombre(s)
+        : null;
 
     final es_actividad_viernes = tipo == 'escuela_lideres' ||
         tipo == 'asistencia_evento' ||
@@ -1920,6 +1938,29 @@ class _HistorialAsistenciaPantallaState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (becario_nombre != null && becario_nombre.isNotEmpty) ...[
+            Row(
+              children: [
+                const Icon(
+                  Icons.person_outline_rounded,
+                  size: 15,
+                  color: BumandColores.AZUL_DIACONIA,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    becario_nombre,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: BumandColores.AZUL_DIACONIA,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
           // Cabecera: Tipo + Fecha
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2141,11 +2182,28 @@ class _HistorialAsistenciaPantallaState
       backgroundColor: BumandColores.AZUL_DIACONIA,
       onRefresh: () async => ref.invalidate(solicitudes_pasajes_proveedor),
       child: solicitudes_async.when(
-        data: (solicitudes) {
+        data: (solicitudes_cruda) {
+          final usuario = ref.read(autenticacion_proveedor).usuario;
+          final es_mentor = _rol_actual == RolAuditoria.supervisor;
+          final solicitudes = es_mentor && usuario != null
+              ? solicitudes_cruda
+                  .where(
+                    (s) =>
+                        s.supervisor_id == null ||
+                        s.supervisor_id == usuario.id,
+                  )
+                  .toList()
+              : solicitudes_cruda;
           if (solicitudes.isEmpty) {
             return ListView(
               padding: const EdgeInsets.all(24),
               children: [
+                if (es_mentor) ...[
+                  _construirBadgeFiltroMentor(
+                    "Mostrando pasajes de tus becarios designados",
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 const SizedBox(height: 60),
                 Icon(
                   Icons.directions_bus_outlined,
@@ -2164,7 +2222,9 @@ class _HistorialAsistenciaPantallaState
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Aún no registras solicitudes de pasajes para este periodo.",
+                  es_mentor
+                      ? "Tus becarios designados aún no registran solicitudes de pasajes para este periodo."
+                      : "Aún no registras solicitudes de pasajes para este periodo.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
@@ -2198,7 +2258,15 @@ class _HistorialAsistenciaPantallaState
             itemCount: lista.length + 1,
             itemBuilder: (context, i) {
               if (i == 0) {
-                return Container(
+                return Column(
+                  children: [
+                    if (es_mentor) ...[
+                      _construirBadgeFiltroMentor(
+                        "Mostrando pasajes de tus becarios designados",
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -2279,6 +2347,8 @@ class _HistorialAsistenciaPantallaState
                       ],
                     ],
                   ),
+                    ),
+                  ],
                 );
               }
 
@@ -2333,12 +2403,30 @@ class _HistorialAsistenciaPantallaState
                                     ),
                                   ),
                                   const SizedBox(width: 10),
-                                  Text(
-                                    item.periodo,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color: BumandColores.NEGRO,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (_rol_actual != RolAuditoria.becario &&
+                                            item.becario_nombre != null &&
+                                            item.becario_nombre!.isNotEmpty)
+                                          Text(
+                                            item.becario_nombre!,
+                                            style: const TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: BumandColores.AZUL_DIACONIA,
+                                            ),
+                                          ),
+                                        Text(
+                                          item.periodo,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                            color: BumandColores.NEGRO,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
@@ -2618,7 +2706,15 @@ class _HistorialAsistenciaPantallaState
           ],
         ),
         data: (resultado) {
-          final asistencias = resultado.datos ?? [];
+          final usuario = ref.read(autenticacion_proveedor).usuario;
+          final es_mentor = _rol_actual == RolAuditoria.supervisor;
+          var asistencias = resultado.datos ?? [];
+          if (es_mentor && usuario != null) {
+            asistencias = asistencias.where((a) {
+              final sup_id = FiltroMentor.extraerSupervisorId(a);
+              return sup_id == null || sup_id == usuario.id;
+            }).toList();
+          }
           final multas_reales = <Map<String, dynamic>>[];
 
           for (final a in asistencias) {
@@ -2631,9 +2727,13 @@ class _HistorialAsistenciaPantallaState
                 (minutos > 0 ? _calcularMultaPorMinutos(minutos) : 0.0);
             final bool tiene_permiso =
                 a['justificacion_id'] != null || a['permiso_aprobado'] == true;
+            final becario_nom = _rol_actual != RolAuditoria.becario
+                ? FiltroMentor.extraerBecarioNombre(a)
+                : null;
 
             if (minutos > 0 || monto > 0 || tiene_permiso) {
               multas_reales.add({
+                'becario_nombre': ?becario_nom,
                 'fecha': a['fecha'] ??
                     a['fecha_asistencia'] ??
                     'Fecha de asistencia',
@@ -2702,6 +2802,12 @@ class _HistorialAsistenciaPantallaState
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (es_mentor) ...[
+                _construirBadgeFiltroMentor(
+                  "Mostrando multas e incidencias de tus becarios designados",
+                ),
+                const SizedBox(height: 12),
+              ],
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
@@ -2792,6 +2898,18 @@ class _HistorialAsistenciaPantallaState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (inc["becario_nombre"] != null &&
+              inc["becario_nombre"].toString().isNotEmpty) ...[
+            Text(
+              inc["becario_nombre"].toString(),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: BumandColores.AZUL_DIACONIA,
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -2889,6 +3007,37 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
+
+  Widget _construirBadgeFiltroMentor(String texto) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE0F2FE),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFBAE6FD)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.filter_alt_outlined,
+            size: 15,
+            color: Color(0xFF0369A1),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              texto,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0369A1),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _kpiMetricaBlanco(String valor, String etiqueta, IconData icono) {
     return Column(

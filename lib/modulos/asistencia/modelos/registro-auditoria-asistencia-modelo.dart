@@ -7,6 +7,7 @@ class RegistroAuditoriaAsistencia {
 
   final int id;
   final int becario_id;
+  final int? supervisor_id;
   final String becario_nombre;
   final String carrera;
   final String sede_nombre;
@@ -42,6 +43,7 @@ class RegistroAuditoriaAsistencia {
   const RegistroAuditoriaAsistencia({
     required this.id,
     required this.becario_id,
+    this.supervisor_id,
     required this.becario_nombre,
     required this.carrera,
     required this.sede_nombre,
@@ -143,6 +145,7 @@ class RegistroAuditoriaAsistencia {
     return RegistroAuditoriaAsistencia(
       id: id,
       becario_id: becario_id,
+      supervisor_id: supervisor_id,
       becario_nombre: becario_nombre,
       carrera: carrera,
       sede_nombre: sede_nombre,
@@ -231,9 +234,19 @@ class RegistroAuditoriaAsistencia {
       return s.length >= 5 ? s.substring(0, 5) : s;
     }
 
+    final sup_raw = mapa['supervisor_id'] ??
+        mapa['supervisorId'] ??
+        mapa['mentor_id'] ??
+        becario['supervisor_id'] ??
+        becario['mentor_id'] ??
+        (becario['supervisor'] is Map
+            ? (becario['supervisor'] as Map)['id']
+            : null);
+
     return RegistroAuditoriaAsistencia(
       id: aInt(mapa['id']),
       becario_id: aInt(mapa['becario_id'] ?? becario['id']),
+      supervisor_id: sup_raw == null ? null : int.tryParse(sup_raw.toString()),
       becario_nombre: (becario['nombre'] ??
               usuario['nombre'] ??
               mapa['becario_nombre'] ??
@@ -281,6 +294,7 @@ class RegistroAuditoriaAsistencia {
         RegistroAuditoriaAsistencia(
           id: 1,
           becario_id: 101,
+          supervisor_id: 2,
           becario_nombre: 'Nilda Amalia Churata Paye',
           carrera: 'Educación Parvularia',
           sede_nombre: 'Centro Infantil Sagrada Familia',
@@ -298,6 +312,7 @@ class RegistroAuditoriaAsistencia {
         RegistroAuditoriaAsistencia(
           id: 2,
           becario_id: 102,
+          supervisor_id: 2,
           becario_nombre: 'Edgar Elias Alarcon Huanca',
           carrera: 'Ingeniería de Sistemas',
           sede_nombre: 'Oficina Central Bloque A',
@@ -317,6 +332,7 @@ class RegistroAuditoriaAsistencia {
         RegistroAuditoriaAsistencia(
           id: 3,
           becario_id: 103,
+          supervisor_id: 3,
           becario_nombre: 'Adai Belen Huayta Cardozo',
           carrera: 'Contaduría Pública',
           sede_nombre: 'Agencia Villa Dolores',
@@ -335,6 +351,7 @@ class RegistroAuditoriaAsistencia {
         RegistroAuditoriaAsistencia(
           id: 4,
           becario_id: 104,
+          supervisor_id: 3,
           becario_nombre: 'Ronald Franz Mamani Quispe',
           carrera: 'Bioquímica y Farmacia',
           sede_nombre: 'Consultorio Médico San Lucas',
@@ -353,6 +370,7 @@ class RegistroAuditoriaAsistencia {
         RegistroAuditoriaAsistencia(
           id: 5,
           becario_id: 105,
+          supervisor_id: 3,
           becario_nombre: 'Abigail Ruth Condori Flores',
           carrera: 'Trabajo Social',
           sede_nombre: 'Hogar de Niños Amor y Esperanza',
@@ -376,6 +394,7 @@ class RegistroAuditoriaAsistencia {
         RegistroAuditoriaAsistencia(
           id: 6,
           becario_id: 106,
+          supervisor_id: 2,
           becario_nombre: 'Jhoselin Pamela Mamani Choque',
           carrera: 'Medicina',
           sede_nombre: 'Escuela de Líderes (Auditorio Central)',

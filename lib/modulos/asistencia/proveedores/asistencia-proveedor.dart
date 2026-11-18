@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/orden-confirmacion-modelo.dart';
 import '../modelos/registro-auditoria-asistencia-modelo.dart';
 import '../repositorios/asistencia-repositorio.dart';
@@ -25,7 +27,12 @@ final perfilProveedor = perfil_proveedor;
 
 final historial_asistencia_proveedor = FutureProvider((ref) {
   final repo = ref.read(asistencia_repositorio_proveedor);
-  return repo.obtenerHistorial();
+  final usuario = ref.watch(autenticacion_proveedor).usuario;
+  return repo.obtenerHistorial(
+    es_mentor: esRolMentor(usuario?.rol) && !esRolAdmin(usuario?.rol),
+    es_admin: esRolAdmin(usuario?.rol),
+    usuario_id: usuario?.id,
+  );
 });
 
 final historialAsistenciaProveedor = historial_asistencia_proveedor;
@@ -185,8 +192,21 @@ class AuditoriaAsistenciaNotificador
 
   @override
   Future<List<RegistroAuditoriaAsistencia>> build() async {
-    final resultado = await _repo.obtenerRegistrosAuditoria();
-    return resultado.datos ?? RegistroAuditoriaAsistencia.semillas();
+    final usuario = ref.watch(autenticacion_proveedor).usuario;
+    final es_mentor = esRolMentor(usuario?.rol) && !esRolAdmin(usuario?.rol);
+    final resultado = await _repo.obtenerRegistrosAuditoria(
+      es_mentor: es_mentor,
+      usuario_id: usuario?.id,
+    );
+    if (resultado.datos != null) {
+      return resultado.datos!;
+    }
+    var semillas = RegistroAuditoriaAsistencia.semillas();
+    if (es_mentor && usuario != null) {
+      semillas =
+          semillas.where((r) => r.supervisor_id == usuario.id).toList();
+    }
+    return semillas;
   }
 
   Future<void> recargar() async {

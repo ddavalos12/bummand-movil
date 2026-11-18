@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/errores/error-bumand.dart';
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../../autenticacion/repositorios/autenticacion-repositorio.dart';
 import '../modelos/recorrido-modelo.dart';
@@ -150,6 +151,79 @@ class PasajesRepositorio {
       );
     }
     return resultado;
+  }
+
+  /// Lista solicitudes según el rol autenticado:
+  /// - Becario: `GET /pasajes/mis-solicitudes` + recorridos offline locales.
+  /// - Mentor / Admin: `GET /pasajes` (si es Mentor, filtra estrictamente por
+  ///   sus becarios designados mediante `supervisor_id` o IDs asignados).
+  Future<ResultadoPasaje<List<SolicitudPasajeModelo>>> listarSolicitudesPorRol({
+    required String rol,
+    int? usuario_id,
+  }) async {
+    if (!esRolMentorOAdmin(rol)) {
+      return misSolicitudes();
+    }
+
+    final es_mentor = esRolMentor(rol) && !esRolAdmin(rol);
+    final cliente_http = _obtenerCliente();
+    try {
+      final respuesta = await cliente_http.get(
+        _url(''),
+        headers: await _cabeceras(),
+      );
+
+      if (respuesta.statusCode == 200) {
+        final cuerpo = jsonDecode(respuesta.body);
+        final List<dynamic> datos = cuerpo is List
+            ? cuerpo
+            : (cuerpo is Map && cuerpo['datos'] is List
+                ? cuerpo['datos'] as List<dynamic>
+                : const []);
+        var solicitudes = datos
+            .whereType<Map>()
+            .map(
+              (e) => SolicitudPasajeModelo.desdeJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList();
+
+        if (es_mentor && usuario_id != null && solicitudes.isNotEmpty) {
+          final ids_asignados = await FiltroMentor.obtenerIdsBecariosAsignados(
+            cliente: cliente,
+            mentor_id: usuario_id,
+          );
+          solicitudes = FiltroMentor.filtrarParaMentor<SolicitudPasajeModelo>(
+            solicitudes,
+            mentor_id: usuario_id,
+            obtenerSupervisorId: (s) => s.supervisor_id,
+            obtenerBecarioId: (s) => s.becario_id,
+            becarios_asignados_ids: ids_asignados,
+          );
+        }
+
+        return ResultadoPasaje.exitoso(solicitudes);
+      }
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
+    } catch (_) {
+      final error = ErrorBumand.conexionOffline(
+        ruta: ApiConstantes.PUNTO_PASAJES,
+        metodo: 'GET',
+      );
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
   }
 
   Future<ResultadoPasaje<List<SolicitudPasajeModelo>>> misSolicitudes() async {

@@ -6,7 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/errores/error-bumand.dart';
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../nucleo/utilidades/resultado.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 
 class JustificacionesServicio {
   final http.Client? cliente;
@@ -208,6 +210,63 @@ class JustificacionesServicio {
     }
   }
 
+  /// Obtiene las justificaciones según el rol:
+  /// - Becario: `GET /api/justificaciones/mis-justificaciones`.
+  /// - Mentor / Admin: `GET /api/justificaciones` (si es Mentor, filtra
+  ///   estrictamente para mostrar solo sus becarios designados).
+  Future<Resultado<List<Map<String, dynamic>>>> obtenerJustificacionesPorRol({
+    required String rol,
+    int? usuario_id,
+  }) async {
+    if (!esRolMentorOAdmin(rol)) {
+      return obtenerMisJustificaciones();
+    }
+
+    final es_mentor = esRolMentor(rol) && !esRolAdmin(rol);
+    final cliente_http = _obtenerCliente();
+    try {
+      final cabeceras = await _cabeceras();
+      final urls = [
+        '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_JUSTIFICACIONES}',
+        '${ApiConstantes.RUTA_BASE}/justificaciones',
+      ];
+
+      for (final url in urls) {
+        try {
+          final res = await cliente_http.get(Uri.parse(url), headers: cabeceras);
+          if (res.statusCode == 200) {
+            final dynamic datos = jsonDecode(res.body);
+            if (datos is List) {
+              var lista = datos
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .toList();
+              if (es_mentor && usuario_id != null && lista.isNotEmpty) {
+                final ids_asignados =
+                    await FiltroMentor.obtenerIdsBecariosAsignados(
+                  cliente: cliente,
+                  mentor_id: usuario_id,
+                );
+                lista = FiltroMentor.filtrarMapasParaMentor(
+                  lista,
+                  mentor_id: usuario_id,
+                  becarios_asignados_ids: ids_asignados,
+                );
+              }
+              return Resultado.exitoso(lista);
+            }
+          }
+        } catch (_) {}
+      }
+
+      return Resultado.exitoso([]);
+    } catch (e) {
+      return Resultado.fallido('Error al obtener justificaciones: $e');
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
+  }
+
   Future<Resultado<List<Map<String, dynamic>>>> obtenerMisJustificaciones() async {
     final cliente_http = _obtenerCliente();
     try {
@@ -250,5 +309,9 @@ final justificaciones_servicio_proveedor =
 final mis_justificaciones_proveedor =
     FutureProvider<Resultado<List<Map<String, dynamic>>>>((ref) {
   final servicio = ref.watch(justificaciones_servicio_proveedor);
-  return servicio.obtenerMisJustificaciones();
+  final usuario = ref.watch(autenticacion_proveedor).usuario;
+  return servicio.obtenerJustificacionesPorRol(
+    rol: usuario?.rol ?? 'becario',
+    usuario_id: usuario?.id,
+  );
 });

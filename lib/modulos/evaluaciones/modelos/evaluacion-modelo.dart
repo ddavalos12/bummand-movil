@@ -181,6 +181,7 @@ class BecarioAsignadoModulo3Modelo {
   final String estado_evaluacion; // "pendiente", "completada"
   final double? puntaje_actual;
   final Map<String, dynamic>? evaluacion_previa;
+  final int? supervisor_id;
 
   const BecarioAsignadoModulo3Modelo({
     required this.becario_id,
@@ -191,9 +192,17 @@ class BecarioAsignadoModulo3Modelo {
     required this.estado_evaluacion,
     this.puntaje_actual,
     this.evaluacion_previa,
+    this.supervisor_id,
   });
 
   factory BecarioAsignadoModulo3Modelo.desdeJson(Map<String, dynamic> json) {
+    final becario_map = json['becario'] is Map ? json['becario'] as Map : null;
+    final sup_raw = json['supervisor_id'] ??
+        json['supervisorId'] ??
+        json['mentor_id'] ??
+        json['mentorId'] ??
+        becario_map?['supervisor_id'] ??
+        becario_map?['mentor_id'];
     return BecarioAsignadoModulo3Modelo(
       becario_id: json['becario_id'] is int
           ? json['becario_id']
@@ -209,6 +218,9 @@ class BecarioAsignadoModulo3Modelo {
       evaluacion_previa: json['evaluacion_previa'] is Map<String, dynamic>
           ? json['evaluacion_previa'] as Map<String, dynamic>
           : null,
+      supervisor_id: sup_raw is int
+          ? sup_raw
+          : int.tryParse(sup_raw?.toString() ?? ''),
     );
   }
 
@@ -221,6 +233,7 @@ class BecarioAsignadoModulo3Modelo {
     'estado_evaluacion': estado_evaluacion,
     'puntaje_actual': puntaje_actual,
     'evaluacion_previa': evaluacion_previa,
+    if (supervisor_id != null) 'supervisor_id': supervisor_id,
   };
 
   static List<BecarioAsignadoModulo3Modelo> listaEjemplo() {
@@ -232,6 +245,7 @@ class BecarioAsignadoModulo3Modelo {
         universidad: 'Universidad Mayor de San Andrés',
         agencia: 'Agencia Central Diaconía',
         estado_evaluacion: 'pendiente',
+        supervisor_id: 2,
       ),
       BecarioAsignadoModulo3Modelo(
         becario_id: 2,
@@ -241,6 +255,7 @@ class BecarioAsignadoModulo3Modelo {
         agencia: 'Agencia El Alto - Ceja',
         estado_evaluacion: 'completada',
         puntaje_actual: 94.0,
+        supervisor_id: 2,
         evaluacion_previa: {
           'mentor': 'Lic. Carlos Mendoza',
           'becario': 'Juan Carlos Mamani Quispe',
@@ -260,6 +275,7 @@ class BecarioAsignadoModulo3Modelo {
         universidad: 'Universidad Pública de El Alto',
         agencia: 'Agencia Miraflores',
         estado_evaluacion: 'pendiente',
+        supervisor_id: 3,
       ),
     ];
   }

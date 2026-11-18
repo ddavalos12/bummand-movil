@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../widgets-comunes/banner-conexion.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../asistencia/pantallas/asistencia-pantalla.dart';
@@ -106,9 +107,9 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
         .toString()
         .toLowerCase()
         .trim();
-    final es_admin = rol_crudo == 'admin' || rol_crudo == 'administrador';
-    final es_supervisor = rol_crudo == 'supervisor';
-    final es_becario = rol_crudo == 'becario' || (!es_admin && !es_supervisor);
+    final es_admin = esRolAdmin(rol_crudo);
+    final es_supervisor = esRolMentor(rol_crudo) && !es_admin;
+    final es_becario = !es_admin && !es_supervisor;
     final nombre_completo = datos_perfil?["nombre"] ?? "María Catunta Laime";
     final partes_nombre = nombre_completo.split(' ');
     final primer_nombre = partes_nombre.isNotEmpty ? partes_nombre.first : "María";

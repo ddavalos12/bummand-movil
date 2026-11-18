@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/solicitud-pasaje-modelo.dart';
 import '../repositorios/pasajes-repositorio.dart';
 
@@ -27,11 +28,16 @@ class SolicitudesPasajesNotificador
 
   @override
   Future<List<SolicitudPasajeModelo>> build() async {
+    ref.watch(autenticacion_proveedor);
     return await _cargarSolicitudesInterno();
   }
 
   Future<List<SolicitudPasajeModelo>> _cargarSolicitudesInterno() async {
-    final resultado = await _repositorio.misSolicitudes();
+    final usuario = ref.read(autenticacion_proveedor).usuario;
+    final resultado = await _repositorio.listarSolicitudesPorRol(
+      rol: usuario?.rol ?? 'becario',
+      usuario_id: usuario?.id,
+    );
     if (resultado.exito && resultado.datos != null) {
       return resultado.datos!;
     } else {

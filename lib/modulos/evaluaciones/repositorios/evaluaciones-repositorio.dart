@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/errores/error-bumand.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../modelos/evaluacion-modelo.dart';
 import '../modelos/pregunta-bienestar-modelo.dart';
@@ -285,7 +286,10 @@ class EvaluacionesRepositorio {
     );
   }
 
-  Future<Resultado<List<BecarioAsignadoModulo3Modelo>>> obtenerBecariosAsignadosModulo3() async {
+  Future<Resultado<List<BecarioAsignadoModulo3Modelo>>> obtenerBecariosAsignadosModulo3({
+    int? usuario_id,
+    bool es_mentor = false,
+  }) async {
     final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
@@ -297,16 +301,49 @@ class EvaluacionesRepositorio {
 
       if (respuesta.statusCode == 200) {
         final cuerpo = jsonDecode(respuesta.body);
-        if (cuerpo is List && cuerpo.isNotEmpty) {
-          final lista = cuerpo
-              .map((b) => BecarioAsignadoModulo3Modelo.desdeJson(b as Map<String, dynamic>))
+        if (cuerpo is List) {
+          var lista = cuerpo
+              .whereType<Map>()
+              .map((b) => BecarioAsignadoModulo3Modelo.desdeJson(
+                    Map<String, dynamic>.from(b),
+                  ))
               .toList();
+          if (es_mentor && usuario_id != null && lista.isNotEmpty) {
+            final tiene_supervisor_id = lista.any((b) => b.supervisor_id != null);
+            if (tiene_supervisor_id) {
+              lista = lista
+                  .where((b) => b.supervisor_id == usuario_id)
+                  .toList();
+            } else {
+              final ids_asignados = await FiltroMentor.obtenerIdsBecariosAsignados(
+                cliente: cliente,
+                mentor_id: usuario_id,
+              );
+              if (ids_asignados != null) {
+                lista = lista
+                    .where((b) => ids_asignados.contains(b.becario_id))
+                    .toList();
+              }
+            }
+          }
           return Resultado.exitoso(lista);
         }
       }
-      return Resultado.exitoso(BecarioAsignadoModulo3Modelo.listaEjemplo());
+      var ejemplo = BecarioAsignadoModulo3Modelo.listaEjemplo();
+      if (es_mentor && usuario_id != null) {
+        ejemplo = ejemplo
+            .where((b) => b.supervisor_id == usuario_id)
+            .toList();
+      }
+      return Resultado.exitoso(ejemplo);
     } catch (_) {
-      return Resultado.exitoso(BecarioAsignadoModulo3Modelo.listaEjemplo());
+      var ejemplo = BecarioAsignadoModulo3Modelo.listaEjemplo();
+      if (es_mentor && usuario_id != null) {
+        ejemplo = ejemplo
+            .where((b) => b.supervisor_id == usuario_id)
+            .toList();
+      }
+      return Resultado.exitoso(ejemplo);
     } finally {
       if (cliente == null) cliente_http.close();
     }

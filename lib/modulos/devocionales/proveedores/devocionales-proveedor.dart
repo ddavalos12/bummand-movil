@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/cita-seguimiento-modelo.dart';
@@ -30,8 +31,8 @@ final citas_seguimiento_proveedor =
     FutureProvider.autoDispose<Resultado<List<CitaSeguimientoModelo>>>((ref) async {
   final repo = ref.watch(devocionales_repositorio_proveedor);
   final auth = ref.watch(autenticacion_proveedor);
-  final rol = (auth.usuario?.rol ?? 'becario').toLowerCase().trim();
-  final es_supervisor = rol == 'supervisor';
+  final rol = auth.usuario?.rol;
+  final es_supervisor = esRolMentor(rol) && !esRolAdmin(rol);
   return repo.obtenerCitasSeguimiento(es_supervisor: es_supervisor);
 });
 

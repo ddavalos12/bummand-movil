@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/recorrido-modelo.dart';
 import '../modelos/solicitud-pasaje-modelo.dart';
 import '../proveedores/pasajes-proveedor.dart';
@@ -121,6 +123,10 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
   @override
   Widget build(BuildContext context) {
     final solicitudes_async = ref.watch(solicitudes_pasajes_proveedor);
+    final auth = ref.watch(autenticacion_proveedor);
+    final usuario = auth.usuario;
+    final es_mentor = esRolMentor(usuario?.rol) && !esRolAdmin(usuario?.rol);
+    final es_mentor_o_admin = esRolMentorOAdmin(usuario?.rol);
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
@@ -139,11 +145,53 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
         onRefresh: () =>
             ref.read(solicitudes_pasajes_proveedor.notifier).cargarSolicitudes(),
         child: solicitudes_async.when(
-          data: (solicitudes) {
+          data: (solicitudes_cruda) {
+            final solicitudes = es_mentor && usuario != null
+                ? solicitudes_cruda
+                    .where(
+                      (s) =>
+                          s.supervisor_id == null ||
+                          s.supervisor_id == usuario.id,
+                    )
+                    .toList()
+                : solicitudes_cruda;
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
               children: [
                 if (_procesando) const LinearProgressIndicator(),
+                if (es_mentor)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F2FE),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFBAE6FD)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.filter_alt_outlined,
+                          size: 16,
+                          color: Color(0xFF0369A1),
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Mostrando solo los pasajes de tus becarios designados",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0369A1),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: OutlinedButton.icon(
@@ -165,12 +213,15 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
                   ),
                 ),
                 if (solicitudes.isEmpty)
-                  const _MensajeVacio(
+                  _MensajeVacio(
                     icono: Icons.directions_bus_outlined,
-                    texto: "Aún no declaraste recorridos.\nToca \"Declarar recorrido\" para registrar tu ida y vuelta.",
+                    texto: es_mentor_o_admin
+                        ? "No hay solicitudes de pasajes registradas para tus becarios."
+                        : "Aún no declaraste recorridos.\nToca \"Declarar recorrido\" para registrar tu ida y vuelta.",
                   )
                 else
-                  for (final s in solicitudes) _tarjetaSolicitud(s),
+                  for (final s in solicitudes)
+                    _tarjetaSolicitud(s, mostrar_becario: es_mentor_o_admin),
               ],
             );
           },
@@ -225,7 +276,10 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
     );
   }
 
-  Widget _tarjetaSolicitud(SolicitudPasajeModelo s) {
+  Widget _tarjetaSolicitud(
+    SolicitudPasajeModelo s, {
+    bool mostrar_becario = false,
+  }) {
     final editable = _ESTADOS_EDITABLES.contains(s.estado);
     final tema = Theme.of(context);
 
@@ -240,9 +294,28 @@ class _PasajesPantallaState extends ConsumerState<PasajesPantalla> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    FormatoPasajes.periodo(s.periodo),
-                    style: tema.textTheme.titleMedium,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (mostrar_becario &&
+                          s.becario_nombre != null &&
+                          s.becario_nombre!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            s.becario_nombre!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: BumandColores.AZUL_DIACONIA,
+                            ),
+                          ),
+                        ),
+                      Text(
+                        FormatoPasajes.periodo(s.periodo),
+                        style: tema.textTheme.titleMedium,
+                      ),
+                    ],
                   ),
                 ),
                 _ChipEstado(estado: s.estado),

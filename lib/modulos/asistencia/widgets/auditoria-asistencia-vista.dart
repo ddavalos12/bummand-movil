@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/error-widget-personalizado.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
@@ -16,9 +17,8 @@ const Color _AZUL_INSTITUCIONAL = Color(0xFF004E7C);
 enum RolAuditoria { administrador, supervisor, becario }
 
 RolAuditoria resolverRolAuditoria(String? rol_crudo) {
-  final rol = (rol_crudo ?? 'becario').toString().toLowerCase().trim();
-  if (rol == 'admin' || rol == 'administrador') return RolAuditoria.administrador;
-  if (rol == 'supervisor') return RolAuditoria.supervisor;
+  if (esRolAdmin(rol_crudo)) return RolAuditoria.administrador;
+  if (esRolMentor(rol_crudo)) return RolAuditoria.supervisor;
   return RolAuditoria.becario;
 }
 
@@ -204,9 +204,37 @@ class _AuditoriaAsistenciaVistaState
   @override
   Widget build(BuildContext context) {
     final registros_async = ref.watch(auditoria_asistencia_proveedor);
+    final usuario = ref.watch(autenticacion_proveedor).usuario;
+    final es_mentor = widget.rol == RolAuditoria.supervisor;
 
     return Column(
       children: [
+        if (es_mentor)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0F2FE),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBAE6FD)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.filter_alt_outlined, size: 15, color: Color(0xFF0369A1)),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Mostrando solo tus becarios designados',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0369A1),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Container(
           margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
           decoration: BoxDecoration(
@@ -275,7 +303,19 @@ class _AuditoriaAsistenciaVistaState
               alReintentar: () => ref.invalidate(auditoria_asistencia_proveedor),
             ),
             data: (registros) {
-              final filtrados = registros.where(_coincide).toList();
+              var base = registros;
+              if (es_mentor &&
+                  usuario != null &&
+                  base.any((r) => r.supervisor_id != null)) {
+                base = base
+                    .where(
+                      (r) =>
+                          r.supervisor_id == null ||
+                          r.supervisor_id == usuario.id,
+                    )
+                    .toList();
+              }
+              final filtrados = base.where(_coincide).toList();
               return RefreshIndicator(
                 color: BumandColores.NARANJA_OSCURO,
                 backgroundColor: BumandColores.AZUL_DIACONIA,
