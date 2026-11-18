@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
+import '../../notificaciones/proveedores/notificaciones-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
 import '../modelos/pregunta-bienestar-modelo.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
@@ -111,8 +112,8 @@ class DetalleEvaluacionModal extends StatelessWidget {
     }
   }
 
-  static void mostrarReceptorAcademico(BuildContext context) {
-    showModalBottomSheet(
+  static Future<void> mostrarReceptorAcademico(BuildContext context) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -120,8 +121,8 @@ class DetalleEvaluacionModal extends StatelessWidget {
     );
   }
 
-  static void mostrarReceptorMentor(BuildContext context) {
-    showModalBottomSheet(
+  static Future<void> mostrarReceptorMentor(BuildContext context) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -129,11 +130,11 @@ class DetalleEvaluacionModal extends StatelessWidget {
     );
   }
 
-  static void mostrarReceptorLideresClassroom(
+  static Future<void> mostrarReceptorLideresClassroom(
     BuildContext context, {
     bool es_becario = true,
   }) {
-    showModalBottomSheet(
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -141,8 +142,8 @@ class DetalleEvaluacionModal extends StatelessWidget {
     );
   }
 
-  static void mostrarReceptorSocioeconomico(BuildContext context) {
-    showModalBottomSheet(
+  static Future<void> mostrarReceptorSocioeconomico(BuildContext context) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -2671,7 +2672,7 @@ class _FormularioSupervisorEvaluadorState
   }
 }
 
-class _ReceptorLideresClassroomModal extends StatefulWidget {
+class _ReceptorLideresClassroomModal extends ConsumerStatefulWidget {
   final bool es_becario;
 
   const _ReceptorLideresClassroomModal({
@@ -2679,12 +2680,12 @@ class _ReceptorLideresClassroomModal extends StatefulWidget {
   });
 
   @override
-  State<_ReceptorLideresClassroomModal> createState() =>
+  ConsumerState<_ReceptorLideresClassroomModal> createState() =>
       _ReceptorLideresClassroomModalState();
 }
 
 class _ReceptorLideresClassroomModalState
-    extends State<_ReceptorLideresClassroomModal> {
+    extends ConsumerState<_ReceptorLideresClassroomModal> {
   final _repositorio = EvaluacionesRepositorio();
 
   List<TareaEscuelaLideresModelo> _tareas =
@@ -2711,6 +2712,8 @@ class _ReceptorLideresClassroomModalState
         _tareas = resultado.datos!;
       });
     }
+    ref.invalidate(notificaciones_conteo_proveedor);
+    ref.invalidate(notificaciones_notificador_proveedor);
   }
 
   Future<void> _seleccionarEvidencia(int numero_tarea) async {
@@ -3388,6 +3391,100 @@ class _ReceptorLideresClassroomModalState
             ),
           ),
           const SizedBox(height: 10),
+
+          if (cantidad_observadas > 0) ...[
+            Material(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setState(() => _filtro = "Observadas"),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: Color(0xFFDC2626),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "Notificación: Tienes $cantidad_observadas tarea(s) rechazada(s) / observada(s) por tu Mentor. Revisa el motivo y vuelve a entregar.",
+                          style: const TextStyle(
+                            color: Color(0xFF991B1B),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFFDC2626),
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          if (cantidad_revisadas > 0) ...[
+            Material(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setState(() => _filtro = "Revisadas"),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: Color(0xFF16A34A),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "Notificación: Tienes $cantidad_revisadas tarea(s) aprobada(s) por tu Mentor.",
+                          style: const TextStyle(
+                            color: Color(0xFF166534),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF16A34A),
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
 
           // Chips de filtro
           SingleChildScrollView(

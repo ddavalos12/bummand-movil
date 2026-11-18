@@ -25,6 +25,16 @@ class _NotificacionesPantallaState
   String _filtro_actual = "todas";
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(notificaciones_notificador_proveedor.notifier).recargar();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final estado_notificaciones =
         ref.watch(notificaciones_notificador_proveedor);

@@ -7,6 +7,7 @@ import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
 import '../../../widgets-comunes/error-widget-personalizado.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
+import '../../notificaciones/proveedores/notificaciones-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
 import '../proveedores/evaluaciones-proveedor.dart';
 import '../widgets/botones-accion-evaluacion.dart';
@@ -27,6 +28,18 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
   static const _BORDE = BumandColores.grisClaro;
 
   int _pestana_supervisor = 0; // 0: Becarios Asignados, 1: Mis Módulos
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_refrescarNotificaciones);
+  }
+
+  void _refrescarNotificaciones() {
+    if (!mounted) return;
+    ref.invalidate(notificaciones_conteo_proveedor);
+    ref.invalidate(notificaciones_notificador_proveedor);
+  }
 
   Color _obtenerColorModulo(int numero) {
     switch (numero) {
@@ -63,16 +76,23 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
         FormularioF03Dialogo.mostrar(context);
         break;
       case 2:
-        DetalleEvaluacionModal.mostrarReceptorAcademico(context);
+        _refrescarNotificaciones();
+        DetalleEvaluacionModal.mostrarReceptorAcademico(
+          context,
+        ).then((_) => _refrescarNotificaciones());
         break;
       case 3:
-        DetalleEvaluacionModal.mostrarReceptorMentor(context);
+        _refrescarNotificaciones();
+        DetalleEvaluacionModal.mostrarReceptorMentor(
+          context,
+        ).then((_) => _refrescarNotificaciones());
         break;
       case 4:
+        _refrescarNotificaciones();
         DetalleEvaluacionModal.mostrarReceptorLideresClassroom(
           context,
           es_becario: !es_supervisor_o_admin,
-        );
+        ).then((_) => _refrescarNotificaciones());
         break;
       case 5:
         _abrirEvaluacionSocioeconomica(context);
@@ -134,6 +154,7 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
             onPressed: () {
               ref.invalidate(evaluacion_consolidada_proveedor);
               ref.invalidate(becarios_asignados_modulo3_proveedor);
+              _refrescarNotificaciones();
             },
           ),
         ],
@@ -567,7 +588,10 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
     return RefreshIndicator(
       color: BumandColores.NARANJA_OSCURO,
       backgroundColor: BumandColores.AZUL_DIACONIA,
-      onRefresh: () async => ref.invalidate(evaluacion_consolidada_proveedor),
+      onRefresh: () async {
+        ref.invalidate(evaluacion_consolidada_proveedor);
+        _refrescarNotificaciones();
+      },
       child: evaluacion_async.when(
         data: (resultado) {
           final desglose = resultado.datos?.desglose_modulos ?? const [];
