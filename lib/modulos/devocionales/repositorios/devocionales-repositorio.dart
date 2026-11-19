@@ -30,9 +30,10 @@ class DevocionalModelo {
   });
 
   factory DevocionalModelo.desdeMapa(Map<String, dynamic> mapa) {
+    final fecha_cruda = mapa['fecha']?.toString() ?? '';
     return DevocionalModelo(
       id: (mapa['id'] as num?)?.toInt() ?? 0,
-      fecha: mapa['fecha']?.toString() ?? '',
+      fecha: fecha_cruda.contains('T') ? fecha_cruda.split('T').first : fecha_cruda,
       cita_biblica: mapa['cita_biblica']?.toString() ??
           mapa['citaBiblica']?.toString() ??
           '',
@@ -205,12 +206,14 @@ class DevocionalesRepositorio {
             ? cuerpo
             : (cuerpo is Map && cuerpo['citas'] is List
                 ? cuerpo['citas'] as List
-                : null);
+                : (cuerpo is Map && cuerpo['datos'] is List
+                    ? cuerpo['datos'] as List
+                    : null));
 
-        if (lista_datos != null && lista_datos.isNotEmpty) {
+        if (lista_datos != null) {
           final lista = lista_datos
-              .map((e) =>
-                  CitaSeguimientoModelo.desdeJson(e as Map<String, dynamic>))
+              .whereType<Map<String, dynamic>>()
+              .map((e) => CitaSeguimientoModelo.desdeJson(e))
               .toList();
           return Resultado.exitoso(lista);
         }
@@ -236,14 +239,11 @@ class DevocionalesRepositorio {
     final cliente_http = _obtenerCliente();
     final Map<String, dynamic> cuerpo = {
       'becario_id': becario_id,
-      'becario_nombre': becario_nombre,
       'fecha_cita': fecha_cita,
       'hora_cita': hora_cita,
       'modalidad': modalidad,
       'lugar_o_enlace': lugar_o_enlace,
       'motivo_retroalimentacion': motivo_retroalimentacion,
-      'estado': 'programada',
-      'created_at': DateTime.now().toIso8601String(),
     };
     if (cita_biblica != null && cita_biblica.isNotEmpty) {
       cuerpo['cita_biblica'] = cita_biblica;
@@ -322,7 +322,6 @@ class DevocionalesRepositorio {
     final cliente_http = _obtenerCliente();
     final Map<String, dynamic> cuerpo = {
       'estado': estado,
-      'updated_at': DateTime.now().toIso8601String(),
     };
     if (acuerdos_retroalimentacion != null) {
       cuerpo['acuerdos_retroalimentacion'] = acuerdos_retroalimentacion;

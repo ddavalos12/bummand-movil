@@ -14,6 +14,7 @@ import '../../../nucleo/tema/colores.dart';
 import '../../../compartido/componentes/seleccionador_fecha.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
+import '../../refrigerios/pantallas/refrigerios-pantalla.dart';
 
 /// Modelo interno para una parada dinámica
 class _ParadaRuta {
@@ -1490,6 +1491,48 @@ class _DeclararRecorridoPantallaState
             const SizedBox(height: 14),
 
             _construirSelectorTipoActividad(),
+            const SizedBox(height: 10),
+
+            // Botón directo para gestión de Refrigerios (separado del reembolso de pasajes)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const RefrigeriosPantalla(),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.restaurant_menu_rounded,
+                  size: 19,
+                  color: BumandColores.AZUL_DIACONIA,
+                ),
+                label: const Text(
+                  "Refrigerios de Escuela de Líderes (Confirmar recojo / Rendir)",
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: BumandColores.AZUL_DIACONIA,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF0F9FF),
+                  side: const BorderSide(
+                    color: BumandColores.AZUL_DIACONIA,
+                    width: 1.3,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 14),
 
             // Campo de Apoyo Realizado

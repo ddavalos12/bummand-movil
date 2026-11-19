@@ -1170,9 +1170,20 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
 
     return Scaffold(
       backgroundColor: BumandColores.FONDO,
-      appBar: const BarraSuperiorBumand(
+      appBar: BarraSuperiorBumand(
         titulo: 'Devocionales y Vida Espiritual',
         subtitulo: 'Reflexión y formación diaconal',
+        acciones_adicionales: [
+          IconButton(
+            tooltip: 'Actualizar desde el servidor',
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+            onPressed: () {
+              ref.invalidate(devocionales_lista_proveedor);
+              ref.invalidate(versiculo_diario_proveedor);
+              ref.invalidate(citas_seguimiento_proveedor);
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -1660,21 +1671,81 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
                       ),
                       if (c.cita_biblica != null &&
                           c.cita_biblica!.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Row(
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            const Icon(
-                              Icons.auto_stories_rounded,
-                              size: 13,
-                              color: Color(0xFF0369A1),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0F2FE),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFF7DD3FC),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.auto_stories_rounded,
+                                    size: 13,
+                                    color: Color(0xFF0369A1),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Pasaje del Mentor: ${c.cita_biblica!}',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF0369A1),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              c.cita_biblica!,
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0369A1),
+                            InkWell(
+                              onTap: () => _abrirFormularioNuevoDevocional(
+                                cita_inicial: c.cita_biblica,
+                                titulo_inicial: 'Reflexión · ${c.cita_biblica}',
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFECFDF5),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFF86EFAC),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.edit_note_rounded,
+                                      size: 14,
+                                      color: Color(0xFF15803D),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Meditar este versículo',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF15803D),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],

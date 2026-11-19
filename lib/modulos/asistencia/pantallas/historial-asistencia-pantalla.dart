@@ -2775,7 +2775,7 @@ class _HistorialAsistenciaPantallaState
                     'Fecha de asistencia',
                 'hora_llegada':
                     a['hora_llegada'] ?? a['hora_entrada'] ?? '--:--',
-                'hora_limite': a['hora_limite'] ?? '14:35',
+                'hora_limite': a['hora_limite'] ?? '14:30',
                 'minutos_penalidad': tiene_permiso ? 0 : minutos,
                 'tramo': tiene_permiso
                     ? 'Permiso Aprobado'

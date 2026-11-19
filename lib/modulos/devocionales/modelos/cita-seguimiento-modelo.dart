@@ -39,24 +39,42 @@ class CitaSeguimientoModelo {
   bool get esta_cancelada => estado.toLowerCase().trim() == 'cancelada';
 
   factory CitaSeguimientoModelo.desdeJson(Map<String, dynamic> json) {
+    final supervisor_obj = json['supervisor'];
+    final becario_obj = json['becario'];
+    final becario_usuario_obj =
+        becario_obj is Map ? becario_obj['usuario'] : null;
+
+    final supervisor_nombre = json['supervisor_nombre']?.toString() ??
+        json['supervisorNombre']?.toString() ??
+        json['nombre_supervisor']?.toString() ??
+        (supervisor_obj is Map ? supervisor_obj['nombre']?.toString() : null) ??
+        'Mentor Diaconal';
+
+    final becario_nombre = json['becario_nombre']?.toString() ??
+        json['becarioNombre']?.toString() ??
+        json['nombre_becario']?.toString() ??
+        (becario_usuario_obj is Map
+            ? becario_usuario_obj['nombre']?.toString()
+            : null) ??
+        (becario_obj is Map ? becario_obj['nombre']?.toString() : null) ??
+        'Becario Diaconía';
+
     return CitaSeguimientoModelo(
       id: (json['id'] as num?)?.toInt() ?? 0,
       supervisor_id: (json['supervisor_id'] as num?)?.toInt() ??
           (json['supervisorId'] as num?)?.toInt() ??
           0,
-      supervisor_nombre: json['supervisor_nombre']?.toString() ??
-          json['supervisorNombre']?.toString() ??
-          'Mentor Diaconal',
+      supervisor_nombre: supervisor_nombre,
       becario_id: (json['becario_id'] as num?)?.toInt() ??
           (json['becarioId'] as num?)?.toInt() ??
           0,
-      becario_nombre: json['becario_nombre']?.toString() ??
-          json['becarioNombre']?.toString() ??
-          'Becario Diaconía',
-      fecha_cita: json['fecha_cita']?.toString() ??
-          json['fechaCita']?.toString() ??
-          json['fecha']?.toString() ??
-          '',
+      becario_nombre: becario_nombre,
+      fecha_cita: (json['fecha_cita']?.toString() ??
+              json['fechaCita']?.toString() ??
+              json['fecha']?.toString() ??
+              '')
+          .split('T')
+          .first,
       hora_cita: json['hora_cita']?.toString() ??
           json['horaCita']?.toString() ??
           json['hora']?.toString() ??

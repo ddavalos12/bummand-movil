@@ -274,7 +274,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         ahora.month,
         ahora.day,
         14,
-        35,
+        30,
       );
       if (ahora.isAfter(limite_viernes)) {
         final retraso_min = ahora.difference(limite_viernes).inMinutes;
@@ -311,8 +311,8 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       hora_etiqueta = '09:00';
     } else {
       hora_limite = 14;
-      minuto_limite = 35;
-      hora_etiqueta = '14:35';
+      minuto_limite = 30;
+      hora_etiqueta = '14:30';
     }
 
     final limite = DateTime(
@@ -800,7 +800,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     final es_escuela_lideres_viernes = ahora.weekday == DateTime.friday &&
         _tipo == TipoAsistencia.escuelaLideres.valor;
     final limite_viernes =
-        DateTime(ahora.year, ahora.month, ahora.day, 14, 35);
+        DateTime(ahora.year, ahora.month, ahora.day, 14, 30);
     final minutos_retraso_actual =
         (es_escuela_lideres_viernes && ahora.isAfter(limite_viernes))
             ? ahora.difference(limite_viernes).inMinutes
@@ -923,7 +923,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                 ],
                 const SizedBox(height: 14),
 
-                // 5. Advertencia de multas oficiales para Escuela de Líderes (Viernes pasadas 14:35 si NO tiene permiso)
+                // 5. Advertencia de multas oficiales para Escuela de Líderes (Viernes pasadas 14:30 si NO tiene permiso)
                 if (es_escuela_lideres_viernes &&
                     minutos_retraso_actual > 0 &&
                     !tiene_permiso_viernes_aprobado) ...[
@@ -957,7 +957,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "Límite: 14:35 • Retraso: $minutos_retraso_actual min.\nTabla oficial: 1–10 min = Bs 10 · 11–30 min = Bs 20 · 31–60 min = Bs 30 · >60 min = Bs 50",
+                                "Hora de entrada: 14:30 • Retraso: $minutos_retraso_actual min.\nTabla oficial: 1–10 min = Bs 10 · 11–30 min = Bs 20 · 31–60 min = Bs 30 · >60 min = Bs 50",
                                 style: const TextStyle(
                                   fontSize: 11.5,
                                   color: Color(0xFFB91C1C),

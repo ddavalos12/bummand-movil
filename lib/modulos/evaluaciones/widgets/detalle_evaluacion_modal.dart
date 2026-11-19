@@ -3075,6 +3075,9 @@ class _ReceptorLideresClassroomModalState
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx_st, setStateModal) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          contentPadding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: Row(
             children: [
@@ -3091,173 +3094,183 @@ class _ReceptorLideresClassroomModalState
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                titulo,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                child: SelectableText(
-                  url_completa,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
                   style: const TextStyle(
-                    fontSize: 11.5,
-                    color: BumandColores.azulMarinoSecundario,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
-              ),
-              if (estado_descarga != null) ...[
                 const SizedBox(height: 10),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: es_error_descarga
-                        ? const Color(0xFFFEF2F2)
-                        : const Color(0xFFECFDF5),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: es_error_descarga
-                          ? const Color(0xFFFCA5A5)
-                          : const Color(0xFF86EFAC),
-                    ),
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
                   ),
-                  child: Text(
-                    estado_descarga!,
-                    style: TextStyle(
+                  child: SelectableText(
+                    url_completa,
+                    style: const TextStyle(
                       fontSize: 11.5,
-                      color: es_error_descarga
-                          ? const Color(0xFF991B1B)
-                          : const Color(0xFF15803D),
-                      fontWeight: FontWeight.w600,
+                      color: BumandColores.azulMarinoSecundario,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text("Cerrar"),
-            ),
-            TextButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: url_completa));
-                if (!ctx.mounted) return;
-                setStateModal(() {
-                  es_error_descarga = false;
-                  estado_descarga = "✓ URL copiada al portapapeles.";
-                });
-              },
-              icon: const Icon(Icons.copy_rounded, size: 16),
-              label: const Text("Copiar URL"),
-            ),
-            if (es_pdf)
-              OutlinedButton.icon(
-                onPressed: descargando
-                    ? null
-                    : () async {
-                        setStateModal(() {
-                          descargando = true;
-                          es_error_descarga = false;
-                        });
-                        try {
-                          final resp = await http
-                              .get(Uri.parse(url_completa))
-                              .timeout(const Duration(seconds: 12));
-                          if (!ctx.mounted) return;
-                          if (resp.statusCode == 200) {
-                            await descargarBytesPdf(
-                              resp.bodyBytes,
-                              nombre_descarga,
-                            );
-                            final kb = (resp.bodyBytes.length / 1024)
-                                .toStringAsFixed(1);
-                            if (!ctx.mounted) return;
-                            setStateModal(() {
-                              descargando = false;
-                              es_error_descarga = false;
-                              estado_descarga =
-                                  "✓ PDF descargado ($kb KB). También puedes abrirlo o copiar el enlace.";
-                            });
-                          } else {
-                            setStateModal(() {
-                              descargando = false;
-                              es_error_descarga = true;
-                              estado_descarga =
-                                  "El servidor respondió código ${resp.statusCode}. Intenta abrir o copiar el enlace.";
-                            });
-                          }
-                        } catch (_) {
-                          if (!ctx.mounted) return;
-                          setStateModal(() {
-                            descargando = false;
-                            es_error_descarga = false;
-                            estado_descarga =
-                                "No se pudo descargar directo. Usa 'Abrir PDF' o 'Copiar URL'.";
-                          });
-                        }
-                      },
-                icon: descargando
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.download_rounded, size: 16),
-                label: Text(descargando ? "Descargando..." : "Descargar PDF"),
-              ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final abierto = await abrirUrlEnNavegador(url_completa);
-                if (!abierto) {
-                  await Clipboard.setData(ClipboardData(text: url_completa));
-                }
-                if (ctx.mounted) {
-                  Navigator.of(ctx).pop();
-                }
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      abierto
-                          ? (es_pdf
-                              ? "Abriendo material PDF en una nueva pestaña"
-                              : "Abriendo enlace de lectura en el navegador")
-                          : "Enlace copiado al portapapeles para abrir en el navegador",
+                if (estado_descarga != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: es_error_descarga
+                          ? const Color(0xFFFEF2F2)
+                          : const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: es_error_descarga
+                            ? const Color(0xFFFCA5A5)
+                            : const Color(0xFF86EFAC),
+                      ),
                     ),
-                    backgroundColor: BumandColores.AZUL_DIACONIA,
+                    child: Text(
+                      estado_descarga!,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: es_error_descarga
+                            ? const Color(0xFF991B1B)
+                            : const Color(0xFF15803D),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.AZUL_DIACONIA,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              icon: Icon(
-                es_pdf ? Icons.open_in_new_rounded : Icons.open_in_browser_rounded,
-                size: 16,
-              ),
-              label: Text(es_pdf ? "Abrir PDF" : "Abrir enlace"),
+                ],
+                const SizedBox(height: 14),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text("Cerrar"),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await Clipboard.setData(ClipboardData(text: url_completa));
+                        if (!ctx.mounted) return;
+                        setStateModal(() {
+                          es_error_descarga = false;
+                          estado_descarga = "✓ URL copiada al portapapeles.";
+                        });
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 16),
+                      label: const Text("Copiar URL"),
+                    ),
+                    if (es_pdf)
+                      OutlinedButton.icon(
+                        onPressed: descargando
+                            ? null
+                            : () async {
+                                setStateModal(() {
+                                  descargando = true;
+                                  es_error_descarga = false;
+                                });
+                                try {
+                                  final resp = await http
+                                      .get(Uri.parse(url_completa))
+                                      .timeout(const Duration(seconds: 12));
+                                  if (!ctx.mounted) return;
+                                  if (resp.statusCode == 200) {
+                                    await descargarBytesPdf(
+                                      resp.bodyBytes,
+                                      nombre_descarga,
+                                    );
+                                    final kb = (resp.bodyBytes.length / 1024)
+                                        .toStringAsFixed(1);
+                                    if (!ctx.mounted) return;
+                                    setStateModal(() {
+                                      descargando = false;
+                                      es_error_descarga = false;
+                                      estado_descarga =
+                                          "✓ PDF descargado ($kb KB). También puedes abrirlo o copiar el enlace.";
+                                    });
+                                  } else {
+                                    setStateModal(() {
+                                      descargando = false;
+                                      es_error_descarga = true;
+                                      estado_descarga =
+                                          "El servidor respondió código ${resp.statusCode}. Intenta abrir o copiar el enlace.";
+                                    });
+                                  }
+                                } catch (_) {
+                                  if (!ctx.mounted) return;
+                                  setStateModal(() {
+                                    descargando = false;
+                                    es_error_descarga = false;
+                                    estado_descarga =
+                                        "No se pudo descargar directo. Usa 'Abrir PDF' o 'Copiar URL'.";
+                                  });
+                                }
+                              },
+                        icon: descargando
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.download_rounded, size: 16),
+                        label: Text(descargando ? "Descargando..." : "Descargar PDF"),
+                      ),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final abierto = await abrirUrlEnNavegador(url_completa);
+                        if (!abierto) {
+                          await Clipboard.setData(ClipboardData(text: url_completa));
+                        }
+                        if (ctx.mounted) {
+                          Navigator.of(ctx).pop();
+                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              abierto
+                                  ? (es_pdf
+                                      ? "Abriendo material PDF en una nueva pestaña"
+                                      : "Abriendo enlace de lectura en el navegador")
+                                  : "Enlace copiado al portapapeles para abrir en el navegador",
+                            ),
+                            backgroundColor: BumandColores.AZUL_DIACONIA,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: BumandColores.AZUL_DIACONIA,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: Icon(
+                        es_pdf ? Icons.open_in_new_rounded : Icons.open_in_browser_rounded,
+                        size: 16,
+                      ),
+                      label: Text(es_pdf ? "Abrir PDF" : "Abrir enlace"),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
