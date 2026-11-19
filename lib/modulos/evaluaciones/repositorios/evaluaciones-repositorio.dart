@@ -467,7 +467,7 @@ class EvaluacionesRepositorio {
 
       final respuesta = await cliente_http
           .get(Uri.parse(ruta), headers: cabeceras)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 12));
 
       if (respuesta.statusCode == 200) {
         final cuerpo = jsonDecode(respuesta.body);

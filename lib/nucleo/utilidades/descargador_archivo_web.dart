@@ -13,3 +13,8 @@ Future<void> descargarBytesPdf(List<int> bytes, String nombre_archivo) async {
   html.document.body?.children.remove(anchor);
   html.Url.revokeObjectUrl(url);
 }
+
+Future<bool> abrirUrlEnNavegador(String url) async {
+  html.window.open(url, '_blank');
+  return true;
+}

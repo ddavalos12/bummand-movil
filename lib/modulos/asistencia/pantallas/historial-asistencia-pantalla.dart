@@ -2292,30 +2292,36 @@ class _HistorialAsistenciaPantallaState
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _kpiMetricaBlanco(
-                            "Bs. ${total_acumulado.toStringAsFixed(2)}",
-                            "Total declarado",
-                            Icons.payments_outlined,
+                          Expanded(
+                            child: _kpiMetricaBlanco(
+                              "Bs. ${total_acumulado.toStringAsFixed(2)}",
+                              "Total declarado",
+                              Icons.payments_outlined,
+                            ),
                           ),
                           Container(
                             height: 36,
                             width: 1,
                             color: Colors.white.withValues(alpha: 0.3),
                           ),
-                          _kpiMetricaBlanco(
-                            "Bs. ${total_devolucion.toStringAsFixed(2)}",
-                            "Reembolso 80%",
-                            Icons.savings_outlined,
+                          Expanded(
+                            child: _kpiMetricaBlanco(
+                              "Bs. ${total_devolucion.toStringAsFixed(2)}",
+                              "Reembolso 80%",
+                              Icons.savings_outlined,
+                            ),
                           ),
                           Container(
                             height: 36,
                             width: 1,
                             color: Colors.white.withValues(alpha: 0.3),
                           ),
-                          _kpiMetricaBlanco(
-                            "Bs. ${total_liquido.toStringAsFixed(2)}",
-                            "Líquido Pagable",
-                            Icons.account_balance_wallet_outlined,
+                          Expanded(
+                            child: _kpiMetricaBlanco(
+                              "Bs. ${total_liquido.toStringAsFixed(2)}",
+                              "Líquido Pagable",
+                              Icons.account_balance_wallet_outlined,
+                            ),
                           ),
                         ],
                       ),
@@ -2354,6 +2360,8 @@ class _HistorialAsistenciaPantallaState
 
               final item = lista[i - 1];
               final estado_color = _colorEstadoPasaje(item.estado);
+              final nombre_becario = item.becario_nombre;
+              final observaciones = item.observaciones;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -2387,50 +2395,60 @@ class _HistorialAsistenciaPantallaState
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: BumandColores.AZUL_DIACONIA
-                                          .withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: BumandColores.AZUL_DIACONIA
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.directions_bus,
+                                        size: 16,
+                                        color: BumandColores.AZUL_DIACONIA,
+                                      ),
                                     ),
-                                    child: const Icon(
-                                      Icons.directions_bus,
-                                      size: 16,
-                                      color: BumandColores.AZUL_DIACONIA,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        if (_rol_actual != RolAuditoria.becario &&
-                                            item.becario_nombre != null &&
-                                            item.becario_nombre!.isNotEmpty)
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (_rol_actual !=
+                                                  RolAuditoria.becario &&
+                                              nombre_becario != null &&
+                                              nombre_becario.isNotEmpty)
+                                            Text(
+                                              nombre_becario,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.bold,
+                                                color:
+                                                    BumandColores.AZUL_DIACONIA,
+                                              ),
+                                            ),
                                           Text(
-                                            item.becario_nombre!,
+                                            item.periodo,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                              fontSize: 12.5,
                                               fontWeight: FontWeight.bold,
-                                              color: BumandColores.AZUL_DIACONIA,
+                                              fontSize: 15,
+                                              color: BumandColores.NEGRO,
                                             ),
                                           ),
-                                        Text(
-                                          item.periodo,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                            color: BumandColores.NEGRO,
-                                          ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
@@ -2479,6 +2497,7 @@ class _HistorialAsistenciaPantallaState
                                   ],
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2523,13 +2542,18 @@ class _HistorialAsistenciaPantallaState
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text(
-                                      "(-) Descuento por Multas:",
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        color: Color(0xFFDC2626),
+                                    const Expanded(
+                                      child: Text(
+                                        "(-) Descuento por Multas:",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: Color(0xFFDC2626),
+                                        ),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Text(
                                       "- Bs. ${item.multas_asistencia_bs.toStringAsFixed(2)}",
                                       style: TextStyle(
@@ -2547,14 +2571,19 @@ class _HistorialAsistenciaPantallaState
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text(
-                                      "Líquido Pagable (Neto):",
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF047857),
+                                    const Expanded(
+                                      child: Text(
+                                        "Líquido Pagable (Neto):",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF047857),
+                                        ),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Text(
                                       "Bs. ${item.monto_liquido_pagable.toStringAsFixed(2)}",
                                       style: const TextStyle(
@@ -2568,11 +2597,11 @@ class _HistorialAsistenciaPantallaState
                               ],
                             ),
                           ),
-                          if (item.observaciones != null &&
-                              item.observaciones!.isNotEmpty) ...[
+                          if (observaciones != null &&
+                              observaciones.isNotEmpty) ...[
                             const SizedBox(height: 10),
                             Text(
-                              item.observaciones!,
+                              observaciones,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade600,
@@ -2586,26 +2615,33 @@ class _HistorialAsistenciaPantallaState
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.alt_route_rounded,
-                                    size: 16,
-                                    color: BumandColores.AZUL_DIACONIA,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    item.recorridos.isNotEmpty
-                                        ? "Ver paradas declaradas (${item.recorridos.length})"
-                                        : "Ver paradas declaradas",
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.alt_route_rounded,
+                                      size: 16,
                                       color: BumandColores.AZUL_DIACONIA,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        item.recorridos.isNotEmpty
+                                            ? "Ver paradas declaradas (${item.recorridos.length})"
+                                            : "Ver paradas declaradas",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: BumandColores.AZUL_DIACONIA,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               const Icon(
                                 Icons.arrow_forward_ios_rounded,
                                 size: 12,
@@ -3040,26 +3076,35 @@ class _HistorialAsistenciaPantallaState
   }
 
   Widget _kpiMetricaBlanco(String valor, String etiqueta, IconData icono) {
-    return Column(
-      children: [
-        Icon(icono, color: Colors.white, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          valor,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        children: [
+          Icon(icono, color: Colors.white, size: 20),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              valor,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-        ),
-        Text(
-          etiqueta,
-          style: const TextStyle(
-            color: Color(0xFFD6F1F7),
-            fontSize: 10.5,
+          Text(
+            etiqueta,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFFD6F1F7),
+              fontSize: 10.5,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

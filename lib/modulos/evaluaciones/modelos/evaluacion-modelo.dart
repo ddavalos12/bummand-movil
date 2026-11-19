@@ -334,7 +334,9 @@ class TareaEscuelaLideresModelo {
     if (pdfs_raw is List) {
       for (final item in pdfs_raw) {
         if (item is Map) {
-          final url = (item['url'] ?? '').toString().trim();
+          final url = (item['url'] ?? item['archivo_url'] ?? item['ruta'] ?? '')
+              .toString()
+              .trim();
           if (url.isNotEmpty) {
             pdfs.add({
               'nombre': (item['nombre'] ?? item['titulo'] ?? 'Material PDF')
@@ -342,6 +344,12 @@ class TareaEscuelaLideresModelo {
               'url': url,
             });
           }
+        } else if (item is String && item.trim().isNotEmpty) {
+          final url = item.trim();
+          pdfs.add({
+            'nombre': url.split('/').last,
+            'url': url,
+          });
         }
       }
     }
@@ -359,13 +367,19 @@ class TareaEscuelaLideresModelo {
     if (enlaces_raw is List) {
       for (final item in enlaces_raw) {
         if (item is Map) {
-          final url = (item['url'] ?? '').toString().trim();
+          final url = (item['url'] ?? item['enlace'] ?? '').toString().trim();
           if (url.isNotEmpty) {
             enlaces.add({
               'titulo': (item['titulo'] ?? item['nombre'] ?? url).toString(),
               'url': url,
             });
           }
+        } else if (item is String && item.trim().isNotEmpty) {
+          final url = item.trim();
+          enlaces.add({
+            'titulo': url,
+            'url': url,
+          });
         }
       }
     }

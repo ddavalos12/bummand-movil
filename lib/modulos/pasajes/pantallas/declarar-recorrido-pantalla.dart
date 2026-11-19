@@ -14,7 +14,6 @@ import '../../../nucleo/tema/colores.dart';
 import '../../../compartido/componentes/seleccionador_fecha.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
-import '../../refrigerios/pantallas/refrigerios-pantalla.dart';
 
 /// Modelo interno para una parada dinámica
 class _ParadaRuta {
@@ -86,7 +85,7 @@ class _DeclararRecorridoPantallaState
   int _paso_activo = 1; // 1 = Ida, 2 = Vuelta
   bool _guardando = false;
   String? _capturando_gps_id;
-  String _tipo_actividad = "Escuela de Líderes";
+  String _tipo_actividad = "Prácticas";
   String get tipo_actividad_seleccionado => _tipo_actividad;
   bool _formulario_inicializado_con_hoy = false;
   int? _id_recorrido_ida_hoy;
@@ -94,7 +93,6 @@ class _DeclararRecorridoPantallaState
 
   static const List<String> TIPOS_ACTIVIDAD = [
     "Prácticas",
-    "Escuela de Líderes",
     "Acciones de Servicio",
   ];
 
@@ -119,7 +117,6 @@ class _DeclararRecorridoPantallaState
   static const List<String> PARADAS_FRECUENTES = [
     'Oficina Central Diaconía (Av. Juan Pablo II, El Alto)',
     'Agencia Diaconía Ceja (El Alto)',
-    'Sede Escuela de Líderes (La Paz)',
     'La Ceja — Calle 1 / Puente Distribuidor (El Alto)',
     'Cruce Villa Adela (El Alto)',
     'Villa Adela, El Alto',
@@ -157,7 +154,6 @@ class _DeclararRecorridoPantallaState
   static const Map<String, ({double lat, double lng})> COORDENADAS_PARADAS = {
     'Oficina Central Diaconía (Av. Juan Pablo II, El Alto)': (lat: -16.50005, lng: -68.17345),
     'Agencia Diaconía Ceja (El Alto)': (lat: -16.5085, lng: -68.1630),
-    'Sede Escuela de Líderes (La Paz)': (lat: -16.5042, lng: -68.1315),
     'La Ceja — Calle 1 / Puente Distribuidor (El Alto)': (lat: -16.5088, lng: -68.1627),
     'Cruce Villa Adela (El Alto)': (lat: -16.5245, lng: -68.1885),
     'Villa Adela, El Alto': (lat: -16.5360, lng: -68.1920),
@@ -206,14 +202,14 @@ class _DeclararRecorridoPantallaState
 
   bool get _esSoloIda {
     final usuario = ref.watch(autenticacion_proveedor).usuario;
-    final actKey = _tipo_actividad == "Prácticas"
+    final clave_actividad = _tipo_actividad == "Prácticas"
         ? "practicas"
-        : _tipo_actividad == "Escuela de Líderes"
-            ? "escuela_lideres"
-            : "acciones_servicio";
-    final cfg = usuario?.configuracion_pasajes_actividades;
-    final mod = cfg?[actKey] ?? usuario?.modalidad_pasajes ?? 'ida_y_vuelta';
-    return mod == 'solo_ida';
+        : "acciones_servicio";
+    final configuracion = usuario?.configuracion_pasajes_actividades;
+    final modalidad = configuracion?[clave_actividad] ??
+        usuario?.modalidad_pasajes ??
+        'ida_y_vuelta';
+    return modalidad == 'solo_ida';
   }
 
   List<String> _obtenerOpcionesParadaDisponibles(
@@ -256,7 +252,7 @@ class _DeclararRecorridoPantallaState
   @override
   void initState() {
     super.initState();
-    _tipo_actividad = "Escuela de Líderes";
+    _tipo_actividad = "Prácticas";
     _cargarTarifas();
     final destino_base =
         (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty)
@@ -1493,7 +1489,6 @@ class _DeclararRecorridoPantallaState
             _construirMapaRutaRecorrido(),
             const SizedBox(height: 14),
 
-            // Selector de Tipo de Actividad (Prácticas, Escuela de Líderes, Acciones de Servicio)
             _construirSelectorTipoActividad(),
             const SizedBox(height: 14),
 
@@ -1597,43 +1592,6 @@ class _DeclararRecorridoPantallaState
                 ),
               ),
             ),
-
-            if (_tipo_actividad == "Escuela de Líderes") ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const RefrigeriosPantalla(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.restaurant_menu_rounded,
-                    size: 20,
-                    color: BumandColores.AZUL_DIACONIA,
-                  ),
-                  label: const Text(
-                    "Refrigerios de Escuela de Líderes (Confirmar recojo / Rendir)",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: BumandColores.AZUL_DIACONIA,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: BumandColores.AZUL_DIACONIA, width: 1.5),
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-            ],
 
             const SizedBox(height: 24),
           ],

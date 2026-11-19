@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/descargador_archivo.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../../notificaciones/proveedores/notificaciones-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
@@ -2691,6 +2692,7 @@ class _ReceptorLideresClassroomModalState
   List<TareaEscuelaLideresModelo> _tareas =
       TareaEscuelaLideresModelo.catalogoCanonico();
   String _filtro = "Todas";
+  bool _cargando_tareas = true;
 
   final Map<int, Map<String, dynamic>> _evidencias_seleccionadas = {};
   final Map<int, bool> _entregando_por_tarea = {};
@@ -2702,18 +2704,29 @@ class _ReceptorLideresClassroomModalState
   }
 
   Future<void> _cargarTareas() async {
-    final becario_id = await _obtenerBecarioIdAutenticado(context);
-    final resultado = await _repositorio.obtenerTareasEscuelaLideres(
-      becario_id: becario_id,
-    );
-    if (!mounted) return;
-    if (resultado.exito && resultado.datos != null && resultado.datos!.isNotEmpty) {
-      setState(() {
-        _tareas = resultado.datos!;
-      });
+    if (mounted && !_cargando_tareas) {
+      setState(() => _cargando_tareas = true);
     }
-    ref.invalidate(notificaciones_conteo_proveedor);
-    ref.invalidate(notificaciones_notificador_proveedor);
+    try {
+      final becario_id = await _obtenerBecarioIdAutenticado(context);
+      final resultado = await _repositorio.obtenerTareasEscuelaLideres(
+        becario_id: becario_id,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (resultado.exito &&
+            resultado.datos != null &&
+            resultado.datos!.isNotEmpty) {
+          _tareas = resultado.datos!;
+        }
+        _cargando_tareas = false;
+      });
+      ref.invalidate(notificaciones_conteo_proveedor);
+      ref.invalidate(notificaciones_notificador_proveedor);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cargando_tareas = false);
+    }
   }
 
   Future<void> _seleccionarEvidencia(int numero_tarea) async {
@@ -3051,8 +3064,12 @@ class _ReceptorLideresClassroomModalState
     required bool es_pdf,
   }) {
     final url_completa = _resolverUrlRecurso(url_cruda);
+    final nombre_descarga = titulo.toLowerCase().endsWith('.pdf')
+        ? titulo
+        : '$titulo.pdf';
     String? estado_descarga;
-    bool verificando = false;
+    bool es_error_descarga = false;
+    bool descargando = false;
 
     showDialog<void>(
       context: context,
@@ -3110,15 +3127,23 @@ class _ReceptorLideresClassroomModalState
                   width: double.infinity,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFECFDF5),
+                    color: es_error_descarga
+                        ? const Color(0xFFFEF2F2)
+                        : const Color(0xFFECFDF5),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF86EFAC)),
+                    border: Border.all(
+                      color: es_error_descarga
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFF86EFAC),
+                    ),
                   ),
                   child: Text(
                     estado_descarga!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11.5,
-                      color: Color(0xFF15803D),
+                      color: es_error_descarga
+                          ? const Color(0xFF991B1B)
+                          : const Color(0xFF15803D),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -3131,57 +3156,92 @@ class _ReceptorLideresClassroomModalState
               onPressed: () => Navigator.of(ctx).pop(),
               child: const Text("Cerrar"),
             ),
+            TextButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: url_completa));
+                if (!ctx.mounted) return;
+                setStateModal(() {
+                  es_error_descarga = false;
+                  estado_descarga = "✓ URL copiada al portapapeles.";
+                });
+              },
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text("Copiar URL"),
+            ),
             if (es_pdf)
               OutlinedButton.icon(
-                onPressed: verificando
+                onPressed: descargando
                     ? null
                     : () async {
-                        setStateModal(() => verificando = true);
+                        setStateModal(() {
+                          descargando = true;
+                          es_error_descarga = false;
+                        });
                         try {
                           final resp = await http
                               .get(Uri.parse(url_completa))
-                              .timeout(const Duration(seconds: 8));
+                              .timeout(const Duration(seconds: 12));
+                          if (!ctx.mounted) return;
                           if (resp.statusCode == 200) {
-                            final kb = (resp.bodyBytes.length / 1024).toStringAsFixed(1);
+                            await descargarBytesPdf(
+                              resp.bodyBytes,
+                              nombre_descarga,
+                            );
+                            final kb = (resp.bodyBytes.length / 1024)
+                                .toStringAsFixed(1);
+                            if (!ctx.mounted) return;
                             setStateModal(() {
-                              verificando = false;
+                              descargando = false;
+                              es_error_descarga = false;
                               estado_descarga =
-                                  "✓ Archivo disponible ($kb KB). Usa 'Copiar enlace' para abrirlo en tu navegador o visor PDF.";
+                                  "✓ PDF descargado ($kb KB). También puedes abrirlo o copiar el enlace.";
                             });
                           } else {
                             setStateModal(() {
-                              verificando = false;
+                              descargando = false;
+                              es_error_descarga = true;
                               estado_descarga =
-                                  "El servidor respondió código ${resp.statusCode}. Copia el enlace para abrirlo en el navegador.";
+                                  "El servidor respondió código ${resp.statusCode}. Intenta abrir o copiar el enlace.";
                             });
                           }
                         } catch (_) {
+                          if (!ctx.mounted) return;
                           setStateModal(() {
-                            verificando = false;
+                            descargando = false;
+                            es_error_descarga = false;
                             estado_descarga =
-                                "Enlace listo. Cópialo para descargarlo desde el navegador.";
+                                "No se pudo descargar directo. Usa 'Abrir PDF' o 'Copiar URL'.";
                           });
                         }
                       },
-                icon: verificando
+                icon: descargando
                     ? const SizedBox(
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.download_rounded, size: 16),
-                label: Text(verificando ? "Verificando..." : "Descargar / Verificar"),
+                label: Text(descargando ? "Descargando..." : "Descargar PDF"),
               ),
             ElevatedButton.icon(
               onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: url_completa));
+                final abierto = await abrirUrlEnNavegador(url_completa);
+                if (!abierto) {
+                  await Clipboard.setData(ClipboardData(text: url_completa));
+                }
                 if (ctx.mounted) {
                   Navigator.of(ctx).pop();
                 }
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Enlace copiado al portapapeles para abrir en el navegador"),
+                  SnackBar(
+                    content: Text(
+                      abierto
+                          ? (es_pdf
+                              ? "Abriendo material PDF en una nueva pestaña"
+                              : "Abriendo enlace de lectura en el navegador")
+                          : "Enlace copiado al portapapeles para abrir en el navegador",
+                    ),
                     backgroundColor: BumandColores.AZUL_DIACONIA,
                   ),
                 );
@@ -3191,8 +3251,11 @@ class _ReceptorLideresClassroomModalState
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              icon: const Icon(Icons.copy_rounded, size: 16),
-              label: const Text("Copiar enlace"),
+              icon: Icon(
+                es_pdf ? Icons.open_in_new_rounded : Icons.open_in_browser_rounded,
+                size: 16,
+              ),
+              label: Text(es_pdf ? "Abrir PDF" : "Abrir enlace"),
             ),
           ],
         ),
@@ -3261,24 +3324,51 @@ class _ReceptorLideresClassroomModalState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Text(
-                  "Módulo 04 · Escuela de Líderes CETI",
-                  style: TextStyle(
-                    color: Color(0xFF6366F1),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    "Módulo 04 · Escuela de Líderes CETI",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xFF6366F1),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => Navigator.of(context).pop(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: "Actualizar tareas y lecturas",
+                    icon: _cargando_tareas
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF6366F1),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.refresh_rounded,
+                            size: 20,
+                            color: Color(0xFF6366F1),
+                          ),
+                    onPressed: _cargando_tareas ? null : _cargarTareas,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -3506,7 +3596,18 @@ class _ReceptorLideresClassroomModalState
           ),
           const SizedBox(height: 10),
 
-          // Lista de tareas
+          if (_cargando_tareas) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: const LinearProgressIndicator(
+                minHeight: 3,
+                color: Color(0xFF6366F1),
+                backgroundColor: Color(0xFFE0E7FF),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
           Expanded(
             child: ListView.builder(
                     itemCount: tareas_filtradas.length,
@@ -3646,6 +3747,17 @@ class _ReceptorLideresClassroomModalState
   }
 
   Widget _construirSeccionLecturas(TareaEscuelaLideresModelo tarea) {
+    final lecturas_validas = tarea.lecturas_pdf
+        .where((pdf) => (pdf['url'] ?? '').trim().isNotEmpty)
+        .toList();
+    final enlaces_validos = tarea.enlaces_lectura
+        .where((enlace) => (enlace['url'] ?? '').trim().isNotEmpty)
+        .toList();
+
+    if (lecturas_validas.isEmpty && enlaces_validos.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
@@ -3658,23 +3770,39 @@ class _ReceptorLideresClassroomModalState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "📚 Material de Lectura y Enlaces",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: BumandColores.azulMarinoSecundario,
-            ),
+          const Row(
+            children: [
+              Icon(
+                Icons.menu_book_rounded,
+                size: 15,
+                color: BumandColores.azulMarinoSecundario,
+              ),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  "Material de Lectura y Enlaces",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: BumandColores.azulMarinoSecundario,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final pdf in tarea.lecturas_pdf)
+              for (final pdf in lecturas_validas)
                 ElevatedButton.icon(
                   onPressed: () => _abrirModalRecursoLectura(
-                    titulo: pdf['nombre'] ?? 'Lectura PDF',
+                    titulo: (pdf['nombre'] ?? '').trim().isNotEmpty
+                        ? pdf['nombre']!.trim()
+                        : 'Lectura PDF',
                     url_cruda: pdf['url'] ?? '',
                     es_pdf: true,
                   ),
@@ -3693,17 +3821,21 @@ class _ReceptorLideresClassroomModalState
                   ),
                   icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
                   label: Text(
-                    "Ver / Descargar PDF: ${pdf['nombre'] ?? 'Material'}",
+                    "PDF: ${(pdf['nombre'] ?? '').trim().isNotEmpty ? pdf['nombre']!.trim() : 'Material'}",
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              for (final enlace in tarea.enlaces_lectura)
+              for (final enlace in enlaces_validos)
                 ElevatedButton.icon(
                   onPressed: () => _abrirModalRecursoLectura(
-                    titulo: enlace['titulo'] ?? 'Enlace de lectura',
+                    titulo: (enlace['titulo'] ?? '').trim().isNotEmpty
+                        ? enlace['titulo']!.trim()
+                        : 'Enlace de lectura',
                     url_cruda: enlace['url'] ?? '',
                     es_pdf: false,
                   ),
@@ -3722,7 +3854,9 @@ class _ReceptorLideresClassroomModalState
                   ),
                   icon: const Icon(Icons.link_rounded, size: 16),
                   label: Text(
-                    "Abrir Enlace: ${enlace['titulo'] ?? enlace['url'] ?? 'Recurso'}",
+                    "Enlace: ${(enlace['titulo'] ?? '').trim().isNotEmpty ? enlace['titulo']!.trim() : (enlace['url'] ?? 'Recurso')}",
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
