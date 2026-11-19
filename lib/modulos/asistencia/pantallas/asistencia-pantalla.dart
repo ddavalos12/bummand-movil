@@ -608,40 +608,43 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                               : const Color(0xFFE2E8F0),
                         ),
                       ),
-                      child: ListTile(
-                        dense: true,
-                        leading: Icon(
-                          Icons.event_available_rounded,
-                          color: es_activo
-                              ? BumandColores.AZUL_DIACONIA
-                              : const Color(0xFF64748B),
-                        ),
-                        title: Text(
-                          ev.titulo,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight:
-                                es_activo ? FontWeight.bold : FontWeight.w600,
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(
+                            Icons.event_available_rounded,
                             color: es_activo
                                 ? BumandColores.AZUL_DIACONIA
-                                : BumandColores.NEGRO,
+                                : const Color(0xFF64748B),
                           ),
+                          title: Text(
+                            ev.titulo,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight:
+                                  es_activo ? FontWeight.bold : FontWeight.w600,
+                              color: es_activo
+                                  ? BumandColores.AZUL_DIACONIA
+                                  : BumandColores.NEGRO,
+                            ),
+                          ),
+                          subtitle: Text(
+                            "${ev.direccion_referencia} • ${ev.fecha} (${ev.hora_inicio}–${ev.hora_fin})",
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          trailing: es_activo
+                              ? const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: BumandColores.AZUL_DIACONIA,
+                                  size: 20,
+                                )
+                              : null,
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _aplicarEventoServicio(ev);
+                          },
                         ),
-                        subtitle: Text(
-                          "${ev.direccion_referencia} • ${ev.fecha} (${ev.hora_inicio}–${ev.hora_fin})",
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                        trailing: es_activo
-                            ? const Icon(
-                                Icons.check_circle_rounded,
-                                color: BumandColores.AZUL_DIACONIA,
-                                size: 20,
-                              )
-                            : null,
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          _aplicarEventoServicio(ev);
-                        },
                       ),
                     );
                   }),
@@ -675,51 +678,54 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                             : const Color(0xFFE2E8F0),
                       ),
                     ),
-                    child: ListTile(
-                      dense: true,
-                      leading: Icon(
-                        Icons.apartment_rounded,
-                        color: es_seleccionado
-                            ? const Color(0xFFD97706)
-                            : const Color(0xFF64748B),
-                      ),
-                      title: Text(
-                        ag["nombre"].toString(),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: es_seleccionado
-                              ? FontWeight.bold
-                              : FontWeight.w600,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(
+                          Icons.apartment_rounded,
                           color: es_seleccionado
-                              ? const Color(0xFF92400E)
-                              : BumandColores.NEGRO,
+                              ? const Color(0xFFD97706)
+                              : const Color(0xFF64748B),
                         ),
+                        title: Text(
+                          ag["nombre"].toString(),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: es_seleccionado
+                                ? FontWeight.bold
+                                : FontWeight.w600,
+                            color: es_seleccionado
+                                ? const Color(0xFF92400E)
+                                : BumandColores.NEGRO,
+                          ),
+                        ),
+                        subtitle: Text(
+                          ag["direccion"].toString(),
+                          style: const TextStyle(fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: es_seleccionado
+                            ? const Icon(
+                                Icons.check_circle_rounded,
+                                color: Color(0xFFD97706),
+                                size: 20,
+                              )
+                            : null,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          final mapa_reubicado = {
+                            ...ag,
+                            if (_evento_servicio_activo != null)
+                              'evento_id': _evento_servicio_activo!.id,
+                          };
+                          setState(() {
+                            _lugar_seleccionado = mapa_reubicado;
+                          });
+                          _escanearUbicacion(lugar_param: mapa_reubicado);
+                        },
                       ),
-                      subtitle: Text(
-                        ag["direccion"].toString(),
-                        style: const TextStyle(fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: es_seleccionado
-                          ? const Icon(
-                              Icons.check_circle_rounded,
-                              color: Color(0xFFD97706),
-                              size: 20,
-                            )
-                          : null,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        final mapa_reubicado = {
-                          ...ag,
-                          if (_evento_servicio_activo != null)
-                            'evento_id': _evento_servicio_activo!.id,
-                        };
-                        setState(() {
-                          _lugar_seleccionado = mapa_reubicado;
-                        });
-                        _escanearUbicacion(lugar_param: mapa_reubicado);
-                      },
                     ),
                   );
                 }),

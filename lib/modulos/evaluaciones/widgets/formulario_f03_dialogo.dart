@@ -508,13 +508,13 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.90,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.90,
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
@@ -734,6 +734,7 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
