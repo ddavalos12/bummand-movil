@@ -1,15 +1,12 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 class ApiConstantes {
-  // Detección automática: 10.0.2.2 en emulador Android, localhost en Windows/Desktop/Web
-  static String get RUTA_BASE {
-    if (kIsWeb) return 'http://localhost:3002';
-    try {
-      if (Platform.isAndroid) return 'http://10.0.2.2:3002';
-    } catch (_) {}
-    return 'http://localhost:3002';
-  }
+  static const String URL_PRODUCCION = 'https://bummand-backend.vercel.app';
+  static const String _URL_ENTORNO = String.fromEnvironment(
+    'API_URL',
+    defaultValue: URL_PRODUCCION,
+  );
+
+  static String get RUTA_BASE =>
+      _URL_ENTORNO.replaceFirst(RegExp(r'/+$'), '');
 
   // Rutas base requeridas por el ecosistema BUMAND
   static const String PUNTO_ASISTENCIA = '/api/asistencia';
