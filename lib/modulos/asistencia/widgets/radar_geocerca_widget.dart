@@ -265,9 +265,14 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
                 ),
                 const SizedBox(width: 7),
                 Text(
-                  widget.dentro_geocerca
-                      ? "Dentro del radio permitido · $distancia_m m"
-                      : "Fuera del radio permitido · $distancia_m m",
+                  ((widget.nombre_lugar ?? '').toLowerCase().contains('rotativa') ||
+                          (widget.nombre_lugar ?? '').toLowerCase().contains('sucursales'))
+                      ? (widget.dentro_geocerca
+                          ? "Agencia rotativa · GPS en vivo verificado"
+                          : "Ubicación GPS no verificable (desactiva GPS falso)")
+                      : (widget.dentro_geocerca
+                          ? "Dentro del radio permitido · $distancia_m m"
+                          : "Fuera del radio permitido · $distancia_m m"),
                   style: TextStyle(
                     color: widget.dentro_geocerca
                         ? const Color(0xFFD1FAE5)

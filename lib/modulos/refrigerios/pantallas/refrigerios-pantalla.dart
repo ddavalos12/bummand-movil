@@ -32,7 +32,10 @@ class RefrigeriosPantalla extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await ref.read(refrigerios_proveedor.notifier).cargarRefrigerios();
+          await Future.wait([
+            ref.read(refrigerios_proveedor.notifier).cargarRefrigerios(),
+            ref.read(lista_becarios_refrigerios_proveedor.notifier).cargarBecarios(),
+          ]);
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),

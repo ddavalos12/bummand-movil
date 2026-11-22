@@ -63,7 +63,8 @@ class BecariosRefrigeriosNotificador extends Notifier<List<String>> {
               })
               .whereType<String>()
               .toSet()
-              .toList();
+              .toList()
+            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
           state = nombres;
         }
@@ -291,6 +292,23 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
       }
     } catch (_) {}
 
+    return false;
+  }
+
+  /// Elimina un registro de refrigerio desde el backend y sincroniza el estado
+  Future<bool> eliminarRefrigerio(int id) async {
+    try {
+      final cabeceras = await _obtenerCabeceras();
+      final url = '${ApiConstantes.RUTA_BASE}/api/refrigerios/$id';
+      final respuesta = await http
+          .delete(Uri.parse(url), headers: cabeceras)
+          .timeout(const Duration(seconds: 15));
+      if (respuesta.statusCode == 200 || respuesta.statusCode == 204) {
+        state = state.where((r) => r.id != id).toList();
+        await cargarRefrigerios();
+        return true;
+      }
+    } catch (_) {}
     return false;
   }
 

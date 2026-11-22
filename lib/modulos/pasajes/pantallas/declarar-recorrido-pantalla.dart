@@ -143,6 +143,8 @@ class _DeclararRecorridoPantallaState
     'Chuquiaguillo / Salida Yungas (La Paz)',
     'Villa Fátima — Plaza del Maestro / Minasa (La Paz)',
     'Obrajes — Calle 17 (Zona Sur, La Paz)',
+    'Bella Vista — Calle Pastor Tejada (La Paz)',
+    'El Prado Paceño — Av. 16 de Julio (La Paz)',
     'Calacoto — Calle 21 (Zona Sur, La Paz)',
     'Chasquipampa — Calle 53 (Zona Sur, La Paz)',
     'Teleférico Línea Roja (Estación Central / 16 de Julio)',
@@ -180,6 +182,8 @@ class _DeclararRecorridoPantallaState
     'Chuquiaguillo / Salida Yungas (La Paz)': (lat: -16.4620, lng: -68.1050),
     'Villa Fátima — Plaza del Maestro / Minasa (La Paz)': (lat: -16.4815, lng: -68.1189),
     'Obrajes — Calle 17 (Zona Sur, La Paz)': (lat: -16.5275, lng: -68.1085),
+    'Bella Vista — Calle Pastor Tejada (La Paz)': (lat: -16.5291, lng: -68.0959),
+    'El Prado Paceño — Av. 16 de Julio (La Paz)': (lat: -16.5002, lng: -68.1332),
     'Calacoto — Calle 21 (Zona Sur, La Paz)': (lat: -16.5398, lng: -68.0865),
     'Chasquipampa — Calle 53 (Zona Sur, La Paz)': (lat: -16.5440, lng: -68.0530),
     'Teleférico Línea Roja (Estación Central / 16 de Julio)': (lat: -16.4918, lng: -68.1452),
@@ -996,8 +1000,22 @@ class _DeclararRecorridoPantallaState
                 direccion['town'];
 
             final calle = calle_obj?.toString().trim();
-            final barrio = barrio_obj?.toString().trim();
+            String? barrio = barrio_obj?.toString().trim();
             final distrito = distrito_obj?.toString().trim();
+
+            // OpenStreetMap suele etiquetar calles de Bella Vista (ej. Pastor Tejada) bajo el polígono "Irpavi".
+            final en_corredor_bella_vista =
+                (pos.latitude >= -16.5345 &&
+                    pos.latitude <= -16.5205 &&
+                    pos.longitude >= -68.1060 &&
+                    pos.longitude <= -68.0935) ||
+                (calle != null &&
+                    (calle.toLowerCase().contains('pastor tejada') ||
+                        calle.toLowerCase().contains('bella vista')));
+            if (en_corredor_bella_vista &&
+                (barrio == null || barrio.toLowerCase() == 'irpavi' || barrio.toLowerCase() == 'obrajes')) {
+              barrio = 'Bella Vista';
+            }
 
             if (calle != null && calle.isNotEmpty) {
               if (barrio != null && barrio.isNotEmpty) {
@@ -2178,182 +2196,233 @@ class _DeclararRecorridoPantallaState
 
     return Container(
       key: ObjectKey(parada),
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Row(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: parada.confirmada
+              ? const Color(0xFF10B981).withValues(alpha: 0.45)
+              : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Número de parada
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFF1F5F9),
-              border: Border.all(color: const Color(0xFFCBD5E1)),
-            ),
-            child: Center(
-              child: Text(
-                '$numero',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF475569),
+          Row(
+            children: [
+              // Número de parada
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: parada.confirmada
+                      ? const Color(0xFF10B981)
+                      : Colors.white,
+                  border: Border.all(
+                    color: parada.confirmada
+                        ? const Color(0xFF059669)
+                        : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '$numero',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: parada.confirmada
+                          ? Colors.white
+                          : const Color(0xFF475569),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
+              const SizedBox(width: 8),
 
-          // Pin GPS (TAREA-05: Pin rojo y autoselección)
-          IconButton(
-            icon: _capturando_gps_id == 'parada_${es_ida ? "ida" : "vuelta"}_$numero'
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Color(0xFFDC2626),
-                    ),
-                  )
-                : Icon(
-                    Icons.location_on,
-                    color: parada.posicion_gps != null
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
-                    size: 22,
+              // Campo de parada con ancho completo legible (sin aplastarse junto al botón de confirmar)
+              Expanded(
+                child: _CampoParadaCombobox(
+                  key: ObjectKey(parada.controlador),
+                  controlador: parada.controlador,
+                  pista: numero == 1
+                      ? "Origen (escribe zona/calle o elige parada)"
+                      : es_ultima
+                          ? "Destino final (escribe o elige parada)"
+                          : "Parada intermedia $numero",
+                  opciones: opciones_disponibles,
+                  alCambiar: (_) => setState(() {}),
+                ),
+              ),
+
+              if (puede_eliminar) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: alEliminar,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              // Botón GPS compacto con descripción clara
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: _capturando_gps_id != null
+                    ? null
+                    : () => _capturarGps(
+                          'parada_${es_ida ? "ida" : "vuelta"}_$numero',
+                          parada,
+                          es_ida: es_ida,
+                          indice: numero - 1,
+                        ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
                   ),
-            tooltip: "Detectar parada más cercana por GPS (Pin Rojo)",
-            visualDensity: VisualDensity.compact,
-            onPressed: _capturando_gps_id != null
-                ? null
-                : () => _capturarGps(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_capturando_gps_id == 'parada_${es_ida ? "ida" : "vuelta"}_$numero')
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFFDC2626),
+                          ),
+                        )
+                      else
+                        Icon(
+                          Icons.location_on,
+                          color: parada.posicion_gps != null
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFFDC2626),
+                          size: 16,
+                        ),
+                      const SizedBox(width: 5),
+                      Text(
+                        parada.posicion_gps != null ? "Actualizar GPS" : "Usar mi GPS",
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF334155),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+
+              // Botón Confirmar / ✓ Ubicación fijada / 📍 Fijar aquí
+              GestureDetector(
+                onTap: () async {
+                  final indice = numero - 1;
+                  final anterior = indice > 0
+                      ? lista_paradas[indice - 1].controlador.text.trim()
+                      : null;
+                  final siguiente = indice < lista_paradas.length - 1
+                      ? lista_paradas[indice + 1].controlador.text.trim()
+                      : null;
+                  final texto_actual = parada.controlador.text.trim();
+
+                  if (parada.confirmada) {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      parada.confirmada = false;
+                    });
+                    return;
+                  }
+
+                  final es_igual_al_anterior = anterior != null &&
+                      anterior.isNotEmpty &&
+                      anterior.toLowerCase() == texto_actual.toLowerCase();
+                  final necesita_gps = parada.lat == null ||
+                      texto_actual.isEmpty ||
+                      es_igual_al_anterior;
+
+                  if (necesita_gps) {
+                    await _capturarGps(
                       'parada_${es_ida ? "ida" : "vuelta"}_$numero',
                       parada,
+                      es_ida: es_ida,
+                      indice: indice,
+                    );
+                  }
+
+                  final texto_final = parada.controlador.text.trim();
+                  if (texto_final.isEmpty) {
+                    _mensaje("Ingresa el nombre o fija el GPS de la parada", es_error: true);
+                    return;
+                  }
+
+                  if (anterior != null &&
+                      anterior.isNotEmpty &&
+                      anterior.toLowerCase() == texto_final.toLowerCase()) {
+                    _mensaje(
+                      "El punto de partida y llegada no pueden ser la misma ubicación",
+                      es_error: true,
+                    );
+                    return;
+                  }
+
+                  if (siguiente != null &&
+                      siguiente.isNotEmpty &&
+                      siguiente.toLowerCase() == texto_final.toLowerCase()) {
+                    _mensaje(
+                      "El punto de partida y llegada no pueden ser la misma ubicación",
+                      es_error: true,
+                    );
+                    return;
+                  }
+
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    parada.confirmada = true;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: parada.confirmada
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: parada.confirmada
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFCBD5E1),
                     ),
-          ),
-
-          // Campo dinámico con autocompletado y menú de paradas frecuentes sin duplicados
-          Expanded(
-            child: _CampoParadaCombobox(
-              key: ObjectKey(parada.controlador),
-              controlador: parada.controlador,
-              pista: numero == 1
-                  ? "Origen (escribe o elige parada)"
-                  : es_ultima
-                      ? "Destino final (escribe o elige parada)"
-                      : "Parada intermedia $numero",
-              opciones: opciones_disponibles,
-              alCambiar: (_) => setState(() {}),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Botón Confirmar / ✓ Ubicación fijada / 📍 Fijar aquí
-          GestureDetector(
-            onTap: () async {
-              final indice = numero - 1;
-              final anterior = indice > 0
-                  ? lista_paradas[indice - 1].controlador.text.trim()
-                  : null;
-              final siguiente = indice < lista_paradas.length - 1
-                  ? lista_paradas[indice + 1].controlador.text.trim()
-                  : null;
-              final texto_actual = parada.controlador.text.trim();
-
-              if (parada.confirmada) {
-                HapticFeedback.selectionClick();
-                setState(() {
-                  parada.confirmada = false;
-                });
-                return;
-              }
-
-              final es_igual_al_anterior = anterior != null &&
-                  anterior.isNotEmpty &&
-                  anterior.toLowerCase() == texto_actual.toLowerCase();
-              final necesita_gps = parada.lat == null ||
-                  texto_actual.isEmpty ||
-                  es_igual_al_anterior;
-
-              if (necesita_gps) {
-                await _capturarGps(
-                  'parada_${es_ida ? "ida" : "vuelta"}_$numero',
-                  parada,
-                  es_ida: es_ida,
-                  indice: indice,
-                );
-              }
-
-              final texto_final = parada.controlador.text.trim();
-              if (texto_final.isEmpty) {
-                _mensaje("Ingresa el nombre o fija el GPS de la parada", es_error: true);
-                return;
-              }
-
-              if (anterior != null &&
-                  anterior.isNotEmpty &&
-                  anterior.toLowerCase() == texto_final.toLowerCase()) {
-                _mensaje(
-                  "El punto de partida y llegada no pueden ser la misma ubicación",
-                  es_error: true,
-                );
-                return;
-              }
-
-              if (siguiente != null &&
-                  siguiente.isNotEmpty &&
-                  siguiente.toLowerCase() == texto_final.toLowerCase()) {
-                _mensaje(
-                  "El punto de partida y llegada no pueden ser la misma ubicación",
-                  es_error: true,
-                );
-                return;
-              }
-
-              HapticFeedback.lightImpact();
-              setState(() {
-                parada.confirmada = true;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: parada.confirmada
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: parada.confirmada
-                      ? const Color(0xFF059669)
-                      : const Color(0xFFCBD5E1),
+                  ),
+                  child: Text(
+                    parada.confirmada
+                        ? "✓ Ubicación fijada"
+                        : (parada.controlador.text.trim().isEmpty ||
+                                (numero > 1 &&
+                                    parada.controlador.text.trim().toLowerCase() ==
+                                        lista_paradas[numero - 2].controlador.text.trim().toLowerCase()))
+                            ? "📍 Fijar aquí"
+                            : "Confirmar",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: parada.confirmada ? Colors.white : const Color(0xFF334155),
+                    ),
+                  ),
                 ),
               ),
-              child: Text(
-                parada.confirmada
-                    ? "✓ Ubicación fijada"
-                    : (parada.controlador.text.trim().isEmpty ||
-                            (numero > 1 &&
-                                parada.controlador.text.trim().toLowerCase() ==
-                                    lista_paradas[numero - 2].controlador.text.trim().toLowerCase()))
-                        ? "📍 Fijar aquí"
-                        : "Confirmar",
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: parada.confirmada ? Colors.white : const Color(0xFF475569),
-                ),
-              ),
-            ),
+            ],
           ),
-
-          if (puede_eliminar) ...[
-            const SizedBox(width: 4),
-            IconButton(
-              icon: const Icon(Icons.close, size: 16, color: Colors.grey),
-              visualDensity: VisualDensity.compact,
-              onPressed: alEliminar,
-            ),
-          ],
         ],
       ),
     );

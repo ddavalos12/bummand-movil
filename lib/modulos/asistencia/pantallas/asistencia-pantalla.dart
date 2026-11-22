@@ -216,14 +216,8 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
 
   void _evaluarGeocerca(Position posicion, Map<String, dynamic>? lugar) {
     final repo = ref.read(asistencia_repositorio_proveedor);
-    final latitud = double.tryParse(
-          lugar?["latitud"]?.toString() ?? "-16.500054",
-        ) ??
-        -16.500054;
-    final longitud = double.tryParse(
-          lugar?["longitud"]?.toString() ?? "-68.173455",
-        ) ??
-        -68.173455;
+    final nombre_lower = (lugar?["nombre"] ?? "").toString().toLowerCase();
+    final id_lugar = int.tryParse((lugar?["id"] ?? "").toString());
     final radio_crudo = double.tryParse(
           (lugar?["radio_tolerancia_m"] ??
                   lugar?["radioToleranciaM"] ??
@@ -232,19 +226,37 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
               .toString(),
         ) ??
         150.0;
+    final es_rotativo = _tipo == TipoAsistencia.practicas.valor &&
+        (id_lugar == 2 ||
+            nombre_lower.contains('rotativa') ||
+            nombre_lower.contains('sucursales') ||
+            radio_crudo == 0);
+
+    final latitud = double.tryParse(
+          lugar?["latitud"]?.toString() ?? "-16.500054",
+        ) ??
+        -16.500054;
+    final longitud = double.tryParse(
+          lugar?["longitud"]?.toString() ?? "-68.173455",
+        ) ??
+        -68.173455;
     final radio = radio_crudo < 150.0 ? 150.0 : radio_crudo;
 
-    final distancia = repo.calcularDistancia(
-      posicion: posicion,
-      latitud_destino: latitud,
-      longitud_destino: longitud,
-    );
-    final dentro = repo.validarGeocerca(
-      posicion: posicion,
-      latitud_destino: latitud,
-      longitud_destino: longitud,
-      radio_tolerancia_m: radio,
-    );
+    final distancia = es_rotativo
+        ? 0.0
+        : repo.calcularDistancia(
+            posicion: posicion,
+            latitud_destino: latitud,
+            longitud_destino: longitud,
+          );
+    final dentro = es_rotativo
+        ? !posicion.isMocked
+        : repo.validarGeocerca(
+            posicion: posicion,
+            latitud_destino: latitud,
+            longitud_destino: longitud,
+            radio_tolerancia_m: radio,
+          );
 
     if (dentro && !_dentro_de_geocerca) {
       HapticFeedback.lightImpact();
