@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../nucleo/tema/colores.dart';
+import '../asistencia/proveedores/asistencia-proveedor.dart';
 import 'proveedores/autenticacion-proveedor.dart';
 import '../inicio/pantallas/inicio-pantalla.dart';
 
@@ -20,13 +21,11 @@ class _VerificacionPostLoginVistaState
   final TextEditingController _direccion_controlador = TextEditingController();
   final TextEditingController _emergencia_controlador = TextEditingController();
   bool _guardando_confirmacion = false;
+  bool _contacto_inicializado = false;
 
   @override
   void initState() {
     super.initState();
-    _telefono_controlador.text = '78945612';
-    _direccion_controlador.text = 'Zona 16 de Julio, Calle Eulert #120, El Alto';
-    _emergencia_controlador.text = 'Juana Laime (Madre) - Cel: 71234567';
   }
 
   @override
@@ -258,14 +257,57 @@ class _VerificacionPostLoginVistaState
   @override
   Widget build(BuildContext context) {
     final usuario = ref.watch(autenticacion_proveedor).usuario;
+    final perfil_async = ref.watch(perfil_proveedor);
+    final datos_perfil = perfil_async.asData?.value.datos;
+
+    if (datos_perfil != null && !_contacto_inicializado) {
+      _contacto_inicializado = true;
+      _telefono_controlador.text =
+          (datos_perfil['celular'] ?? datos_perfil['telefono'] ?? '').toString();
+      _direccion_controlador.text =
+          (datos_perfil['direccion'] ?? '').toString();
+      _emergencia_controlador.text =
+          (datos_perfil['contacto_emergencia'] ?? '').toString();
+    }
+
     final nombre_estudiante =
-        (usuario != null && usuario.nombre.isNotEmpty)
-            ? usuario.nombre
-            : 'Becario';
+        (datos_perfil?['nombre']?.toString().trim().isNotEmpty == true)
+            ? datos_perfil!['nombre'].toString()
+            : ((usuario != null && usuario.nombre.isNotEmpty)
+                ? usuario.nombre
+                : 'Becario');
     final correo_estudiante =
         (usuario != null && usuario.correo.isNotEmpty)
             ? usuario.correo
             : '';
+    final universidad =
+        (datos_perfil?['universidad']?.toString().trim().isNotEmpty == true)
+            ? datos_perfil!['universidad'].toString()
+            : 'Registrado en expediente';
+    final carrera =
+        (datos_perfil?['carrera']?.toString().trim().isNotEmpty == true)
+            ? datos_perfil!['carrera'].toString()
+            : 'Registrado en expediente';
+    final lugar_practica_mapa = datos_perfil?['lugar_practica'] is Map
+        ? Map<String, dynamic>.from(datos_perfil!['lugar_practica'] as Map)
+        : (datos_perfil?['lugarPractica'] is Map
+            ? Map<String, dynamic>.from(datos_perfil!['lugarPractica'] as Map)
+            : null);
+    final lugar_practica =
+        (lugar_practica_mapa?['nombre']?.toString().trim().isNotEmpty == true)
+            ? lugar_practica_mapa!['nombre'].toString()
+            : 'Oficina Central Diaconía IFD - El Alto';
+    final unidad =
+        (datos_perfil?['unidad']?.toString().trim().isNotEmpty == true)
+            ? datos_perfil!['unidad'].toString()
+            : 'Registrado en expediente';
+    final supervisor_mapa = datos_perfil?['supervisor'] is Map
+        ? Map<String, dynamic>.from(datos_perfil!['supervisor'] as Map)
+        : null;
+    final responsable =
+        (supervisor_mapa?['nombre']?.toString().trim().isNotEmpty == true)
+            ? supervisor_mapa!['nombre'].toString()
+            : 'Por asignar';
 
     final hoy = DateTime.now();
     final meses = [
@@ -424,23 +466,23 @@ class _VerificacionPostLoginVistaState
                           ),
                           _construirFilaDatoSoloLectura(
                             'Universidad',
-                            'Universidad Pública de El Alto',
+                            universidad,
                           ),
                           _construirFilaDatoSoloLectura(
                             'Carrera',
-                            'Economía',
+                            carrera,
                           ),
                           _construirFilaDatoSoloLectura(
                             'Lugar de prácticas',
-                            'Oficina Central Diaconía IFD',
+                            lugar_practica,
                           ),
                           _construirFilaDatoSoloLectura(
                             'Unidad',
-                            'Créditos',
+                            unidad,
                           ),
                           _construirFilaDatoSoloLectura(
                             'Responsable',
-                            'Carlos Alanoca',
+                            responsable,
                           ),
                           _construirFilaDatoSoloLectura(
                             'Mes de prácticas',
