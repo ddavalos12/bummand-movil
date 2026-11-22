@@ -19,6 +19,7 @@ final asistencia_repositorio_proveedor = Provider(
 final asistenciaRepositorioProveedor = asistencia_repositorio_proveedor;
 
 final perfil_proveedor = FutureProvider((ref) {
+  ref.watch(autenticacion_proveedor);
   final repo = ref.read(asistencia_repositorio_proveedor);
   return repo.obtenerPerfil();
 });

@@ -26,6 +26,57 @@ class _VerificacionPostLoginVistaState
   @override
   void initState() {
     super.initState();
+    Future.microtask(() => ref.invalidate(perfil_proveedor));
+  }
+
+  String _formatearHorarios(Map<String, dynamic>? perfil) {
+    if (perfil == null) return 'Cargando...';
+    final lista = perfil['horarios_apoyo'];
+    const nombres_dias = {
+      1: 'Lun',
+      2: 'Mar',
+      3: 'Mié',
+      4: 'Jue',
+      5: 'Vie',
+      6: 'Sáb',
+    };
+    if (lista is List && lista.isNotEmpty) {
+      final partes = <String>[];
+      for (final h in lista) {
+        if (h is Map) {
+          final dia = int.tryParse(h['dia_semana']?.toString() ?? '') ?? 0;
+          final ini = (h['hora_inicio'] ?? '').toString();
+          final fin = (h['hora_fin'] ?? '').toString();
+          final ini_corta = ini.length >= 5 ? ini.substring(0, 5) : ini;
+          final fin_corta = fin.length >= 5 ? fin.substring(0, 5) : fin;
+          if (dia > 0 && ini_corta.isNotEmpty && fin_corta.isNotEmpty) {
+            partes.add('${nombres_dias[dia] ?? 'Día $dia'} $ini_corta-$fin_corta');
+          }
+        }
+      }
+      if (partes.isNotEmpty) return partes.join(' · ');
+    }
+    final semanal = perfil['horario_semanal'];
+    if (semanal is Map && semanal.isNotEmpty) {
+      const orden_dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+      const etiquetas = {
+        'lunes': 'Lun',
+        'martes': 'Mar',
+        'miercoles': 'Mié',
+        'jueves': 'Jue',
+        'viernes': 'Vie',
+        'sabado': 'Sáb',
+      };
+      final partes = <String>[];
+      for (final clave in orden_dias) {
+        final v = semanal[clave]?.toString().trim();
+        if (v != null && v.isNotEmpty && v != '-' && v != '—') {
+          partes.add('${etiquetas[clave]} $v');
+        }
+      }
+      if (partes.isNotEmpty) return partes.join(' · ');
+    }
+    return 'Horario pendiente de asignación';
   }
 
   @override
@@ -41,12 +92,16 @@ class _VerificacionPostLoginVistaState
     setState(() => _guardando_confirmacion = true);
 
     final repo = ref.read(autenticacion_repositorio_proveedor);
-    final resultado = await repo.confirmarDatosPropios();
+    final resultado = await repo.confirmarDatosPropios(
+      celular: _telefono_controlador.text.trim(),
+      direccion: _direccion_controlador.text.trim(),
+    );
 
     if (!mounted) return;
     setState(() => _guardando_confirmacion = false);
 
     if (resultado.exito) {
+      ref.invalidate(perfil_proveedor);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✓ Datos confirmados formalmente ante Diaconía FRIF-IFD'),
@@ -296,18 +351,23 @@ class _VerificacionPostLoginVistaState
     final lugar_practica =
         (lugar_practica_mapa?['nombre']?.toString().trim().isNotEmpty == true)
             ? lugar_practica_mapa!['nombre'].toString()
-            : 'Oficina Central Diaconía IFD - El Alto';
+            : (perfil_async.isLoading ? 'Cargando...' : 'Sin sede asignada');
+    final ubicacion =
+        (datos_perfil?['ubicacion']?.toString().trim().isNotEmpty == true)
+            ? datos_perfil!['ubicacion'].toString()
+            : (perfil_async.isLoading ? 'Cargando...' : 'Por asignar');
     final unidad =
         (datos_perfil?['unidad']?.toString().trim().isNotEmpty == true)
             ? datos_perfil!['unidad'].toString()
-            : 'Registrado en expediente';
+            : (perfil_async.isLoading ? 'Cargando...' : 'Registrado en expediente');
     final supervisor_mapa = datos_perfil?['supervisor'] is Map
         ? Map<String, dynamic>.from(datos_perfil!['supervisor'] as Map)
         : null;
     final responsable =
         (supervisor_mapa?['nombre']?.toString().trim().isNotEmpty == true)
             ? supervisor_mapa!['nombre'].toString()
-            : 'Por asignar';
+            : (perfil_async.isLoading ? 'Cargando...' : 'Por asignar');
+    final horario_asignado = _formatearHorarios(datos_perfil);
 
     final hoy = DateTime.now();
     final meses = [
@@ -477,12 +537,20 @@ class _VerificacionPostLoginVistaState
                             lugar_practica,
                           ),
                           _construirFilaDatoSoloLectura(
+                            'Ubicación',
+                            ubicacion,
+                          ),
+                          _construirFilaDatoSoloLectura(
                             'Unidad',
                             unidad,
                           ),
                           _construirFilaDatoSoloLectura(
                             'Responsable',
                             responsable,
+                          ),
+                          _construirFilaDatoSoloLectura(
+                            'Horario asignado',
+                            horario_asignado,
                           ),
                           _construirFilaDatoSoloLectura(
                             'Mes de prácticas',

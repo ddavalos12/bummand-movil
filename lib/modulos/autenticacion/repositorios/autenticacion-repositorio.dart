@@ -765,7 +765,10 @@ class AutenticacionRepositorio {
     }
   }
 
-  Future<Resultado<String>> confirmarDatosPropios() async {
+  Future<Resultado<String>> confirmarDatosPropios({
+    String? celular,
+    String? direccion,
+  }) async {
     final token = await obtenerToken();
     if (token == null) return Resultado.fallido('Sesión no encontrada');
 
@@ -773,12 +776,21 @@ class AutenticacionRepositorio {
       final url = Uri.parse(
         '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_BECARIOS_CONFIRMAR_DATOS}',
       );
+      final Map<String, dynamic> cuerpo_envio = {};
+      if (celular != null && celular.trim().isNotEmpty) {
+        cuerpo_envio['celular'] = celular.trim();
+      }
+      if (direccion != null && direccion.trim().isNotEmpty) {
+        cuerpo_envio['direccion'] = direccion.trim();
+      }
+
       final respuesta = await _cliente_http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
+        body: jsonEncode(cuerpo_envio),
       );
 
       if (respuesta.statusCode != 200 && respuesta.statusCode != 201) {

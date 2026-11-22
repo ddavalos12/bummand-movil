@@ -8,6 +8,7 @@ import '../../../widgets-comunes/tarjeta-spotlight.dart';
 import '../../../widgets-comunes/boton-juicy.dart';
 import '../proveedores/autenticacion-proveedor.dart';
 import '../verificacion_post_login_vista.dart';
+import '../../asistencia/proveedores/asistencia-proveedor.dart';
 import '../../inicio/pantallas/inicio-pantalla.dart';
 import 'registro-pantalla.dart';
 
@@ -64,6 +65,7 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
         .iniciarSesion(correo, contrasena);
 
     if (exito && mounted) {
+      ref.invalidate(perfil_proveedor);
       final repo = ref.read(autenticacion_repositorio_proveedor);
       final estado_confirmacion = await repo.consultarEstadoConfirmacion();
 
