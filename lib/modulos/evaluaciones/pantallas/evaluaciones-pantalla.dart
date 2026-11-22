@@ -115,7 +115,7 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
         final String supervisor_nombre =
             resultado['supervisor_nombre']?.toString() ??
                 auth.usuario?.nombre ??
-                "Lic. Carlos Mendoza";
+                "Mentor";
         final String? codigo_verificacion =
             resultado['codigo_verificacion']?.toString();
 
@@ -552,14 +552,14 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
         "numero": 1,
         "titulo": "Liderazgo en la Iglesia",
         "subtitulo": "Formación y servicio comunitario · Formulario F-03",
-        "estado": "Completado",
+        "estado": "Pendiente",
         "accion": "Ver formulario",
       },
       {
         "numero": 2,
         "titulo": "Autoevaluación Académica",
         "subtitulo": "Récord Académico + Historial Académico",
-        "estado": "Documentos Recibidos",
+        "estado": "Pendiente",
         "accion": "Subir documentos",
       },
       {
@@ -573,8 +573,8 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
         "numero": 4,
         "titulo": "Evaluación Escuela de Líderes",
         "subtitulo": "Asistencia y participación en talleres de viernes",
-        "estado": "Completado",
-        "accion": "Ver tareas",
+        "estado": "Pendiente",
+        "accion": "Ver detalle",
       },
       {
         "numero": 5,

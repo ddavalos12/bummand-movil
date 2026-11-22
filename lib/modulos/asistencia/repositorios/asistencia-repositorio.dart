@@ -549,7 +549,7 @@ class AsistenciaRepositorio {
 
       final respuesta = await cliente_http
           .get(uri, headers: cabeceras)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 15));
 
       if (respuesta.statusCode == 200) {
         final decodificado = jsonDecode(respuesta.body);
@@ -583,7 +583,7 @@ class AsistenciaRepositorio {
 
       final respuesta = await cliente_http
           .get(uri, headers: cabeceras)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 15));
 
       if (respuesta.statusCode == 200) {
         final decodificado = jsonDecode(respuesta.body);
@@ -614,7 +614,7 @@ class AsistenciaRepositorio {
       porcentaje_cumplido: 0,
       estado: "EN PROGRESO",
       jornadas_totales: 0,
-      tasa_puntualidad: 100,
+      tasa_puntualidad: 0,
       movimientos: const [],
     );
   }

@@ -1,11 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../animaciones/animaciones.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/tipo-asistencia.dart';
 import '../proveedores/asistencia-proveedor.dart';
 import '../widgets/radar_geocerca_widget.dart';
@@ -61,46 +66,10 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
   List<Evento> _eventos_servicio = [];
   Evento? _evento_servicio_activo;
 
-  static const List<Map<String, dynamic>> _AGENCIAS_DIACONIA = [
+  List<Map<String, dynamic>> _sedes_diaconia = [
     {
       "id": 1,
-      "nombre": "Iglesia Bautista Central",
-      "direccion": "Zona 16 de Julio, El Alto — becaria: María Catunta Laime",
-      "latitud": -16.500054,
-      "longitud": -68.173455,
-      "radio_tolerancia_m": 60.0,
-    },
-    {
-      "id": 2,
-      "nombre": "Oficina Central Diaconía IFD - El Alto",
-      "direccion": "Av. Juan Pablo II esq. Calle Sbtte. Jorge Eulert 125, El Alto",
-      "latitud": -16.500054,
-      "longitud": -68.173455,
-      "radio_tolerancia_m": 60.0,
-    },
-    {
-      "id": 3,
-      "nombre": "Sucursal La Paz - San Pedro",
-      "direccion": "Calle Colombia N° 450, Zona San Pedro, La Paz",
-      "latitud": -16.501500,
-      "longitud": -68.138200,
-      "radio_tolerancia_m": 50.0,
-    },
-    {
-      "id": 4,
-      "nombre": "Agencia Chasquipampa",
-      "direccion": "Calle 53 esq. Av. Principal Chasquipampa, Zona Sur, La Paz",
-      "latitud": -16.541200,
-      "longitud": -68.061100,
-      "radio_tolerancia_m": 50.0,
-    },
-    {
-      "id": 5,
-      "nombre": "Agencia Viacha",
-      "direccion": "Plaza Principal José Ballivián N° 85, Viacha",
-      "latitud": -16.652100,
-      "longitud": -68.301500,
-      "radio_tolerancia_m": 60.0,
+      ..._SEDE_CENTRAL_DEFECTO,
     },
   ];
 
@@ -110,7 +79,45 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _escanearUbicacion();
       _cargarEventosServicio();
+      _cargarLugaresPractica();
     });
+  }
+
+  Future<void> _cargarLugaresPractica() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token =
+          ref.read(autenticacion_proveedor).usuario?.token ??
+          prefs.getString('token');
+      final res = await http
+          .get(
+            Uri.parse('${ApiConstantes.RUTA_BASE}/api/lugares-practica'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final raw = jsonDecode(res.body);
+        if (raw is List && raw.isNotEmpty && mounted) {
+          final sedes = raw.whereType<Map>().map((m) {
+            final mapa = Map<String, dynamic>.from(m);
+            return <String, dynamic>{
+              "id": mapa["id"],
+              "nombre": (mapa["nombre"] ?? "Sede institucional").toString(),
+              "direccion": (mapa["direccion"] ?? "").toString(),
+              "latitud": double.tryParse(mapa["latitud"]?.toString() ?? "") ?? -16.500054,
+              "longitud": double.tryParse(mapa["longitud"]?.toString() ?? "") ?? -68.173455,
+              "radio_tolerancia_m": double.tryParse(mapa["radio_tolerancia_m"]?.toString() ?? "") ?? 60.0,
+            };
+          }).toList();
+          if (sedes.isNotEmpty) {
+            setState(() => _sedes_diaconia = sedes);
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   void _mensaje(String texto, {bool es_error = false}) {
@@ -461,9 +468,9 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
               SizedBox(
                 height: 280,
                 child: ListView.builder(
-                  itemCount: _AGENCIAS_DIACONIA.length,
+                  itemCount: _sedes_diaconia.length,
                   itemBuilder: (ctx, i) {
-                    final ag = _AGENCIAS_DIACONIA[i];
+                    final ag = _sedes_diaconia[i];
                     final es_actual = (_lugar_seleccionado != null &&
                         _lugar_seleccionado!["nombre"] == ag["nombre"]);
                     return ListTile(
@@ -662,7 +669,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ..._AGENCIAS_DIACONIA.map((ag) {
+                ..._sedes_diaconia.map((ag) {
                   final es_seleccionado = _lugar_seleccionado != null &&
                       _lugar_seleccionado!["nombre"] == ag["nombre"];
                   return Container(
@@ -800,7 +807,9 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     }
 
     final nombre_becario =
-        perfil_async.asData?.value.datos?["nombre"] ?? "María Catunta Laime";
+        perfil_async.asData?.value.datos?["nombre"] ??
+        ref.read(autenticacion_proveedor).usuario?.nombre ??
+        "Becario";
 
     final ahora = DateTime.now();
     final es_escuela_lideres_viernes = ahora.weekday == DateTime.friday &&

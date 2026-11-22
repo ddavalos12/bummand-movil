@@ -181,8 +181,8 @@ class DetalleEvaluacionModal extends StatelessWidget {
   static void mostrarFormularioMentor(
     BuildContext context, {
     int becario_id = 1,
-    String becario_nombre = "María Catunta Laime",
-    String supervisor_nombre_inicial = "Lic. Carlos Mendoza",
+    String becario_nombre = "Becario",
+    String supervisor_nombre_inicial = "Mentor",
     String modalidad_llenado = "perfil_supervisor",
     String? codigo_verificacion,
     Map<String, dynamic>? evaluacion_previa,
@@ -1344,13 +1344,13 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
       barrierDismissible: false,
       builder: (ctx) => _DialogoVerificacionSupervisor(
         becario_id: 1,
-        becario_nombre: "María Catunta Laime",
+        becario_nombre: "Becario",
         codigo_activo: _codigo_activo,
       ),
     ).then((resultado) {
       if (resultado != null && context.mounted) {
         final String supervisor_nombre = resultado is Map
-            ? (resultado['supervisor_nombre']?.toString() ?? "Lic. Carlos Mendoza")
+            ? (resultado['supervisor_nombre']?.toString() ?? "Mentor")
             : resultado.toString();
         final String? codigo_verificacion =
             resultado is Map ? resultado['codigo_verificacion']?.toString() : null;
@@ -1376,7 +1376,7 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
       backgroundColor: Colors.transparent,
       builder: (_) => _FormularioSupervisorEvaluador(
         becario_id: 1,
-        becario_nombre: "María Catunta Laime",
+        becario_nombre: "Becario",
         supervisor_nombre_inicial: supervisor_nombre,
         modalidad_llenado: "celular_estudiante",
         codigo_verificacion: codigo_verificacion,
@@ -1905,8 +1905,8 @@ class _FormularioSupervisorEvaluador extends StatefulWidget {
 
   const _FormularioSupervisorEvaluador({
     this.becario_id = 1,
-    this.becario_nombre = "María Catunta Laime",
-    this.supervisor_nombre_inicial = "Lic. Carlos Mendoza",
+    this.becario_nombre = "Becario",
+    this.supervisor_nombre_inicial = "Mentor",
     this.modalidad_llenado = "perfil_supervisor",
     this.codigo_verificacion,
     this.evaluacion_previa,
@@ -2689,8 +2689,7 @@ class _ReceptorLideresClassroomModalState
     extends ConsumerState<_ReceptorLideresClassroomModal> {
   final _repositorio = EvaluacionesRepositorio();
 
-  List<TareaEscuelaLideresModelo> _tareas =
-      TareaEscuelaLideresModelo.catalogoCanonico();
+  List<TareaEscuelaLideresModelo> _tareas = const [];
   String _filtro = "Todas";
   bool _cargando_tareas = true;
 
@@ -2714,9 +2713,7 @@ class _ReceptorLideresClassroomModalState
       );
       if (!mounted) return;
       setState(() {
-        if (resultado.exito &&
-            resultado.datos != null &&
-            resultado.datos!.isNotEmpty) {
+        if (resultado.exito && resultado.datos != null) {
           _tareas = resultado.datos!;
         }
         _cargando_tareas = false;
@@ -3395,7 +3392,7 @@ class _ReceptorLideresClassroomModalState
           ),
           const SizedBox(height: 2),
           Text(
-            "12 Tareas Formativas Semestrales · Estilo Classroom con evidencia y retroalimentación",
+            "Tareas registradas en base de datos · Escuela de Líderes",
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 12),
@@ -3622,7 +3619,41 @@ class _ReceptorLideresClassroomModalState
           ],
 
           Expanded(
-            child: ListView.builder(
+            child: (!_cargando_tareas && tareas_filtradas.isEmpty)
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.assignment_outlined,
+                            size: 46,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            "No hay tareas registradas",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Actualmente no existen tareas asignadas en la base de datos.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
                     itemCount: tareas_filtradas.length,
                     itemBuilder: (context, index) {
                       final tarea = tareas_filtradas[index];

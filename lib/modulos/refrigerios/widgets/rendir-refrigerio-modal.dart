@@ -1,8 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
+import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/refrigerio-modelo.dart';
 import '../proveedores/refrigerios-proveedor.dart';
 
@@ -40,15 +45,12 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
 
   String? _encargado_1;
   String? _encargado_2;
-  String _sede_seleccionada = 'Oficina Central El Alto';
+  String _sede_seleccionada = 'Oficina Central Diaconía IFD - El Alto';
   String _bloque_seleccionado = 'Bloque B (Auditorio / Cocina Diaconía)';
   bool _guardando = false;
 
-  final List<String> _sedes = const [
-    'Oficina Central El Alto',
-    'Agencia Juan Pablo II',
-    'Agencia La Paz Central',
-    'Sucursal Villa Adela',
+  List<String> _sedes = [
+    'Oficina Central Diaconía IFD - El Alto',
   ];
 
   final List<String> _bloques = const [
@@ -96,13 +98,54 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
     _encargado_2 = item?.becario_encargado_2_nombre;
 
     if (item != null) {
-      if (_sedes.contains(item.sede_nombre)) {
+      if (item.sede_nombre.isNotEmpty) {
+        if (!_sedes.contains(item.sede_nombre)) {
+          _sedes = [item.sede_nombre, ..._sedes];
+        }
         _sede_seleccionada = item.sede_nombre;
       }
       if (_bloques.contains(item.bloque)) {
         _bloque_seleccionado = item.bloque;
       }
     }
+    Future.microtask(() => _cargarSedesDesdeServidor());
+  }
+
+  Future<void> _cargarSedesDesdeServidor() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token =
+          ref.read(autenticacion_proveedor).usuario?.token ??
+          prefs.getString('token');
+      final res = await http
+          .get(
+            Uri.parse('${ApiConstantes.RUTA_BASE}/api/lugares-practica'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final raw = jsonDecode(res.body);
+        if (raw is List) {
+          final nombres = raw
+              .whereType<Map>()
+              .map((m) => (m['nombre'] ?? '').toString().trim())
+              .where((n) => n.isNotEmpty)
+              .toSet()
+              .toList();
+          if (nombres.isNotEmpty && mounted) {
+            setState(() {
+              _sedes = nombres;
+              if (!_sedes.contains(_sede_seleccionada)) {
+                _sede_seleccionada = _sedes.first;
+              }
+            });
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -173,8 +216,17 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
     final fecha_str =
         '${_fecha_entrega.year.toString().padLeft(4, '0')}-${_fecha_entrega.month.toString().padLeft(2, '0')}-${_fecha_entrega.day.toString().padLeft(2, '0')}';
 
-    final enc1 = _encargado_1 ?? 'María Catunta Laime';
-    final enc2 = _encargado_2 ?? 'Juan Carlos Quispe';
+    final enc1 = (_encargado_1 ?? '').trim();
+    final enc2 = (_encargado_2 ?? '').trim();
+    if (enc1.isEmpty || enc2.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona los dos becarios encargados desde el directorio de base de datos.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     final obs = _observaciones_ctrl.text.trim();
 
     final datos = <String, dynamic>{
@@ -202,8 +254,9 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
     setState(() => _guardando = true);
 
     try {
+      bool exito = false;
       if (widget.refrigerio != null && widget.refrigerio!.id > 0) {
-        await ref.read(refrigerios_proveedor.notifier).rendirRefrigerio(
+        exito = await ref.read(refrigerios_proveedor.notifier).rendirRefrigerio(
               id: widget.refrigerio!.id,
               menu_detalle: obs.isNotEmpty ? obs : _evento_ctrl.text.trim(),
               modalidad_preparacion: widget.refrigerio!.modalidad_preparacion,
@@ -212,7 +265,10 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
               observaciones: obs,
             );
       } else {
-        await ref.read(refrigerios_proveedor.notifier).registrarRacionesRefrigerio(datos);
+        exito = await ref.read(refrigerios_proveedor.notifier).registrarRacionesRefrigerio(datos);
+      }
+      if (!exito) {
+        throw Exception('El servidor no pudo guardar la rendición');
       }
 
       if (!mounted) return;

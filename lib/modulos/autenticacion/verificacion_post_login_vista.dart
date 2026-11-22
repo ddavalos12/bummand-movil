@@ -261,11 +261,11 @@ class _VerificacionPostLoginVistaState
     final nombre_estudiante =
         (usuario != null && usuario.nombre.isNotEmpty)
             ? usuario.nombre
-            : 'María Catunta Laime';
+            : 'Becario';
     final correo_estudiante =
         (usuario != null && usuario.correo.isNotEmpty)
             ? usuario.correo
-            : 'nilda.churata@bumand.bo';
+            : '';
 
     final hoy = DateTime.now();
     final meses = [

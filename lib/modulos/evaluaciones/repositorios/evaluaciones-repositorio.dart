@@ -247,7 +247,7 @@ class EvaluacionesRepositorio {
       if (cliente == null) cliente_http.close();
     }
 
-    const supervisor_guardado = 'Lic. Carlos Mendoza';
+    const supervisor_guardado = 'Mentor asignado';
 
     if (codigo_normalizado != null && codigo_normalizado.isNotEmpty) {
       if (codigo_normalizado.length == 6) {
@@ -467,7 +467,7 @@ class EvaluacionesRepositorio {
 
       final respuesta = await cliente_http
           .get(Uri.parse(ruta), headers: cabeceras)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 15));
 
       if (respuesta.statusCode == 200) {
         final cuerpo = jsonDecode(respuesta.body);
@@ -476,7 +476,7 @@ class EvaluacionesRepositorio {
             : (cuerpo is Map && cuerpo['tareas'] is List
                 ? cuerpo['tareas'] as List<dynamic>
                 : null);
-        if (lista_raw != null && lista_raw.isNotEmpty) {
+        if (lista_raw != null) {
           final tareas = lista_raw
               .map((t) => TareaEscuelaLideresModelo.desdeJson(
                     Map<String, dynamic>.from(t as Map),
@@ -485,9 +485,9 @@ class EvaluacionesRepositorio {
           return Resultado.exitoso(tareas);
         }
       }
-      return Resultado.exitoso(TareaEscuelaLideresModelo.catalogoCanonico());
+      return Resultado.exitoso(const []);
     } catch (_) {
-      return Resultado.exitoso(TareaEscuelaLideresModelo.catalogoCanonico());
+      return Resultado.exitoso(const []);
     } finally {
       if (cliente == null) cliente_http.close();
     }

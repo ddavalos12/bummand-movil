@@ -342,21 +342,28 @@ class _HistorialAsistenciaPantallaState
                   filtrados = todos;
                 }
 
-                // Caso A: Sin resultados de búsqueda
+                // Caso A: Sin resultados o sin registros en base de datos
                 if (filtrados.isEmpty) {
+                  final sin_filtro =
+                      query.isEmpty && _mes_seleccionado_asistencia == "todos";
                   return ListView(
                     padding: const EdgeInsets.all(32),
                     children: [
                       const SizedBox(height: 20),
                       Icon(
-                        Icons.search_off_rounded,
+                        sin_filtro
+                            ? Icons.event_note_outlined
+                            : Icons.search_off_rounded,
                         size: 48,
                         color: Colors.grey.shade400,
                       ),
                       const SizedBox(height: 12),
                       Center(
                         child: Text(
-                          "No se encontraron registros para '$query'",
+                          sin_filtro
+                              ? "Aún no tienes asistencias registradas"
+                              : "No se encontraron registros para '$query'",
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.bold,
@@ -367,30 +374,35 @@ class _HistorialAsistenciaPantallaState
                       const SizedBox(height: 6),
                       Center(
                         child: Text(
-                          "Verifica el nombre del mes o selecciona 'Todos los meses'.",
+                          sin_filtro
+                              ? "Tus marcaciones de ingreso y salida aparecerán aquí cuando se registren en la base de datos."
+                              : "Verifica el nombre del mes o selecciona 'Todos los meses'.",
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            _controlador_busqueda_asistencia.clear();
-                            setState(() => _mes_seleccionado_asistencia = "todos");
-                          },
-                          icon: const Icon(Icons.refresh, size: 16),
-                          label: const Text("Ver todos los meses"),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: BumandColores.AZUL_DIACONIA,
-                            side: const BorderSide(
-                              color: BumandColores.AZUL_DIACONIA,
+                      if (!sin_filtro) ...[
+                        const SizedBox(height: 16),
+                        Center(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              _controlador_busqueda_asistencia.clear();
+                              setState(() => _mes_seleccionado_asistencia = "todos");
+                            },
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text("Ver todos los meses"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: BumandColores.AZUL_DIACONIA,
+                              side: const BorderSide(
+                                color: BumandColores.AZUL_DIACONIA,
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   );
                 }

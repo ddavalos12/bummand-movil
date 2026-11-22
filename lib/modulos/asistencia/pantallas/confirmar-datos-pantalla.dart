@@ -118,13 +118,13 @@ class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla>
       body: perfil_async.when(
         data: (resultado) {
           final p = resultado.datos ?? {
-            'nombre': 'María Catunta Laime',
-            'ci': '9876543 LP',
-            'universidad': 'Universidad Pública de El Alto (UPEA)',
-            'carrera': 'Contaduría Pública',
-            'iglesia': 'Iglesia Bautista Central',
-            'lugarPractica': {'nombre': 'Oficina Central Diaconía IFD'},
-            'tutor': {'nombre': 'Angel Javier Ali Paz'},
+            'nombre': 'Becario',
+            'ci': '',
+            'universidad': '',
+            'carrera': '',
+            'iglesia': '',
+            'lugarPractica': {'nombre': 'Oficina Central Diaconía IFD - El Alto'},
+            'tutor': {'nombre': ''},
           };
 
           _inicializarCamposContacto(p);
@@ -206,7 +206,7 @@ class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla>
                   children: [
                     _FilaBloqueada(
                       etiqueta: "Estudiante",
-                      valor: p["nombre"]?.toString() ?? "María Catunta Laime",
+                      valor: p["nombre"]?.toString() ?? "Becario",
                     ),
                     const Divider(height: 20),
                     _FilaBloqueada(

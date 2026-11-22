@@ -17,13 +17,13 @@ class FormularioF03Dialogo extends ConsumerStatefulWidget {
 
   const FormularioF03Dialogo({
     super.key,
-    this.nombre_becario = "María Catunta Laime",
+    this.nombre_becario = "Becario",
     this.becario_id,
   });
 
   static void mostrar(
     BuildContext context, {
-    String nombre_becario = "María Catunta Laime",
+    String nombre_becario = "Becario",
     int? becario_id,
   }) {
     showModalBottomSheet(

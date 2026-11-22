@@ -110,9 +110,11 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
     final es_admin = esRolAdmin(rol_crudo);
     final es_supervisor = esRolMentor(rol_crudo) && !es_admin;
     final es_becario = !es_admin && !es_supervisor;
-    final nombre_completo = datos_perfil?["nombre"] ?? "María Catunta Laime";
+    final nombre_completo = datos_perfil?["nombre"] ??
+        estado_auth.usuario?.nombre ??
+        "Becario";
     final partes_nombre = nombre_completo.split(' ');
-    final primer_nombre = partes_nombre.isNotEmpty ? partes_nombre.first : "María";
+    final primer_nombre = partes_nombre.isNotEmpty ? partes_nombre.first : "Becario";
     final extractos_async = ref.watch(extractos_mensuales_proveedor);
     final extracto_actual = extractos_async.asData?.value.isNotEmpty == true
         ? extractos_async.asData!.value.first

@@ -100,7 +100,7 @@ class _DetalleHistorialPasajePantallaState
 
   List<ItemRecorridoDeclarado> _agruparRecorridos(List<RecorridoModelo> lista) {
     if (lista.isEmpty) {
-      return _generarRecorridosEjemplo(_solicitud.periodo);
+      return const [];
     }
 
     final ordenados = List<RecorridoModelo>.from(lista)
@@ -212,56 +212,6 @@ class _DetalleHistorialPasajePantallaState
     });
 
     return resultado;
-  }
-
-  List<ItemRecorridoDeclarado> _generarRecorridosEjemplo(String periodo_str) {
-    final (anio, mes) = FormatoPasajes.parsearPeriodo(periodo_str);
-    final mes_str = mes.toString().padLeft(2, '0');
-
-    return [
-      ItemRecorridoDeclarado(
-        fecha_formateada: "02-$mes_str",
-        fecha: DateTime(anio, mes, 2),
-        paradas_texto: "Av. Buenos Aires - Oficina Central - Av. Buenos Aires",
-        tarifa: 5.00,
-      ),
-      ItemRecorridoDeclarado(
-        fecha_formateada: "04-$mes_str",
-        fecha: DateTime(anio, mes, 4),
-        paradas_texto: "Av. Buenos Aires - Oficina Central - Av. Buenos Aires",
-        tarifa: 5.00,
-      ),
-      ItemRecorridoDeclarado(
-        fecha_formateada: "06-$mes_str",
-        fecha: DateTime(anio, mes, 6),
-        paradas_texto: "Av. Buenos Aires - Oficina Central",
-        tarifa: 2.50,
-      ),
-      ItemRecorridoDeclarado(
-        fecha_formateada: "09-$mes_str",
-        fecha: DateTime(anio, mes, 9),
-        paradas_texto: "Av. Buenos Aires - Oficina Central - Av. Buenos Aires",
-        tarifa: 5.00,
-      ),
-      ItemRecorridoDeclarado(
-        fecha_formateada: "11-$mes_str",
-        fecha: DateTime(anio, mes, 11),
-        paradas_texto: "Av. Buenos Aires - Oficina Central - Av. Buenos Aires",
-        tarifa: 5.00,
-      ),
-      ItemRecorridoDeclarado(
-        fecha_formateada: "13-$mes_str",
-        fecha: DateTime(anio, mes, 13),
-        paradas_texto: "Av. Buenos Aires - Oficina Central",
-        tarifa: 3.00,
-      ),
-      ItemRecorridoDeclarado(
-        fecha_formateada: "16-$mes_str",
-        fecha: DateTime(anio, mes, 16),
-        paradas_texto: "Av. Buenos Aires - Oficina Central",
-        tarifa: 2.50,
-      ),
-    ];
   }
 
   @override

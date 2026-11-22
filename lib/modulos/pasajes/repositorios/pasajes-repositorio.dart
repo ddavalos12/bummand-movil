@@ -9,7 +9,6 @@ import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../../../nucleo/utilidades/filtro-mentor.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../../autenticacion/repositorios/autenticacion-repositorio.dart';
-import '../modelos/recorrido-modelo.dart';
 import '../modelos/solicitud-pasaje-modelo.dart';
 
 class ResultadoPasaje<T> extends Resultado<T> {
@@ -66,95 +65,8 @@ class PasajesRepositorio {
   Uri _url(String ruta) =>
       Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_PASAJES}$ruta');
 
-  Future<List<RecorridoModelo>> _obtenerRecorridosLocales() async {
-    try {
-      final preferencias = await SharedPreferences.getInstance();
-      final texto = preferencias.getString(_CLAVE_RECORRIDOS_LOCALES);
-      if (texto == null || texto.isEmpty) return [];
-      final lista = jsonDecode(texto) as List<dynamic>;
-      return lista
-          .map((e) => RecorridoModelo.desdeJson(e as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
-      return [];
-    }
-  }
-
-  Future<void> _guardarRecorridoLocal(Map<String, dynamic> cuerpo) async {
-    try {
-      final actuales = await _obtenerRecorridosLocales();
-      final nuevo = RecorridoModelo(
-        id: DateTime.now().millisecondsSinceEpoch,
-        fecha: DateTime.tryParse(cuerpo['fecha']?.toString() ?? '') ??
-            DateTime.now(),
-        tramo: (cuerpo['tramo'] ?? 'ida').toString(),
-        origen: (cuerpo['origen'] ?? '').toString(),
-        destino: (cuerpo['destino'] ?? '').toString(),
-        tarifa: (cuerpo['tarifa'] as num?)?.toDouble() ?? 0.0,
-        apoyo_realizado: cuerpo['apoyo_realizado']?.toString(),
-        calles_declaradas: cuerpo['calles_declaradas']?.toString(),
-        medio_transporte: cuerpo['medio_transporte']?.toString(),
-        detalle_tramos_json: cuerpo['detalle_tramos_json']?.toString(),
-        lat_origen: (cuerpo['lat_origen'] as num?)?.toDouble(),
-        lng_origen: (cuerpo['lng_origen'] as num?)?.toDouble(),
-        lat_destino: (cuerpo['lat_destino'] as num?)?.toDouble(),
-        lng_destino: (cuerpo['lng_destino'] as num?)?.toDouble(),
-      );
-      actuales.insert(0, nuevo);
-      final preferencias = await SharedPreferences.getInstance();
-      await preferencias.setString(
-        _CLAVE_RECORRIDOS_LOCALES,
-        jsonEncode(actuales.map((r) => r.aJson()).toList()),
-      );
-    } catch (_) {}
-  }
-
-  List<SolicitudPasajeModelo> _combinarConRecorridosLocales(
-    List<SolicitudPasajeModelo> remotas,
-    List<RecorridoModelo> locales,
-  ) {
-    if (locales.isEmpty) return remotas;
-    final ahora = DateTime.now();
-    final periodo_actual =
-        '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}';
-
-    final resultado = List<SolicitudPasajeModelo>.from(remotas);
-    final idx = resultado.indexWhere((s) => s.periodo == periodo_actual);
-
-    if (idx >= 0) {
-      final existente = resultado[idx];
-      final combinados = [...locales, ...existente.recorridos];
-      final total = combinados.fold<double>(0.0, (s, r) => s + r.tarifa);
-      resultado[idx] = SolicitudPasajeModelo(
-        id: existente.id,
-        periodo: existente.periodo,
-        estado: existente.estado,
-        monto_total: total,
-        monto_devolucion: total * 0.8,
-        observaciones: existente.observaciones,
-        datos_confirmados_en: existente.datos_confirmados_en ?? ahora,
-        recorridos: combinados,
-      );
-    } else {
-      final total = locales.fold<double>(0.0, (s, r) => s + r.tarifa);
-      resultado.insert(
-        0,
-        SolicitudPasajeModelo(
-          id: 1,
-          periodo: periodo_actual,
-          estado: 'borrador',
-          monto_total: total,
-          monto_devolucion: total * 0.8,
-          datos_confirmados_en: ahora,
-          recorridos: locales,
-        ),
-      );
-    }
-    return resultado;
-  }
-
   /// Lista solicitudes según el rol autenticado:
-  /// - Becario: `GET /pasajes/mis-solicitudes` + recorridos offline locales.
+  /// - Becario: `GET /pasajes/mis-solicitudes`.
   /// - Mentor / Admin: `GET /pasajes` (si es Mentor, filtra estrictamente por
   ///   sus becarios designados mediante `supervisor_id` o IDs asignados).
   Future<ResultadoPasaje<List<SolicitudPasajeModelo>>> listarSolicitudesPorRol({
@@ -228,12 +140,17 @@ class PasajesRepositorio {
 
   Future<ResultadoPasaje<List<SolicitudPasajeModelo>>> misSolicitudes() async {
     final cliente_http = _obtenerCliente();
-    final locales = await _obtenerRecorridosLocales();
     try {
-      final respuesta = await cliente_http.get(
-        _url('/mis-solicitudes'),
-        headers: await _cabeceras(),
-      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_CLAVE_RECORRIDOS_LOCALES);
+    } catch (_) {}
+    try {
+      final respuesta = await cliente_http
+          .get(
+            _url('/mis-solicitudes'),
+            headers: await _cabeceras(),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (respuesta.statusCode == 200) {
         final datos = jsonDecode(respuesta.body) as List<dynamic>;
@@ -242,15 +159,8 @@ class PasajesRepositorio {
               (e) => SolicitudPasajeModelo.desdeJson(e as Map<String, dynamic>),
             )
             .toList();
-        return ResultadoPasaje.exitoso(
-          _combinarConRecorridosLocales(solicitudes, locales),
-        );
+        return ResultadoPasaje.exitoso(solicitudes);
       } else {
-        if (locales.isNotEmpty || respuesta.statusCode == 403) {
-          return ResultadoPasaje.exitoso(
-            _combinarConRecorridosLocales([], locales),
-          );
-        }
         final error = ErrorBumand.desdeRespuesta(respuesta);
         return ResultadoPasaje.fallido(
           error.mensaje,
@@ -259,11 +169,6 @@ class PasajesRepositorio {
         );
       }
     } catch (_) {
-      if (locales.isNotEmpty) {
-        return ResultadoPasaje.exitoso(
-          _combinarConRecorridosLocales([], locales),
-        );
-      }
       final error = ErrorBumand.conexionOffline(
         ruta: '/pasajes/mis-solicitudes',
         metodo: 'GET',
@@ -466,16 +371,15 @@ class PasajesRepositorio {
         error_bumand: error,
       );
     } catch (_) {
-      await _guardarRecorridoLocal(cuerpo);
-      if (cola_offline != null) {
-        await cola_offline!.encolar(
-          ruta: '${ApiConstantes.PUNTO_PASAJES}/recorridos',
-          metodo: 'POST',
-          cuerpo: cuerpo,
-          tipo: 'pasajes_recorrido',
-        );
-      }
-      return ResultadoPasaje.exitoso(null);
+      final error = ErrorBumand.conexionOffline(
+        ruta: '${ApiConstantes.PUNTO_PASAJES}/recorridos',
+        metodo: 'POST',
+      );
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }

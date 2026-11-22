@@ -7,65 +7,69 @@ import '../../../nucleo/constantes/api-constantes.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../modelos/refrigerio-modelo.dart';
 
-/// Becarios oficiales institucionales para fallback cuando no hay conexión
-const List<String> BECARIOS_OFICIALES_REFRIGERIO = [
-  'María Catunta Laime',
-  'Juan Carlos Quispe',
-  'Claudia Cabrera',
-  'Marco Antonio Ramos',
-  'Angel Javier Ali Paz',
-  'Ruth Condori Mamani',
-  'Samuel Mamani',
-  'Abigail Flores',
-  'Nilda Amalia Churata Paye',
-  'Joel Mamani Quispe',
-  'Noemi Callisaya Alvarez',
-];
-
 class BecariosRefrigeriosNotificador extends Notifier<List<String>> {
   @override
   List<String> build() {
     ref.watch(autenticacion_proveedor);
     Future.microtask(() => cargarBecarios());
-    return BECARIOS_OFICIALES_REFRIGERIO;
+    return const [];
   }
 
   Future<void> cargarBecarios() async {
     try {
       final preferencias = await SharedPreferences.getInstance();
-      final token = preferencias.getString('token');
+      final token =
+          ref.read(autenticacion_proveedor).usuario?.token ??
+          preferencias.getString('token');
+      final cabeceras = {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
 
-      final url = '${ApiConstantes.RUTA_BASE}/api/becarios';
-      final respuesta = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 4));
+      http.Response respuesta = await http
+          .get(
+            Uri.parse('${ApiConstantes.RUTA_BASE}/api/becarios/directorio-nombres'),
+            headers: cabeceras,
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (respuesta.statusCode != 200) {
+        respuesta = await http
+            .get(
+              Uri.parse('${ApiConstantes.RUTA_BASE}/api/becarios'),
+              headers: cabeceras,
+            )
+            .timeout(const Duration(seconds: 15));
+      }
 
       if (respuesta.statusCode == 200) {
         final dinamico = jsonDecode(respuesta.body);
-        if (dinamico is List && dinamico.isNotEmpty) {
+        if (dinamico is List) {
           final nombres = dinamico
               .whereType<Map>()
               .map((b) {
                 final bm = Map<String, dynamic>.from(b);
-                final nom = bm['nombres'] ?? bm['nombre'] ?? '';
-                final ape = bm['apellidos'] ?? bm['apellido'] ?? '';
-                final nombre_completo = '$nom $ape'.trim();
-                return nombre_completo.isNotEmpty ? nombre_completo : null;
+                final usuario_map = bm['usuario'] is Map
+                    ? Map<String, dynamic>.from(bm['usuario'] as Map)
+                    : null;
+                final nom_directo = (bm['nombre'] ?? usuario_map?['nombre'] ?? '')
+                    .toString()
+                    .trim();
+                if (nom_directo.isNotEmpty) return nom_directo;
+                final nom = (bm['nombres'] ?? '').toString().trim();
+                final ape = (bm['apellidos'] ?? bm['apellido'] ?? '').toString().trim();
+                final compuesto = '$nom $ape'.trim();
+                return compuesto.isNotEmpty ? compuesto : null;
               })
               .whereType<String>()
+              .toSet()
               .toList();
 
-          if (nombres.isNotEmpty) {
-            state = nombres;
-          }
+          state = nombres;
         }
       }
     } catch (_) {
-      // Mantiene la lista institucional por defecto
+      // Mantiene el estado real recuperado de BD
     }
   }
 }
@@ -105,7 +109,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
       final url = '${ApiConstantes.RUTA_BASE}/api/refrigerios';
       final respuesta = await http
           .get(Uri.parse(url), headers: cabeceras)
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
 
       if (respuesta.statusCode == 200) {
         final cuerpo = jsonDecode(respuesta.body);
@@ -138,7 +142,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
             headers: cabeceras,
             body: jsonEncode(datos),
           )
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 15));
 
       if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
         final cuerpo = jsonDecode(respuesta.body);
@@ -151,37 +155,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
       }
     } catch (_) {}
 
-    // Fallback optimista local para asegurar continuidad
-    final id_temporal = DateTime.now().millisecondsSinceEpoch;
-    final temporal = RefrigerioModelo(
-      id: id_temporal,
-      fecha: datos['fecha']?.toString() ?? DateTime.now().toIso8601String().split('T')[0],
-      evento_o_jornada: datos['actividad_viernes']?.toString() ??
-          datos['evento_vinculado']?.toString() ??
-          datos['descripcion']?.toString() ??
-          'Escuela de Líderes (Viernes Formativo)',
-      menu_detalle: datos['observaciones']?.toString() ??
-          datos['menu_descripcion']?.toString() ??
-          'Refrigerio oficial de la jornada',
-      sede_nombre: datos['sede']?.toString() ??
-          datos['sede_nombre']?.toString() ??
-          'Oficina Central El Alto',
-      bloque: datos['bloque']?.toString() ?? 'Bloque B (Auditorio / Cocina Diaconía)',
-      responsable_entrega: datos['responsable_entrega']?.toString() ??
-          'Coordinación General BUMAND',
-      horario_distribucion: '16:00 - 17:30',
-      recogido: false,
-      becario_encargado_1_nombre: datos['becario_encargado_1_nombre']?.toString(),
-      becario_encargado_2_nombre: datos['becario_encargado_2_nombre']?.toString(),
-      cantidad_raciones: (datos['cantidad_raciones'] as num?)?.toInt() ?? 23,
-      costo_unitario_bs: (datos['costo_unitario_bs'] as num?)?.toDouble() ?? 5.0,
-      costo_total_bs: (datos['costo_total_bs'] as num?)?.toDouble() ?? 115.0,
-      porcentaje_devolucion: 100,
-      monto_devolucion_bs: (datos['costo_total_bs'] as num?)?.toDouble() ?? 115.0,
-      estado: 'rendido_pendiente',
-    );
-    state = [temporal, ...state];
-    return true;
+    return false;
   }
 
   /// Confirma el recojo individual del refrigerio mediante PATCH /api/refrigerios/:id/confirmar-recojo
@@ -305,7 +279,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
             headers: cabeceras,
             body: jsonEncode(cuerpo),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
 
       if (respuesta.statusCode == 200) {
         final datos = jsonDecode(respuesta.body);
@@ -317,7 +291,7 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
       }
     } catch (_) {}
 
-    return true;
+    return false;
   }
 
   /// Registro de aprobación de devolución por Administración
@@ -441,7 +415,7 @@ final turno_dupla_activo_proveedor = Provider<InfoTurnoDupla>((ref) {
   final mi_id = usuario?.id ?? 1;
   final mi_nombre = (usuario != null && usuario.nombre.isNotEmpty)
       ? usuario.nombre
-      : 'María Catunta Laime';
+      : '';
 
   final todos = ref.watch(refrigerios_proveedor);
   if (todos.isEmpty) {
