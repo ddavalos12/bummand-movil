@@ -152,33 +152,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
     );
   }
 
-  static Future<Map<String, dynamic>?> verificarIdentidadSupervisor(
-    BuildContext context, {
-    int becario_id = 1,
-    String? becario_nombre,
-  }) {
-    return showDialog<dynamic>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _DialogoVerificacionSupervisor(
-        becario_id: becario_id,
-        becario_nombre: becario_nombre,
-      ),
-    ).then((res) {
-      if (res is Map<String, dynamic>) return res;
-      if (res is Map) return Map<String, dynamic>.from(res);
-      if (res is String) {
-        return {
-          'verificado': true,
-          'supervisor_nombre': res,
-          'codigo_verificacion': '123456',
-        };
-      }
-      return null;
-    });
-  }
-
-  static void mostrarFormularioMentor(
+  static Future<void> mostrarFormularioMentor(
     BuildContext context, {
     int becario_id = 1,
     String becario_nombre = "Becario",
@@ -187,7 +161,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
     String? codigo_verificacion,
     Map<String, dynamic>? evaluacion_previa,
   }) {
-    showModalBottomSheet(
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -516,7 +490,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.qr_code_2),
                 label: const Text(
-                  "Ver Código QR / Evaluación del Tutor",
+                  "Mostrar mi Código QR al Mentor",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
@@ -1317,75 +1291,49 @@ class _ReceptorMentorModal extends StatefulWidget {
 
 class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
   final _repositorio = EvaluacionesRepositorio();
-  String _codigo_activo = "831721";
-  bool _cargando_codigo = true;
+  String _qr_url = "";
+  String _becario_nombre = "Becario";
+  String _supervisor_nombre = "Mentor asignado";
+  String _estado_evaluacion = "pendiente";
+  bool _evaluado = false;
+  bool _cargando_qr = true;
+  String? _error_qr;
 
   @override
   void initState() {
     super.initState();
-    _obtenerCodigoTutor();
+    _cargarMiQr();
   }
 
-  Future<void> _obtenerCodigoTutor() async {
-    setState(() => _cargando_codigo = true);
-    final resultado = await _repositorio.solicitarCodigoTutor(becario_id: 1);
+  Future<void> _cargarMiQr() async {
+    setState(() {
+      _cargando_qr = true;
+      _error_qr = null;
+    });
+    final resultado = await _repositorio.obtenerMiQrModulo3();
     if (!mounted) return;
     setState(() {
-      _cargando_codigo = false;
-      if (resultado.exito && resultado.datos?['codigo'] != null) {
-        _codigo_activo = resultado.datos!['codigo'].toString();
+      _cargando_qr = false;
+      if (resultado.exito && resultado.datos != null) {
+        final d = resultado.datos!;
+        _qr_url = (d['qr_url'] ?? '').toString();
+        _becario_nombre = (d['nombre'] ?? 'Becario').toString();
+        _supervisor_nombre = (d['supervisor_nombre'] ?? 'Mentor asignado').toString();
+        _evaluado = d['evaluado'] == true;
+        _estado_evaluacion = (d['estado'] ?? (_evaluado ? 'evaluado' : 'pendiente')).toString();
+      } else {
+        _error_qr = resultado.error ?? "No se pudo obtener tu código QR identificador.";
       }
     });
-  }
-
-  void _abrirVerificacionSupervisor(BuildContext context) {
-    showDialog<dynamic>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => _DialogoVerificacionSupervisor(
-        becario_id: 1,
-        becario_nombre: "Becario",
-        codigo_activo: _codigo_activo,
-      ),
-    ).then((resultado) {
-      if (resultado != null && context.mounted) {
-        final String supervisor_nombre = resultado is Map
-            ? (resultado['supervisor_nombre']?.toString() ?? "Mentor")
-            : resultado.toString();
-        final String? codigo_verificacion =
-            resultado is Map ? resultado['codigo_verificacion']?.toString() : null;
-
-        Navigator.of(context).pop();
-        _mostrarFormularioSupervisor(
-          context,
-          supervisor_nombre,
-          codigo_verificacion,
-        );
-      }
-    });
-  }
-
-  void _mostrarFormularioSupervisor(
-    BuildContext context,
-    String supervisor_nombre,
-    String? codigo_verificacion,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _FormularioSupervisorEvaluador(
-        becario_id: 1,
-        becario_nombre: "Becario",
-        supervisor_nombre_inicial: supervisor_nombre,
-        modalidad_llenado: "celular_estudiante",
-        codigo_verificacion: codigo_verificacion,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final es_aprobado = _estado_evaluacion.toLowerCase().contains("aprob");
+    final etiqueta_estado = es_aprobado
+        ? "Aprobado por Administración"
+        : (_evaluado ? "Evaluado por tu Mentor" : "Pendiente de evaluación");
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -1422,7 +1370,7 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Text(
-                  "Módulo 03 · Acceso QR Mentor",
+                  "Módulo 03 · Código QR Identificador",
                   style: TextStyle(
                     color: BumandColores.AZUL_DIACONIA,
                     fontSize: 12,
@@ -1446,450 +1394,150 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
           ),
           const SizedBox(height: 4),
           Text(
-            "Muestra este código QR a tu Mentor/Tutor de área para que realice tu evaluación. El becario no tiene acceso a las preguntas.",
+            "Muestra este código QR a tu Mentor/Tutor para que lo escanee desde su propio dispositivo e inicie sesión con su cuenta de Mentor para evaluarte.",
             style: TextStyle(
               fontSize: 12.5,
               color: Colors.grey.shade700,
               height: 1.35,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _becario_nombre,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Mentor asignado: $_supervisor_nombre",
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _evaluado
+                        ? const Color(0xFFECFDF5)
+                        : const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _evaluado
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFF59E0B),
+                    ),
+                  ),
+                  child: Text(
+                    etiqueta_estado,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: _evaluado
+                          ? const Color(0xFF065F46)
+                          : const Color(0xFFB45309),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           Center(
-            child: _cargando_codigo
+            child: _cargando_qr
                 ? const SizedBox(
-                    height: 200,
+                    height: 210,
                     child: Center(
                       child: CircularProgressIndicator(
                         color: BumandColores.AZUL_DIACONIA,
                       ),
                     ),
                   )
-                : CodigoQrWidget(tamano: 200, codigo: _codigo_activo),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.pin_outlined,
-                        size: 18,
-                        color: BumandColores.AZUL_DIACONIA,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Código OTP: $_codigo_activo",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 3,
-                          fontFamily: "monospace",
-                          color: BumandColores.AZUL_DIACONIA,
+                : (_error_qr != null || _qr_url.isEmpty)
+                ? Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _error_qr ?? "No se pudo generar el QR.",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFB91C1C),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  "Escanea el código QR de 6 dígitos o ingrésalo manualmente",
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF64748B),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _cargarMiQr,
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text("Reintentar"),
+                        ),
+                      ],
+                    ),
+                  )
+                : CodigoQrWidget(tamano: 210, codigo: _qr_url),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.lock_outline, size: 18, color: BumandColores.AZUL_DIACONIA),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Por confidencialidad institucional, las preguntas y respuestas de esta evaluación son visibles únicamente para tu Mentor/Tutor desde su propia sesión.",
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF1E3A8A),
+                      height: 1.3,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () => _abrirVerificacionSupervisor(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BumandColores.amarilloRadiante,
-                foregroundColor: BumandColores.azulMarinoSecundario,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: const Icon(Icons.person_pin_circle_outlined),
-              label: const Text(
-                "¿Eres el Mentor/Tutor? Evaluar aquí",
-                style: TextStyle(fontWeight: FontWeight.bold),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
+            child: const Text("Cerrar"),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DialogoVerificacionSupervisor extends StatefulWidget {
-  final int becario_id;
-  final String? becario_nombre;
-  final String? codigo_activo;
-
-  const _DialogoVerificacionSupervisor({
-    this.becario_id = 1,
-    this.becario_nombre,
-    this.codigo_activo,
-  });
-
-  @override
-  State<_DialogoVerificacionSupervisor> createState() =>
-      _DialogoVerificacionSupervisorState();
-}
-
-class _DialogoVerificacionSupervisorState
-    extends State<_DialogoVerificacionSupervisor> {
-  final _repositorio = EvaluacionesRepositorio();
-  final _codigo_ctrl = TextEditingController();
-
-  bool _enviando_codigo = false;
-  bool _verificando = false;
-  String? _mensaje_error;
-  String? _codigo_activo_local;
-
-  @override
-  void initState() {
-    super.initState();
-    _codigo_activo_local = widget.codigo_activo;
-    if (_codigo_activo_local == null) {
-      _solicitarCodigoNotificacion();
-    }
-  }
-
-  @override
-  void dispose() {
-    _codigo_ctrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _solicitarCodigoNotificacion() async {
-    setState(() {
-      _enviando_codigo = true;
-      _mensaje_error = null;
-    });
-
-    final res = await _repositorio.solicitarCodigoTutor(becario_id: widget.becario_id);
-    if (!mounted) return;
-
-    setState(() {
-      _enviando_codigo = false;
-      if (res.exito && res.datos?['codigo'] != null) {
-        _codigo_activo_local = res.datos!['codigo'].toString();
-      }
-    });
-  }
-
-  Future<void> _verificarIdentidad() async {
-    final entrada = _codigo_ctrl.text.trim();
-    if (entrada.isEmpty) {
-      setState(() {
-        _mensaje_error = "Ingresa el código de 6 dígitos enviado a su Mentor específico.";
-      });
-      return;
-    }
-
-    // Normalizar: quitar espacios, guiones y extraer sólo dígitos (acepta sufijos/prefijos de escaneo)
-    final solo_digitos = entrada.replaceAll(RegExp(r'\D'), '');
-    final codigo_limpio = solo_digitos.length > 6
-        ? solo_digitos.substring(0, 6)
-        : (solo_digitos.isNotEmpty ? solo_digitos : entrada);
-
-    if (codigo_limpio.length != 6) {
-      setState(() {
-        _mensaje_error = "El código de verificación debe contener exactamente 6 dígitos.";
-      });
-      return;
-    }
-
-    setState(() {
-      _verificando = true;
-      _mensaje_error = null;
-    });
-
-    final resultado = await _repositorio.verificarCodigoTutor(
-      becario_id: widget.becario_id,
-      codigo: codigo_limpio,
-    );
-
-    if (!mounted) return;
-    setState(() => _verificando = false);
-
-    if (resultado.exito &&
-        (resultado.datos?['verificado'] == true ||
-            resultado.datos?['valido'] == true)) {
-      final nombre =
-          resultado.datos?['supervisor_nombre']?.toString() ?? "Mentor Asignado";
-      Navigator.of(context).pop({
-        'verificado': true,
-        'supervisor_nombre': nombre,
-        'codigo_verificacion': codigo_limpio,
-      });
-    } else {
-      setState(() {
-        _mensaje_error =
-            resultado.error ?? "Código incorrecto o expirado.";
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.verified_user_rounded,
-                    color: BumandColores.AZUL_DIACONIA,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Verificación de Identidad del Tutor",
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.bold,
-                          color: BumandColores.NEGRO,
-                        ),
-                      ),
-                      Text(
-                        widget.becario_nombre != null
-                            ? "Evaluando a: ${widget.becario_nombre}"
-                            : "Seguridad antifraude · Módulo 03",
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            Container(
-              alignment: Alignment.centerLeft,
-              child: InkWell(
-                onTap: () {
-                  if (_codigo_activo_local != null) {
-                    _codigo_ctrl.text = _codigo_activo_local!;
-                    setState(() {});
-                  }
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.pin_outlined,
-                        size: 15,
-                        color: BumandColores.AZUL_DIACONIA,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        _codigo_activo_local != null
-                            ? "Código activo: $_codigo_activo_local (Tocar para llenar)"
-                            : "Código en pantalla",
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: BumandColores.AZUL_DIACONIA,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            const Text(
-              "Código de 6 dígitos de su Mentor",
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF334155),
-              ),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _codigo_ctrl,
-              keyboardType: TextInputType.text,
-              maxLength: 12,
-              textAlign: TextAlign.center,
-              onChanged: (val) {
-                final solo_digitos = val.replaceAll(RegExp(r'\D'), '');
-                if (solo_digitos.length == 6 && _codigo_ctrl.text != solo_digitos) {
-                  _codigo_ctrl.value = TextEditingValue(
-                    text: solo_digitos,
-                    selection: TextSelection.collapsed(offset: solo_digitos.length),
-                  );
-                }
-              },
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 8,
-                color: BumandColores.AZUL_DIACONIA,
-              ),
-              decoration: InputDecoration(
-                counterText: "",
-                hintText: "000000",
-                hintStyle: TextStyle(
-                  fontSize: 20,
-                  letterSpacing: 8,
-                  color: Colors.grey.shade400,
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed:
-                    _enviando_codigo ? null : _solicitarCodigoNotificacion,
-                icon: const Icon(Icons.refresh, size: 15),
-                label: Text(
-                  _enviando_codigo
-                      ? "Enviando código..."
-                      : "Reenviar código al Mentor",
-                  style: const TextStyle(fontSize: 11.5),
-                ),
-              ),
-            ),
-
-            if (_mensaje_error != null) ...[
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFCA5A5)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Color(0xFFDC2626),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _mensaje_error!,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFFB91C1C),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-            ],
-
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text("Cancelar"),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: _verificando ? null : _verificarIdentidad,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: BumandColores.AZUL_DIACONIA,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: _verificando
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.lock_open_rounded, size: 17),
-                    label: Text(
-                      _verificando
-                          ? "Verificando..."
-                          : "Verificar y abrir evaluación",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

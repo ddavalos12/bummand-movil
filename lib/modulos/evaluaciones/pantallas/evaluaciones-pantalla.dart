@@ -105,29 +105,19 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
     BecarioAsignadoModulo3Modelo becario,
   ) {
     final auth = ref.read(autenticacion_proveedor);
+    if (!esRolMentorOAdmin(auth.usuario?.rol)) return;
 
-    DetalleEvaluacionModal.verificarIdentidadSupervisor(
+    DetalleEvaluacionModal.mostrarFormularioMentor(
       context,
       becario_id: becario.becario_id,
       becario_nombre: becario.nombre,
-    ).then((resultado) {
-      if (resultado != null && context.mounted) {
-        final String supervisor_nombre =
-            resultado['supervisor_nombre']?.toString() ??
-                auth.usuario?.nombre ??
-                "Mentor";
-        final String? codigo_verificacion =
-            resultado['codigo_verificacion']?.toString();
-
-        DetalleEvaluacionModal.mostrarFormularioMentor(
-          context,
-          becario_id: becario.becario_id,
-          becario_nombre: becario.nombre,
-          supervisor_nombre_inicial: supervisor_nombre,
-          modalidad_llenado: "perfil_supervisor",
-          codigo_verificacion: codigo_verificacion,
-          evaluacion_previa: becario.evaluacion_previa,
-        );
+      supervisor_nombre_inicial: auth.usuario?.nombre ?? "Mentor",
+      modalidad_llenado: "perfil_supervisor",
+      evaluacion_previa: becario.evaluacion_previa,
+    ).then((_) {
+      if (mounted) {
+        ref.invalidate(becarios_asignados_modulo3_proveedor);
+        ref.invalidate(evaluacion_consolidada_proveedor);
       }
     });
   }
@@ -510,7 +500,7 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                       ? "Evaluación convalidada en sistema"
                       : es_completada
                       ? "Evaluación disponible para edición"
-                      : "Requiere validación OTP",
+                      : "Evaluación pendiente de completar",
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey.shade500,

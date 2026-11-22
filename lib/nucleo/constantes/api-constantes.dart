@@ -1,5 +1,9 @@
 class ApiConstantes {
   static const String URL_PRODUCCION = 'https://bummand-backend.vercel.app';
+  static const String URL_FRONTEND = String.fromEnvironment(
+    'FRONTEND_URL',
+    defaultValue: 'https://bummand-frontend.vercel.app',
+  );
   static const String _URL_ENTORNO = String.fromEnvironment(
     'API_URL',
     defaultValue: URL_PRODUCCION,

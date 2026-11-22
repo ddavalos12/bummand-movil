@@ -153,6 +153,28 @@ class EvaluacionesRepositorio {
     }
   }
 
+  Future<Resultado<Map<String, dynamic>>> obtenerMiQrModulo3() async {
+    final cliente_http = _obtenerCliente();
+    try {
+      final cabeceras = await _cabeceras();
+      final ruta = '${ApiConstantes.RUTA_BASE}/api/evaluaciones/modulo-3/mi-qr';
+      final respuesta = await cliente_http
+          .get(Uri.parse(ruta), headers: cabeceras)
+          .timeout(const Duration(seconds: 15));
+
+      if (respuesta.statusCode == 200) {
+        final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
+        return Resultado.exitoso(datos);
+      }
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return Resultado.desdeErrorBumand(error);
+    } catch (e) {
+      return Resultado.fallido('No se pudo obtener el código QR del expediente: $e');
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
+  }
+
   Future<Resultado<Map<String, dynamic>>> solicitarCodigoTutor({
     int becario_id = 1,
   }) async {
@@ -232,58 +254,20 @@ class EvaluacionesRepositorio {
             headers: cabeceras,
             body: jsonEncode(cuerpo),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 15));
 
       if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
         final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
         return Resultado.exitoso(datos);
       }
 
-      if (respuesta.statusCode == 401 || respuesta.statusCode == 400) {
-        final error = ErrorBumand.desdeRespuesta(respuesta);
-        return Resultado.desdeErrorBumand(error);
-      }
-    } catch (_) {} finally {
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return Resultado.desdeErrorBumand(error);
+    } catch (e) {
+      return Resultado.fallido('No se pudo verificar con el servidor: $e');
+    } finally {
       if (cliente == null) cliente_http.close();
     }
-
-    const supervisor_guardado = 'Mentor asignado';
-
-    if (codigo_normalizado != null && codigo_normalizado.isNotEmpty) {
-      if (codigo_normalizado.length == 6) {
-        return Resultado.exitoso({
-          'verificado': true,
-          'valido': true,
-          'metodo': 'codigo_pantalla',
-          'codigo': codigo_normalizado,
-          'supervisor_nombre': supervisor_guardado,
-        });
-      }
-      return Resultado.fallido(
-        'El código ingresado debe contener exactamente 6 dígitos.',
-      );
-    }
-
-    if (correo != null &&
-        correo.trim().isNotEmpty &&
-        contrasena != null &&
-        contrasena.isNotEmpty) {
-      final correo_limpio = correo.trim().toLowerCase();
-      if ((correo_limpio.contains('@bumand.bo') ||
-              correo_limpio.contains('@diaconia')) &&
-          contrasena.length >= 6) {
-        return Resultado.exitoso({
-          'verificado': true,
-          'metodo': 'credenciales',
-          'supervisor_nombre': supervisor_guardado,
-        });
-      }
-      return Resultado.fallido('Credenciales de supervisor inválidas.');
-    }
-
-    return Resultado.fallido(
-      'Ingresa el código de 6 dígitos o las credenciales del supervisor.',
-    );
   }
 
   Future<Resultado<List<BecarioAsignadoModulo3Modelo>>> obtenerBecariosAsignadosModulo3({
