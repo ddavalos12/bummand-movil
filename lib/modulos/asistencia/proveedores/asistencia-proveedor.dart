@@ -45,7 +45,7 @@ final extractos_mensuales_proveedor =
   if (resultado.exito && resultado.datos != null) {
     return resultado.datos!;
   }
-  return repo.generarExtractosLocales();
+  throw Exception(resultado.error ?? 'No se pudieron cargar los extractos mensuales');
 });
 
 final extractosMensualesProveedor = extractos_mensuales_proveedor;
@@ -57,7 +57,7 @@ final extracto_mensual_proveedor =
   if (resultado.exito && resultado.datos != null) {
     return resultado.datos!;
   }
-  return repo.obtenerExtractoLocalPorMes(mes);
+  throw Exception(resultado.error ?? 'No se pudo cargar el extracto mensual');
 });
 
 final extractoMensualProveedor = extracto_mensual_proveedor;
@@ -199,15 +199,10 @@ class AuditoriaAsistenciaNotificador
       es_mentor: es_mentor,
       usuario_id: usuario?.id,
     );
-    if (resultado.datos != null) {
+    if (resultado.exito && resultado.datos != null) {
       return resultado.datos!;
     }
-    var semillas = RegistroAuditoriaAsistencia.semillas();
-    if (es_mentor && usuario != null) {
-      semillas =
-          semillas.where((r) => r.supervisor_id == usuario.id).toList();
-    }
-    return semillas;
+    throw Exception(resultado.error ?? 'No se pudieron cargar los registros de auditoría');
   }
 
   Future<void> recargar() async {
@@ -216,10 +211,6 @@ class AuditoriaAsistenciaNotificador
 
   /// Actualiza tras radicar una justificación para el registro indicado.
   Future<void> actualizarTrasJustificar() async {
-    // Los registros semilla viven solo en memoria: recargar descartaría las
-    // aprobaciones locales, por lo que se conserva el estado actual.
-    final actual = state.value;
-    if (actual != null && actual.any((r) => r.es_semilla)) return;
     await recargar();
   }
 
@@ -243,14 +234,12 @@ class AuditoriaAsistenciaNotificador
   }) async {
     final texto_observacion =
         observacion ?? 'Convalidado y aprobado por Administración';
-    if (!registro.es_semilla) {
-      final res = await _repo.aprobarAdministracion(
-        registro.id,
-        observacion: texto_observacion,
-      );
-      if (!res.exito) {
-        return res.error ?? 'No se pudo aprobar por Administración';
-      }
+    final res = await _repo.aprobarAdministracion(
+      registro.id,
+      observacion: texto_observacion,
+    );
+    if (!res.exito) {
+      return res.error ?? 'No se pudo aprobar por Administración';
     }
     _reemplazar(
       registro.id,
@@ -271,15 +260,13 @@ class AuditoriaAsistenciaNotificador
     RegistroAuditoriaAsistencia registro, {
     String? observacion,
   }) async {
-    if (!registro.es_semilla) {
-      final res = await _repo.revisarSupervisor(
-        registro.id,
-        estado: RegistroAuditoriaAsistencia.ESTADO_REVISADO_SUPERVISOR,
-        observacion: observacion,
-      );
-      if (!res.exito) {
-        return res.error ?? 'No se pudo registrar la revisión del Mentor';
-      }
+    final res = await _repo.revisarSupervisor(
+      registro.id,
+      estado: RegistroAuditoriaAsistencia.ESTADO_REVISADO_SUPERVISOR,
+      observacion: observacion,
+    );
+    if (!res.exito) {
+      return res.error ?? 'No se pudo registrar la revisión del Mentor';
     }
     _reemplazar(
       registro.id,
@@ -301,12 +288,31 @@ final auditoria_asistencia_proveedor = AsyncNotifierProvider<
 final auditoriaAsistenciaProveedor = auditoria_asistencia_proveedor;
 
 class OrdenConfirmacionNotificador extends Notifier<OrdenConfirmacionModelo> {
+  static String _periodoActualTexto() {
+    const meses = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    final ahora = DateTime.now();
+    return '${meses[ahora.month - 1]} ${ahora.year}';
+  }
+
   @override
   OrdenConfirmacionModelo build() {
-    return const OrdenConfirmacionModelo(
-      activa: true,
+    return OrdenConfirmacionModelo(
+      activa: false,
       confirmada_este_mes: false,
-      periodo: 'Octubre 2026',
+      periodo: _periodoActualTexto(),
       mensaje_admin:
           'Administración central requiere la confirmación mensual de tus datos de contacto.',
     );

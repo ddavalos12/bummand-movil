@@ -78,9 +78,7 @@ class _DeclararRecorridoPantallaState
   static const _CLAVE_DESTINO = "pasajes_ultimo_destino";
 
   final _clave_formulario = GlobalKey<FormState>();
-  final _apoyo_controlador = TextEditingController(
-    text: "Envío de reportes, control CAEDEC",
-  );
+  final _apoyo_controlador = TextEditingController();
 
   DateTime _fecha = DateTime.now();
   int _paso_activo = 1; // 1 = Ida, 2 = Vuelta
@@ -105,93 +103,11 @@ class _DeclararRecorridoPantallaState
   final List<_TramoTarifa> _tramos_ida = [];
   final List<_TramoTarifa> _tramos_vuelta = [];
 
-  List<Map<String, dynamic>> _tarifas = [
-    {"nombre": "Minibús (dentro de El Alto)", "monto": 2.0},
-    {"nombre": "Micro (dentro de El Alto)", "monto": 1.5},
-    {"nombre": "Minibús (Centro La Paz – Ceja)", "monto": 3.5},
-    {"nombre": "Minibús (UMSA – Ceja)", "monto": 4.0},
-    {"nombre": "Teleférico (línea regular)", "monto": 3.0},
-    {"nombre": "Otro (escribir monto)...", "monto": 0.0},
-  ];
+  List<Map<String, dynamic>> _tarifas = [];
   bool _cargando_tarifas = false;
 
-  static const List<String> PARADAS_FRECUENTES = [
-    'Oficina Central Diaconía (Av. Juan Pablo II, El Alto)',
-    'Agencia Diaconía Ceja (El Alto)',
-    'La Ceja — Calle 1 / Puente Distribuidor (El Alto)',
-    'Cruce Villa Adela (El Alto)',
-    'Villa Adela, El Alto',
-    'Cruce Viacha (El Alto)',
-    'Ex Tranca Río Seco (El Alto)',
-    'Extranca Senkata — Av. 6 de Marzo (El Alto)',
-    'Ciudad Satélite — Plaza del Tinku (El Alto)',
-    'Ballivián / Faro Murillo (El Alto)',
-    'UPEA — Villa Esperanza (El Alto)',
-    'Terminal Metropolitana El Alto',
-    'Puente Vela / Ventilla (El Alto)',
-    'Pérez Velasco / Héroes del Pacífico (La Paz)',
-    'Plaza San Francisco (La Paz)',
-    'San Pedro — Plaza Sucre (La Paz)',
-    'El Prado / Obelisco (La Paz)',
-    'UMSA — Monoblock Central (La Paz)',
-    'Sopocachi — Plaza Abaroa (La Paz)',
-    'Miraflores — Estadio Hernando Siles (La Paz)',
-    'Miraflores — Plaza Triangular / Hospital de Clínicas (La Paz)',
-    'Terminal de Buses La Paz / Plaza Antofagasta',
-    'Cementerio General / Ajayuni (La Paz)',
-    'Periférica — Av. Vásquez / Autopista (La Paz)',
-    'Chuquiaguillo / Salida Yungas (La Paz)',
-    'Villa Fátima — Plaza del Maestro / Minasa (La Paz)',
-    'Obrajes — Calle 17 (Zona Sur, La Paz)',
-    'Bella Vista — Calle Pastor Tejada (La Paz)',
-    'El Prado Paceño — Av. 16 de Julio (La Paz)',
-    'Calacoto — Calle 21 (Zona Sur, La Paz)',
-    'Chasquipampa — Calle 53 (Zona Sur, La Paz)',
-    'Teleférico Línea Roja (Estación Central / 16 de Julio)',
-    'Teleférico Línea Amarilla (Mirador / Sopocachi / Libertador)',
-    'Teleférico Línea Morada (Faro Murillo / San José)',
-    'Teleférico Línea Azul (Río Seco / UPEA / 16 de Julio)',
-    'Teleférico Línea Blanca (Plaza Villarroel / Busch)',
-  ];
-
-  static const Map<String, ({double lat, double lng})> COORDENADAS_PARADAS = {
-    'Oficina Central Diaconía (Av. Juan Pablo II, El Alto)': (lat: -16.50005, lng: -68.17345),
-    'Agencia Diaconía Ceja (El Alto)': (lat: -16.5085, lng: -68.1630),
-    'La Ceja — Calle 1 / Puente Distribuidor (El Alto)': (lat: -16.5088, lng: -68.1627),
-    'Cruce Villa Adela (El Alto)': (lat: -16.5245, lng: -68.1885),
-    'Villa Adela, El Alto': (lat: -16.5360, lng: -68.1920),
-    'Cruce Viacha (El Alto)': (lat: -16.5178, lng: -68.1695),
-    'Ex Tranca Río Seco (El Alto)': (lat: -16.4912, lng: -68.2105),
-    'Extranca Senkata — Av. 6 de Marzo (El Alto)': (lat: -16.5655, lng: -68.1872),
-    'Ciudad Satélite — Plaza del Tinku (El Alto)': (lat: -16.5195, lng: -68.1510),
-    'Ballivián / Faro Murillo (El Alto)': (lat: -16.5055, lng: -68.1525),
-    'UPEA — Villa Esperanza (El Alto)': (lat: -16.4935, lng: -68.1940),
-    'Terminal Metropolitana El Alto': (lat: -16.5152, lng: -68.1720),
-    'Puente Vela / Ventilla (El Alto)': (lat: -16.5520, lng: -68.1960),
-    'Pérez Velasco / Héroes del Pacífico (La Paz)': (lat: -16.4958, lng: -68.1372),
-    'Plaza San Francisco (La Paz)': (lat: -16.4965, lng: -68.1378),
-    'San Pedro — Plaza Sucre (La Paz)': (lat: -16.5030, lng: -68.1360),
-    'El Prado / Obelisco (La Paz)': (lat: -16.4988, lng: -68.1340),
-    'UMSA — Monoblock Central (La Paz)': (lat: -16.5048, lng: -68.1298),
-    'Sopocachi — Plaza Abaroa (La Paz)': (lat: -16.5112, lng: -68.1268),
-    'Miraflores — Estadio Hernando Siles (La Paz)': (lat: -16.4995, lng: -68.1228),
-    'Miraflores — Plaza Triangular / Hospital de Clínicas (La Paz)': (lat: -16.5052, lng: -68.1211),
-    'Terminal de Buses La Paz / Plaza Antofagasta': (lat: -16.4895, lng: -68.1415),
-    'Cementerio General / Ajayuni (La Paz)': (lat: -16.4920, lng: -68.1515),
-    'Periférica — Av. Vásquez / Autopista (La Paz)': (lat: -16.4840, lng: -68.1425),
-    'Chuquiaguillo / Salida Yungas (La Paz)': (lat: -16.4620, lng: -68.1050),
-    'Villa Fátima — Plaza del Maestro / Minasa (La Paz)': (lat: -16.4815, lng: -68.1189),
-    'Obrajes — Calle 17 (Zona Sur, La Paz)': (lat: -16.5275, lng: -68.1085),
-    'Bella Vista — Calle Pastor Tejada (La Paz)': (lat: -16.5291, lng: -68.0959),
-    'El Prado Paceño — Av. 16 de Julio (La Paz)': (lat: -16.5002, lng: -68.1332),
-    'Calacoto — Calle 21 (Zona Sur, La Paz)': (lat: -16.5398, lng: -68.0865),
-    'Chasquipampa — Calle 53 (Zona Sur, La Paz)': (lat: -16.5440, lng: -68.0530),
-    'Teleférico Línea Roja (Estación Central / 16 de Julio)': (lat: -16.4918, lng: -68.1452),
-    'Teleférico Línea Amarilla (Mirador / Sopocachi / Libertador)': (lat: -16.5172, lng: -68.1338),
-    'Teleférico Línea Morada (Faro Murillo / San José)': (lat: -16.5015, lng: -68.1355),
-    'Teleférico Línea Azul (Río Seco / UPEA / 16 de Julio)': (lat: -16.4960, lng: -68.1820),
-    'Teleférico Línea Blanca (Plaza Villarroel / Busch)': (lat: -16.4930, lng: -68.1195),
-  };
+  List<String> _paradas_frecuentes = [];
+  final Map<String, ({double lat, double lng})> _coordenadas_paradas = {};
 
   double _calcularDistanciaMetros(double lat1, double lon1, double lat2, double lon2) {
     const double r = 6371000;
@@ -231,10 +147,10 @@ class _DeclararRecorridoPantallaState
     }
 
     final catalogo = <String>[
-      ...PARADAS_FRECUENTES,
+      ..._paradas_frecuentes,
       if (widget.destino_inicial != null &&
           widget.destino_inicial!.trim().isNotEmpty &&
-          !PARADAS_FRECUENTES.contains(widget.destino_inicial!.trim()))
+          !_paradas_frecuentes.contains(widget.destino_inicial!.trim()))
         widget.destino_inicial!.trim(),
     ];
 
@@ -259,14 +175,15 @@ class _DeclararRecorridoPantallaState
     super.initState();
     _tipo_actividad = "Prácticas";
     _cargarTarifas();
+    _cargarParadas();
     final destino_base =
         (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty)
             ? widget.destino_inicial!
-            : "Oficina Central Diaconía (Av. Juan Pablo II, El Alto)";
+            : "";
 
-    // Inicializar paradas mínimas de Ida
+    // Inicializar paradas mínimas de Ida y Vuelta sin texto ficticio
     _paradas_ida.add(
-      _ParadaRuta(controlador: TextEditingController(text: "Villa Adela, El Alto")),
+      _ParadaRuta(controlador: TextEditingController()),
     );
     _paradas_ida.add(
       _ParadaRuta(
@@ -274,29 +191,28 @@ class _DeclararRecorridoPantallaState
       ),
     );
 
-    // Inicializar paradas mínimas de Vuelta
     _paradas_vuelta.add(
       _ParadaRuta(
         controlador: TextEditingController(text: destino_base),
       ),
     );
     _paradas_vuelta.add(
-      _ParadaRuta(controlador: TextEditingController(text: "Villa Adela, El Alto")),
+      _ParadaRuta(controlador: TextEditingController()),
     );
 
-    // Inicializar al menos 1 tramo de tarifa en Ida y Vuelta
+    // Inicializar tramos; se sincronizarán con las tarifas reales desde BD en _cargarTarifas()
     _tramos_ida.add(
       _TramoTarifa(
-        monto: 2.0,
-        nombre: "Minibús (dentro de El Alto)",
-        controlador_personalizado: TextEditingController(text: "2.00"),
+        monto: 0.0,
+        nombre: "Cargando tarifa...",
+        controlador_personalizado: TextEditingController(text: "0.00"),
       ),
     );
     _tramos_vuelta.add(
       _TramoTarifa(
-        monto: 2.0,
-        nombre: "Minibús (dentro de El Alto)",
-        controlador_personalizado: TextEditingController(text: "2.00"),
+        monto: 0.0,
+        nombre: "Cargando tarifa...",
+        controlador_personalizado: TextEditingController(text: "0.00"),
       ),
     );
 
@@ -401,6 +317,41 @@ class _DeclararRecorridoPantallaState
       } else {
         setState(() => _cargando_tarifas = false);
       }
+    }
+  }
+
+  Future<void> _cargarParadas() async {
+    final repo = ref.read(pasajes_repositorio_proveedor);
+    final resultado = await repo.obtenerParadas();
+    if (!mounted) return;
+    if (resultado.exito && resultado.datos != null) {
+      final nombres = <String>[];
+      final coords = <String, ({double lat, double lng})>{};
+      for (final p in resultado.datos!) {
+        final nombre = (p['nombre'] ?? '').toString().trim();
+        if (nombre.isEmpty) continue;
+        final zona = (p['zona'] ?? '').toString().trim();
+        final ciudad = (p['ciudad'] ?? '').toString().trim();
+        final etiqueta = zona.isNotEmpty && !nombre.contains(zona)
+            ? '$nombre — $zona${ciudad.isNotEmpty ? ' ($ciudad)' : ''}'
+            : (ciudad.isNotEmpty && !nombre.contains(ciudad)
+                ? '$nombre ($ciudad)'
+                : nombre);
+        if (!nombres.contains(etiqueta)) {
+          nombres.add(etiqueta);
+        }
+        final lat = double.tryParse((p['latitud'] ?? '').toString());
+        final lng = double.tryParse((p['longitud'] ?? '').toString());
+        if (lat != null && lng != null) {
+          coords[etiqueta] = (lat: lat, lng: lng);
+        }
+      }
+      setState(() {
+        _paradas_frecuentes = nombres;
+        _coordenadas_paradas
+          ..clear()
+          ..addAll(coords);
+      });
     }
   }
 
@@ -534,8 +485,8 @@ class _DeclararRecorridoPantallaState
         }
         _tramos_ida.clear();
         for (final item in tramos_data) {
-          final monto = double.tryParse(item['monto']?.toString() ?? '') ?? 2.0;
-          final nombre = item['nombre']?.toString() ?? 'Minibús';
+          final monto = double.tryParse(item['monto']?.toString() ?? '') ?? 0.0;
+          final nombre = item['nombre']?.toString() ?? '';
           _tramos_ida.add(
             _TramoTarifa(
               monto: monto,
@@ -552,7 +503,7 @@ class _DeclararRecorridoPantallaState
         _tramos_ida.add(
           _TramoTarifa(
             monto: ida.tarifa,
-            nombre: ida.medio_transporte ?? "Minibús",
+            nombre: ida.medio_transporte ?? "",
             controlador_personalizado: TextEditingController(text: ida.tarifa.toStringAsFixed(2)),
           ),
         );
@@ -639,8 +590,8 @@ class _DeclararRecorridoPantallaState
         }
         _tramos_vuelta.clear();
         for (final item in tramos_data) {
-          final monto = double.tryParse(item['monto']?.toString() ?? '') ?? 2.0;
-          final nombre = item['nombre']?.toString() ?? 'Minibús';
+          final monto = double.tryParse(item['monto']?.toString() ?? '') ?? 0.0;
+          final nombre = item['nombre']?.toString() ?? '';
           _tramos_vuelta.add(
             _TramoTarifa(
               monto: monto,
@@ -657,7 +608,7 @@ class _DeclararRecorridoPantallaState
         _tramos_vuelta.add(
           _TramoTarifa(
             monto: vuelta.tarifa,
-            nombre: vuelta.medio_transporte ?? "Minibús",
+            nombre: vuelta.medio_transporte ?? "",
             controlador_personalizado: TextEditingController(text: vuelta.tarifa.toStringAsFixed(2)),
           ),
         );
@@ -920,7 +871,7 @@ class _DeclararRecorridoPantallaState
       final destino_base =
           (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty)
               ? widget.destino_inicial!
-              : "Oficina Central Diaconía (Av. Juan Pablo II, El Alto)";
+              : "";
 
       if (origen != null && origen.isNotEmpty && _paradas_ida.isNotEmpty) {
         _paradas_ida[0].controlador.text = origen;
@@ -958,10 +909,10 @@ class _DeclararRecorridoPantallaState
   }
 
   Future<String> _obtenerCalleGps(Position pos) async {
-    // Buscar la parada estratégica más cercana de COORDENADAS_PARADAS
-    String parada_ref = "Oficina Central Diaconía (Av. Juan Pablo II, El Alto)";
+    // Buscar la parada estratégica más cercana cargada desde la BD
+    String? parada_ref;
     double menor_dist = double.infinity;
-    COORDENADAS_PARADAS.forEach((nombre, coords) {
+    _coordenadas_paradas.forEach((nombre, coords) {
       final d = _calcularDistanciaMetros(pos.latitude, pos.longitude, coords.lat, coords.lng);
       if (d < menor_dist) {
         menor_dist = d;
@@ -1031,15 +982,18 @@ class _DeclararRecorridoPantallaState
                       ? distrito
                       : null;
               if (zona != null) {
-                return 'Zona $zona · Ref. $parada_ref';
+                return parada_ref != null
+                    ? 'Zona $zona · Ref. $parada_ref'
+                    : 'Zona $zona';
               }
-              return 'Ref. $parada_ref';
+              return parada_ref != null ? 'Ref. $parada_ref' : '';
             }
           }
         }
       }
     } catch (_) {}
-    return 'Ubicación GPS (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}) · Ref. $parada_ref';
+    final sufijo = parada_ref != null ? ' · Ref. $parada_ref' : '';
+    return 'Ubicación GPS (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})$sufijo';
   }
 
   Future<void> _capturarGps(
@@ -1075,11 +1029,11 @@ class _DeclararRecorridoPantallaState
 
       if (!mounted) return;
 
-      // Calcular distancia Haversine a paradas oficiales de COORDENADAS_PARADAS
-      String parada_mas_cercana = "Oficina Central Diaconía (Av. Juan Pablo II, El Alto)";
+      // Calcular distancia Haversine a paradas oficiales desde la BD
+      String? parada_mas_cercana;
       double menor_distancia = double.infinity;
 
-      COORDENADAS_PARADAS.forEach((nombre, coords) {
+      _coordenadas_paradas.forEach((nombre, coords) {
         final dist = _calcularDistanciaMetros(
           posicion.latitude,
           posicion.longitude,
@@ -1092,7 +1046,7 @@ class _DeclararRecorridoPantallaState
         }
       });
 
-      if (menor_distancia <= 150) {
+      if (parada_mas_cercana != null && menor_distancia <= 150) {
         final nombre_asignado = "Parada $parada_mas_cercana";
         setState(() {
           parada.posicion_gps = posicion;
@@ -1276,19 +1230,19 @@ class _DeclararRecorridoPantallaState
         .join(' → ');
 
     final medios_ida_set = _tramos_ida
-        .map((t) => t.nombre ?? "Minibús")
+        .map((t) => t.nombre ?? "")
         .where((n) => n.isNotEmpty)
         .toSet();
     final medios_ida = medios_ida_set.isNotEmpty
         ? medios_ida_set.join(" + ")
-        : "Minibús";
+        : "";
 
     final detalle_ida_json = jsonEncode({
       "sentido": "ida",
       "calles_paradas": _paradas_ida.map((p) => p.controlador.text.trim()).toList(),
       "tramos": _tramos_ida
           .map((t) => {
-                "nombre": t.nombre ?? "Minibús",
+                "nombre": t.nombre ?? "",
                 "monto": t.monto,
               })
           .toList(),
@@ -1334,19 +1288,19 @@ class _DeclararRecorridoPantallaState
           .join(' → ');
 
       final medios_vuelta_set = _tramos_vuelta
-          .map((t) => t.nombre ?? "Minibús")
+          .map((t) => t.nombre ?? "")
           .where((n) => n.isNotEmpty)
           .toSet();
       final medios_vuelta = medios_vuelta_set.isNotEmpty
           ? medios_vuelta_set.join(" + ")
-          : "Minibús";
+          : "";
 
       final detalle_vuelta_json = jsonEncode({
         "sentido": "vuelta",
         "calles_paradas": _paradas_vuelta.map((p) => p.controlador.text.trim()).toList(),
         "tramos": _tramos_vuelta
             .map((t) => {
-                  "nombre": t.nombre ?? "Minibús",
+                  "nombre": t.nombre ?? "",
                   "monto": t.monto,
                 })
             .toList(),
@@ -1837,9 +1791,9 @@ class _DeclararRecorridoPantallaState
               setState(() {
                 final tarifa_inicial = _tarifas.firstWhere(
                   (t) => t["nombre"] != "Otro (escribir monto)...",
-                  orElse: () => {"nombre": "Minibús (dentro de El Alto)", "monto": 2.0},
+                  orElse: () => {"nombre": "Otro (escribir monto)...", "monto": 0.0},
                 );
-                final monto_ini = double.tryParse((tarifa_inicial["monto"] ?? tarifa_inicial["costo_bs"] ?? '2.0').toString()) ?? 2.0;
+                final monto_ini = double.tryParse((tarifa_inicial["monto"] ?? tarifa_inicial["costo_bs"] ?? '0').toString()) ?? 0.0;
                 _tramos_ida.add(
                   _TramoTarifa(
                     monto: monto_ini,
@@ -2071,9 +2025,9 @@ class _DeclararRecorridoPantallaState
               setState(() {
                 final tarifa_inicial = _tarifas.firstWhere(
                   (t) => t["nombre"] != "Otro (escribir monto)...",
-                  orElse: () => {"nombre": "Minibús (dentro de El Alto)", "monto": 2.0},
+                  orElse: () => {"nombre": "Otro (escribir monto)...", "monto": 0.0},
                 );
-                final monto_ini = double.tryParse((tarifa_inicial["monto"] ?? tarifa_inicial["costo_bs"] ?? '2.0').toString()) ?? 2.0;
+                final monto_ini = double.tryParse((tarifa_inicial["monto"] ?? tarifa_inicial["costo_bs"] ?? '0').toString()) ?? 0.0;
                 _tramos_vuelta.add(
                   _TramoTarifa(
                     monto: monto_ini,
@@ -2622,7 +2576,7 @@ class _DeclararRecorridoPantallaState
     final destino_txt =
         nombres_paradas.length > 1 ? nombres_paradas.last : "Destino por definir";
     final medios_txt = tramos_activos
-        .map((t) => t.nombre ?? "Minibús")
+        .map((t) => t.nombre ?? "")
         .where((n) => n.isNotEmpty)
         .toSet()
         .join(" + ");
@@ -2739,7 +2693,7 @@ class _DeclararRecorridoPantallaState
               ),
               const SizedBox(width: 8),
               Text(
-                medios_txt.isNotEmpty ? medios_txt : "Minibús",
+                medios_txt.isNotEmpty ? medios_txt : "Sin medio",
                 style: const TextStyle(
                   color: Color(0xFFFBBF24),
                   fontSize: 11,

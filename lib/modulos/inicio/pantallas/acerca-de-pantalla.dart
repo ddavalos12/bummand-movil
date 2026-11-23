@@ -206,9 +206,9 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
             spacing: 8,
             runSpacing: 6,
             children: [
-              _construirChipImpacto("25 becarios activos", "La Paz y El Alto"),
-              _construirChipImpacto("+65 beneficiados", "47% mujeres"),
-              _construirChipImpacto("Sede Diaconía", "Desde 2019"),
+              _construirChipImpacto("Becarios activos", "La Paz y El Alto"),
+              _construirChipImpacto("Formación integral", "Diaconía FRIF-IFD"),
+              _construirChipImpacto("Programa BUMAND", "Desde 2019"),
             ],
           ),
           const SizedBox(height: 14),
@@ -810,7 +810,7 @@ class _AcercaDePantallaState extends ConsumerState<AcercaDePantalla> {
             gestion: "Presente",
             titulo: "Impacto Activo y Consolidación",
             detalle:
-                "25 becarios en La Paz y El Alto, +65 egresados (47% mujeres) y plataforma digital institucional.",
+                "Comunidad activa de becarios y egresados en La Paz y El Alto con plataforma digital institucional.",
             es_ultimo: true,
           ),
         ],

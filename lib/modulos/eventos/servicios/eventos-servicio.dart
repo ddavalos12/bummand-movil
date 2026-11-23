@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../nucleo/constantes/api-constantes.dart';
+import '../../../nucleo/errores/error-bumand.dart';
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../modelos/evento.dart';
@@ -169,21 +170,12 @@ class EventosServicio {
           cuerpo: cuerpo,
           tipo: 'asistencia_evento',
         );
-        // Creamos una asistencia temporal representativa
-        final asistencia_local = AsistenciaEvento(
-          id: 0,
-          evento_id: evento_id,
-          becario_id: 0,
-          hora_marcacion: DateTime.now().toIso8601String().substring(11, 19),
-          latitud: latitud,
-          longitud: longitud,
-          distancia_m: 0.0,
-          dentro_de_radio: true,
-          estado: 'presente',
-          observaciones: 'Guardado offline para sincronización posterior',
-          created_at: DateTime.now(),
+        return Resultado.desdeErrorBumand(
+          ErrorBumand.encoladoOffline(
+            ruta: '${ApiConstantes.PUNTO_EVENTOS}/$evento_id/asistencia',
+            metodo: 'POST',
+          ),
         );
-        return Resultado.exitoso(asistencia_local);
       }
 
       return Resultado.fallido('No se pudo conectar con el servidor');
@@ -195,20 +187,12 @@ class EventosServicio {
           cuerpo: cuerpo,
           tipo: 'asistencia_evento',
         );
-        final asistencia_local = AsistenciaEvento(
-          id: 0,
-          evento_id: evento_id,
-          becario_id: 0,
-          hora_marcacion: DateTime.now().toIso8601String().substring(11, 19),
-          latitud: latitud,
-          longitud: longitud,
-          distancia_m: 0.0,
-          dentro_de_radio: true,
-          estado: 'presente',
-          observaciones: 'Guardado offline para sincronización posterior',
-          created_at: DateTime.now(),
+        return Resultado.desdeErrorBumand(
+          ErrorBumand.encoladoOffline(
+            ruta: '${ApiConstantes.PUNTO_EVENTOS}/$evento_id/asistencia',
+            metodo: 'POST',
+          ),
         );
-        return Resultado.exitoso(asistencia_local);
       }
       return Resultado.fallido('Error al registrar asistencia: $e');
     } finally {

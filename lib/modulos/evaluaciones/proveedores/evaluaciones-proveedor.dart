@@ -15,7 +15,10 @@ final evaluacion_consolidada_proveedor =
     FutureProvider.autoDispose<Resultado<EvaluacionConsolidadaModelo>>((ref) async {
   final repo = ref.watch(evaluaciones_repositorio_proveedor);
   final auth = ref.watch(autenticacion_proveedor);
-  final becario_id = auth.usuario?.id ?? 1;
+  final becario_id = auth.usuario?.id;
+  if (becario_id == null || becario_id <= 0) {
+    return Resultado.fallido('Sesión de usuario no encontrada.');
+  }
 
   return repo.obtenerEvaluacionConsolidada(becario_id: becario_id);
 });
@@ -35,6 +38,9 @@ final tareas_escuela_lideres_proveedor =
     FutureProvider.autoDispose<Resultado<List<TareaEscuelaLideresModelo>>>((ref) async {
   final repo = ref.watch(evaluaciones_repositorio_proveedor);
   final auth = ref.watch(autenticacion_proveedor);
-  final becario_id = auth.usuario?.id ?? 1;
+  final becario_id = auth.usuario?.id;
+  if (becario_id == null || becario_id <= 0) {
+    return Resultado.fallido('Sesión de usuario no encontrada.');
+  }
   return repo.obtenerTareasEscuelaLideres(becario_id: becario_id);
 });

@@ -89,18 +89,32 @@ class _VerificacionPostLoginVistaState
 
   Future<void> _confirmarDatosFinales() async {
     if (_guardando_confirmacion) return;
+    final tel = _telefono_controlador.text.trim();
+    final dir = _direccion_controlador.text.trim();
+    if (tel.isEmpty || dir.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Debes ingresar tu número de celular y dirección actual.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
     setState(() => _guardando_confirmacion = true);
 
     final repo = ref.read(autenticacion_repositorio_proveedor);
     final resultado = await repo.confirmarDatosPropios(
-      celular: _telefono_controlador.text.trim(),
-      direccion: _direccion_controlador.text.trim(),
+      celular: tel,
+      direccion: dir,
     );
 
     if (!mounted) return;
-    setState(() => _guardando_confirmacion = false);
 
     if (resultado.exito) {
+      await ref.read(autenticacion_proveedor.notifier).refrescarMiPerfil();
+      if (!mounted) return;
+      setState(() => _guardando_confirmacion = false);
       ref.invalidate(perfil_proveedor);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -117,6 +131,7 @@ class _VerificacionPostLoginVistaState
         (_) => false,
       );
     } else {
+      setState(() => _guardando_confirmacion = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(resultado.error ?? 'No se pudo registrar la confirmación'),

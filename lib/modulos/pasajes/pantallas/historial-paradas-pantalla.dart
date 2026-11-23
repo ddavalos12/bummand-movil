@@ -275,8 +275,8 @@ class _HistorialParadasPantallaState
     final origen = r['origen'] ?? '';
     final destino = r['destino'] ?? '';
     final tarifa = (r['tarifa'] as num?)?.toDouble() ?? 0.0;
-    final medio = r['medio_transporte'] ?? 'Minibús';
-    final actividad = r['tipo_actividad'] ?? 'Prácticas';
+    final medio = r['medio_transporte'] ?? '';
+    final actividad = r['tipo_actividad'] ?? '';
     final secuencia = (r['paradas_secuencia'] as List<dynamic>?) ?? [origen, destino];
 
     return Container(

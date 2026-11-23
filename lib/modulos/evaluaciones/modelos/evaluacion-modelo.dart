@@ -80,12 +80,12 @@ class EvaluacionConsolidadaModelo {
     return EvaluacionConsolidadaModelo(
       becario_id: json["becario_id"] is int
           ? json["becario_id"]
-          : int.tryParse(json["becario_id"]?.toString() ?? "1") ?? 1,
+          : int.tryParse(json["becario_id"]?.toString() ?? "0") ?? 0,
       periodo_id: json["periodo_id"] is int
           ? json["periodo_id"]
-          : int.tryParse(json["periodo_id"]?.toString() ?? "1") ?? 1,
+          : int.tryParse(json["periodo_id"]?.toString() ?? "0") ?? 0,
       periodo_nombre:
-          json["periodo_nombre"]?.toString() ?? "Gestión Semestral Activa",
+          json["periodo_nombre"]?.toString() ?? "Periodo Activo",
       total_porcentual:
           double.tryParse(json["total_porcentual"]?.toString() ?? "0") ?? 0.0,
       total_vigesimal:
@@ -101,9 +101,9 @@ class EvaluacionConsolidadaModelo {
   }
 
   static EvaluacionConsolidadaModelo modeloVacio({
-    int becario_id = 1,
-    int periodo_id = 1,
-    String periodo_nombre = "Gestión Semestral Activa",
+    int becario_id = 0,
+    int periodo_id = 0,
+    String periodo_nombre = "Periodo Activo",
   }) {
     return EvaluacionConsolidadaModelo(
       becario_id: becario_id,
@@ -167,9 +167,6 @@ class EvaluacionConsolidadaModelo {
       ],
     );
   }
-
-  /// Alias de compatibilidad que devuelve el estado vacío / pendiente real (sin notas falsas)
-  static EvaluacionConsolidadaModelo modeloEjemplo() => modeloVacio();
 }
 
 class BecarioAsignadoModulo3Modelo {
@@ -187,7 +184,7 @@ class BecarioAsignadoModulo3Modelo {
     required this.becario_id,
     required this.nombre,
     required this.carrera,
-    this.universidad = "Universidad Mayor de San Andrés",
+    this.universidad = "",
     required this.agencia,
     required this.estado_evaluacion,
     this.puntaje_actual,
@@ -206,11 +203,11 @@ class BecarioAsignadoModulo3Modelo {
     return BecarioAsignadoModulo3Modelo(
       becario_id: json['becario_id'] is int
           ? json['becario_id']
-          : int.tryParse(json['becario_id']?.toString() ?? '1') ?? 1,
-      nombre: json['nombre']?.toString() ?? 'Becario Diaconía',
-      carrera: json['carrera']?.toString() ?? 'Carrera Universitaria',
-      universidad: json['universidad']?.toString() ?? 'Universidad Mayor de San Andrés',
-      agencia: json['agencia']?.toString() ?? 'Agencia Central Diaconía',
+          : int.tryParse(json['becario_id']?.toString() ?? '0') ?? 0,
+      nombre: json['nombre']?.toString() ?? '',
+      carrera: json['carrera']?.toString() ?? '',
+      universidad: json['universidad']?.toString() ?? '',
+      agencia: json['agencia']?.toString() ?? '',
       estado_evaluacion: json['estado_evaluacion']?.toString() ?? 'pendiente',
       puntaje_actual: json['puntaje_actual'] != null
           ? double.tryParse(json['puntaje_actual'].toString())
@@ -235,8 +232,6 @@ class BecarioAsignadoModulo3Modelo {
     'evaluacion_previa': evaluacion_previa,
     if (supervisor_id != null) 'supervisor_id': supervisor_id,
   };
-
-  static List<BecarioAsignadoModulo3Modelo> listaEjemplo() => const [];
 }
 
 class TareaEscuelaLideresModelo {
@@ -275,16 +270,13 @@ class TareaEscuelaLideresModelo {
     final num_parsed = num_raw is int
         ? num_raw
         : int.tryParse(num_raw.toString()) ?? 1;
-    final canonicos = catalogoCanonico().where((c) => c.numero == num_parsed);
-    final canonico = canonicos.isNotEmpty ? canonicos.first : null;
     final tema_val =
         (json['tema'] ?? json['titulo_tarea'] ?? json['titulo'])?.toString();
     final desc_val =
         (json['descripcion'] ?? json['instrucciones'])?.toString();
     final pond_raw = json['ponderacion'] ??
         json['ponderacion_maxima'] ??
-        canonico?.ponderacion ??
-        8.33;
+        0;
     final entrega_id_raw = json['entrega_id'] ?? json['id'];
 
     final List<Map<String, String>> pdfs = [];
@@ -357,11 +349,11 @@ class TareaEscuelaLideresModelo {
           : int.tryParse(entrega_id_raw?.toString() ?? ''),
       tema: (tema_val != null && tema_val.trim().isNotEmpty)
           ? tema_val
-          : (canonico?.tema ?? 'Tarea Formativa CETI'),
+          : 'Tarea sin título',
       descripcion: (desc_val != null && desc_val.trim().isNotEmpty)
           ? desc_val
-          : (canonico?.descripcion ?? ''),
-      ponderacion: double.tryParse(pond_raw.toString()) ?? 8.33,
+          : '',
+      ponderacion: double.tryParse(pond_raw.toString()) ?? 0.0,
       estado: json['estado']?.toString() ?? 'pendiente',
       evidencia_nombre:
           (json['evidencia_nombre'] ?? json['nombre_archivo'])?.toString(),
@@ -427,6 +419,5 @@ class TareaEscuelaLideresModelo {
     );
   }
 
-  static List<TareaEscuelaLideresModelo> catalogoCanonico() => const [];
 }
 

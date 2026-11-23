@@ -368,47 +368,42 @@ class AsistenciaRepositorio {
       if (respuesta.statusCode == 200) {
         final decodificado = jsonDecode(respuesta.body);
         if (decodificado is List) {
-          if (decodificado.isNotEmpty) {
-            var lista = decodificado
-                .whereType<Map>()
-                .map(
-                  (e) => RegistroAuditoriaAsistencia.desdeMapa(
-                    Map<String, dynamic>.from(e),
-                  ),
-                )
-                .toList();
-            if (es_mentor && usuario_id != null) {
-              final ids_asignados =
-                  await FiltroMentor.obtenerIdsBecariosAsignados(
-                cliente: cliente,
-                mentor_id: usuario_id,
-              );
-              lista = FiltroMentor.filtrarParaMentor<RegistroAuditoriaAsistencia>(
-                lista,
-                mentor_id: usuario_id,
-                obtenerSupervisorId: (r) => r.supervisor_id,
-                obtenerBecarioId: (r) => r.becario_id,
-                becarios_asignados_ids: ids_asignados,
-              );
-            }
-            return Resultado.exitoso(lista);
+          var lista = decodificado
+              .whereType<Map>()
+              .map(
+                (e) => RegistroAuditoriaAsistencia.desdeMapa(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .toList();
+          if (es_mentor && usuario_id != null && lista.isNotEmpty) {
+            final ids_asignados =
+                await FiltroMentor.obtenerIdsBecariosAsignados(
+              cliente: cliente,
+              mentor_id: usuario_id,
+            );
+            lista = FiltroMentor.filtrarParaMentor<RegistroAuditoriaAsistencia>(
+              lista,
+              mentor_id: usuario_id,
+              obtenerSupervisorId: (r) => r.supervisor_id,
+              obtenerBecarioId: (r) => r.becario_id,
+              becarios_asignados_ids: ids_asignados,
+            );
           }
-          if (es_mentor) {
-            return Resultado.exitoso(const <RegistroAuditoriaAsistencia>[]);
-          }
+          return Resultado.exitoso(lista);
         }
       }
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
     } catch (_) {
-      // Fallback transparente al catálogo institucional semilla.
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/api/asistencia',
+          metodo: 'GET',
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
-    var semillas = RegistroAuditoriaAsistencia.semillas();
-    if (es_mentor && usuario_id != null) {
-      semillas =
-          semillas.where((r) => r.supervisor_id == usuario_id).toList();
-    }
-    return Resultado.exitoso(semillas);
   }
 
   /// Aprobación definitiva por Administración:
@@ -507,12 +502,30 @@ class AsistenciaRepositorio {
     }
   }
 
-  /// Consulta el extracto mensual bancario de asistencia con fallback local determinístico
-  /// completo de Marzo 2026 a Noviembre 2026.
+  static String _mesActualTexto() {
+    const meses = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    final ahora = DateTime.now();
+    return '${meses[ahora.month - 1]} ${ahora.year}';
+  }
+
+  /// Consulta el extracto mensual bancario de asistencia desde el backend.
   Future<Resultado<ExtractoMensualAsistencia>> obtenerExtractoMensual({
     String? mes,
   }) async {
-    final mes_param = mes ?? "Mayo 2026";
+    final mes_param = mes ?? _mesActualTexto();
     final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
@@ -592,37 +605,18 @@ class AsistenciaRepositorio {
           return Resultado.exitoso(lista);
         }
       }
-      return Resultado.exitoso([]);
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
     } catch (_) {
-      return Resultado.exitoso([]);
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/api/asistencia/multas/mis-multas',
+          metodo: 'GET',
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
   }
-
-  /// Busca un extracto por mes para compatibilidad
-  ExtractoMensualAsistencia obtenerExtractoLocalPorMes(String mes_o_periodo) {
-    return ExtractoMensualAsistencia(
-      mes_id: "2026-05",
-      mes_nombre: mes_o_periodo.isNotEmpty ? mes_o_periodo : "Mayo 2026",
-      mes_corto: "Mayo",
-      anio: 2026,
-      mes_numero: 5,
-      horas_totales: 0.0,
-      meta_mensual: 36.0,
-      diferencia_horas: 0.0,
-      porcentaje_cumplido: 0,
-      estado: "EN PROGRESO",
-      jornadas_totales: 0,
-      tasa_puntualidad: 0,
-      movimientos: const [],
-    );
-  }
-
-  /// Retorna lista vacía al haberse purgado los datos locales falsos
-  List<ExtractoMensualAsistencia> generarExtractosLocales({
-    List<Map<String, dynamic>>? registros_reales,
-  }) => const <ExtractoMensualAsistencia>[];
 }
 
 /// Movimiento diario de entrada y salida para el extracto mensual bancario de asistencia.
@@ -665,7 +659,7 @@ class MovimientoExtractoAsistencia {
     required this.horas_acumuladas,
     this.es_puntual = true,
     this.dentro_geocerca = true,
-    this.distancia_gps = 35.0,
+    this.distancia_gps = 0.0,
     this.confirmado_organizador = true,
     this.es_manual = false,
     this.estado = "aprobado",
@@ -697,9 +691,9 @@ class MovimientoExtractoAsistencia {
     final dia_sem = dias_semana[(fecha_dt.weekday - 1).clamp(0, 6)];
 
     final h_in =
-        mapa["horaIngreso"]?.toString() ?? mapa["hora_entrada"]?.toString() ?? "08:00";
+        mapa["horaIngreso"]?.toString() ?? mapa["hora_entrada"]?.toString() ?? "--:--";
     final h_out =
-        mapa["horaSalida"]?.toString() ?? mapa["hora_salida"]?.toString() ?? "12:00";
+        mapa["horaSalida"]?.toString() ?? mapa["hora_salida"]?.toString() ?? "--:--";
 
     final tipo_str = mapa["tipo"]?.toString().toLowerCase() ?? "practicas";
     final act_str = (mapa["actividad"]?.toString() ??
@@ -713,7 +707,7 @@ class MovimientoExtractoAsistencia {
         act_str.contains("líder") ||
         act_str.contains("lider");
 
-    double horas = 4.0;
+    double horas = 0.0;
     if (es_escuela_lideres) {
       // Horas reales computadas (no se fuerzan a 0); no suman al acumulado de prácticas.
       final h_real = mapa["horas_dia"] ?? mapa["horas_trabajadas"] ?? mapa["horasTrabajadas"];
@@ -722,10 +716,10 @@ class MovimientoExtractoAsistencia {
           : double.tryParse(h_real.toString().replaceAll("h", "").trim());
       horas = h_real_num ?? _calcularHorasEntre(h_in, h_out);
     } else if (mapa["horas_dia"] != null) {
-      horas = double.tryParse(mapa["horas_dia"].toString()) ?? 4.0;
+      horas = double.tryParse(mapa["horas_dia"].toString()) ?? _calcularHorasEntre(h_in, h_out);
     } else if (mapa["horasTrabajadas"] != null) {
       final h_str = mapa["horasTrabajadas"].toString().replaceAll("h", "").trim();
-      horas = double.tryParse(h_str) ?? 4.0;
+      horas = double.tryParse(h_str) ?? _calcularHorasEntre(h_in, h_out);
     }
 
     final minutos_retraso =
@@ -747,14 +741,14 @@ class MovimientoExtractoAsistencia {
       dia_semana: dia_sem,
       actividad: mapa["actividad"]?.toString() ?? mapa["tipo_etiqueta"]?.toString() ?? mapa["titulo"]?.toString() ?? "Prácticas Diaconía",
       tipo: es_escuela_lideres ? "escuela_lideres" : (mapa["tipo"]?.toString().toLowerCase() ?? "practicas"),
-      lugar: mapa["lugar"]?.toString() ?? mapa["sede"]?.toString() ?? "Oficina Central Diaconía IFD",
+      lugar: mapa["lugar"]?.toString() ?? mapa["sede"]?.toString() ?? "Sin sede",
       hora_entrada: h_in,
       hora_salida: h_out,
       horas_dia: horas,
       horas_acumuladas: acum,
       es_puntual: mapa["es_puntual"] != false && minutos_retraso == 0,
       dentro_geocerca: mapa["dentro_geocerca"] != false,
-      distancia_gps: double.tryParse(mapa["distancia"]?.toString() ?? "35") ?? 35.0,
+      distancia_gps: double.tryParse(mapa["distancia"]?.toString() ?? "0") ?? 0.0,
       confirmado_organizador: mapa["confirmado_organizador"] != false,
       es_manual: mapa["es_registro_manual"] == true,
       estado: mapa["estado"]?.toString() ?? "aprobado",
@@ -891,17 +885,23 @@ class ExtractoMensualAsistencia {
       tasa_punt = 100;
     }
 
-    final mesNom = mapa["mes_nombre"]?.toString() ?? "Noviembre 2026";
+    final ahora_dt = DateTime.now();
+    final mesNom = mapa["mes_nombre"]?.toString() ?? AsistenciaRepositorio._mesActualTexto();
     final mesCorto = mapa["mes_corto"]?.toString() ?? mesNom.split(" ")[0];
+    final mesIdDefecto = '${ahora_dt.year}-${ahora_dt.month.toString().padLeft(2, '0')}';
 
     return ExtractoMensualAsistencia(
-      mes_id: mapa["mes_id"]?.toString() ?? mapa["periodo"]?.toString() ?? "2026-11",
+      mes_id: mapa["mes_id"]?.toString() ?? mapa["periodo"]?.toString() ?? mesIdDefecto,
       mes_nombre: mesNom,
       mes_corto: mesCorto,
       anio: int.tryParse(mapa["anio"]?.toString() ?? "") ??
-          (mapa["periodo"] != null ? int.tryParse(mapa["periodo"].toString().split("-")[0]) ?? 2026 : 2026),
+          (mapa["periodo"] != null
+              ? int.tryParse(mapa["periodo"].toString().split("-")[0]) ?? ahora_dt.year
+              : ahora_dt.year),
       mes_numero: int.tryParse(mapa["mes_numero"]?.toString() ?? "") ??
-          (mapa["periodo"] != null ? int.tryParse(mapa["periodo"].toString().split("-")[1]) ?? 11 : 11),
+          (mapa["periodo"] != null
+              ? int.tryParse(mapa["periodo"].toString().split("-")[1]) ?? ahora_dt.month
+              : ahora_dt.month),
       horas_totales: total,
       meta_mensual: meta,
       diferencia_horas: diff,

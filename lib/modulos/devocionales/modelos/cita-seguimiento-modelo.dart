@@ -48,7 +48,7 @@ class CitaSeguimientoModelo {
         json['supervisorNombre']?.toString() ??
         json['nombre_supervisor']?.toString() ??
         (supervisor_obj is Map ? supervisor_obj['nombre']?.toString() : null) ??
-        'Mentor Diaconal';
+        '';
 
     final becario_nombre = json['becario_nombre']?.toString() ??
         json['becarioNombre']?.toString() ??
@@ -57,7 +57,7 @@ class CitaSeguimientoModelo {
             ? becario_usuario_obj['nombre']?.toString()
             : null) ??
         (becario_obj is Map ? becario_obj['nombre']?.toString() : null) ??
-        'Becario Diaconía';
+        '';
 
     return CitaSeguimientoModelo(
       id: (json['id'] as num?)?.toInt() ?? 0,
@@ -78,7 +78,7 @@ class CitaSeguimientoModelo {
       hora_cita: json['hora_cita']?.toString() ??
           json['horaCita']?.toString() ??
           json['hora']?.toString() ??
-          '09:00',
+          '',
       modalidad: json['modalidad']?.toString() ?? 'presencial',
       lugar_o_enlace: json['lugar_o_enlace']?.toString() ??
           json['lugarOEnlace']?.toString() ??

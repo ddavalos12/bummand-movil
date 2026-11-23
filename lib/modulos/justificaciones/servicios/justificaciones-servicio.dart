@@ -259,7 +259,12 @@ class JustificacionesServicio {
         } catch (_) {}
       }
 
-      return Resultado.exitoso([]);
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/api/justificaciones',
+          metodo: 'GET',
+        ),
+      );
     } catch (e) {
       return Resultado.fallido('Error al obtener justificaciones: $e');
     } finally {
@@ -291,7 +296,12 @@ class JustificacionesServicio {
         } catch (_) {}
       }
 
-      return Resultado.exitoso([]);
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/api/justificaciones',
+          metodo: 'GET',
+        ),
+      );
     } catch (e) {
       return Resultado.fallido('Error al obtener justificaciones: $e');
     } finally {

@@ -22,15 +22,13 @@ class EvaluacionesRepositorio {
   }
 
   Future<int> _resolverBecarioId([int? becario_id]) async {
-    if (becario_id != null && becario_id > 1) return becario_id;
-    try {
-      final preferencias = await SharedPreferences.getInstance();
-      final id_guardado = preferencias.getInt('usuario_id');
-      if (id_guardado != null && id_guardado > 0) {
-        return id_guardado;
-      }
-    } catch (_) {}
-    return becario_id ?? 1;
+    if (becario_id != null && becario_id > 0) return becario_id;
+    final preferencias = await SharedPreferences.getInstance();
+    final id_guardado = preferencias.getInt('usuario_id');
+    if (id_guardado != null && id_guardado > 0) {
+      return id_guardado;
+    }
+    throw Exception('Sesión de usuario no encontrada.');
   }
 
   Future<Map<String, String>> _cabeceras() async {
@@ -42,7 +40,7 @@ class EvaluacionesRepositorio {
   }
 
   Future<Resultado<EvaluacionConsolidadaModelo>> obtenerEvaluacionConsolidada({
-    int becario_id = 1,
+    required int becario_id,
     int periodo_id = 1,
   }) async {
     final cliente_http = _obtenerCliente();
@@ -73,10 +71,10 @@ class EvaluacionesRepositorio {
       final error = ErrorBumand.desdeRespuesta(respuesta);
       return Resultado.desdeErrorBumand(error);
     } catch (_) {
-      return Resultado.exitoso(
-        EvaluacionConsolidadaModelo.modeloVacio(
-          becario_id: becario_id,
-          periodo_id: periodo_id,
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/evaluaciones/becario/$becario_id/periodo/$periodo_id/calificacion-total',
+          metodo: 'GET',
         ),
       );
     } finally {
@@ -92,11 +90,11 @@ class EvaluacionesRepositorio {
 
       final respuesta = await cliente_http
           .get(Uri.parse(ruta), headers: cabeceras)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 12));
 
       if (respuesta.statusCode == 200) {
         final cuerpo = jsonDecode(respuesta.body);
-        if (cuerpo is List && cuerpo.isNotEmpty) {
+        if (cuerpo is List) {
           final preguntas = cuerpo
               .map((p) => PreguntaBienestarModelo.desdeJson(p as Map<String, dynamic>))
               .toList();
@@ -104,9 +102,14 @@ class EvaluacionesRepositorio {
         }
       }
 
-      return Resultado.exitoso(PreguntaBienestarModelo.catalogoCanonico());
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
     } catch (_) {
-      return Resultado.exitoso(PreguntaBienestarModelo.catalogoCanonico());
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/evaluaciones/cuestionario-bienestar',
+          metodo: 'GET',
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -196,28 +199,24 @@ class EvaluacionesRepositorio {
         return Resultado.exitoso({
           'enviado': datos['enviado'] ?? true,
           'codigo': datos['codigo']?.toString(),
-          'supervisor_nombre':
-              (datos['supervisor_nombre'] ?? 'Supervisor Asignado').toString(),
-          'supervisor_correo':
-              (datos['supervisor_correo'] ?? 'admin@bumand.bo').toString(),
+          'supervisor_nombre': (datos['supervisor_nombre'] ?? '').toString(),
+          'supervisor_correo': (datos['supervisor_correo'] ?? '').toString(),
           'expira_en_minutos': datos['expira_en_minutos'] ?? 10,
           'mensaje': datos['mensaje'] ??
-              'Se envió una notificación con el código de 6 dígitos a la pantalla de su supervisor específico.',
+              'Se envió una notificación con el código de verificación a su supervisor.',
         });
       }
-    } catch (_) {} finally {
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
+    } catch (_) {
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/evaluaciones/modulo-3/solicitar-codigo',
+          metodo: 'POST',
+        ),
+      );
+    } finally {
       if (cliente == null) cliente_http.close();
     }
-
-    return Resultado.exitoso({
-      'enviado': true,
-      'codigo': '831721',
-      'supervisor_nombre': 'Supervisor Asignado',
-      'supervisor_correo': 'admin@bumand.bo',
-      'expira_en_minutos': 10,
-      'mensaje':
-          'Se envió una notificación con el código de 6 dígitos a la pantalla de su supervisor específico.',
-    });
   }
 
   Future<Resultado<Map<String, dynamic>>> verificarCodigoTutor({
@@ -313,21 +312,14 @@ class EvaluacionesRepositorio {
           return Resultado.exitoso(lista);
         }
       }
-      var ejemplo = BecarioAsignadoModulo3Modelo.listaEjemplo();
-      if (es_mentor && usuario_id != null) {
-        ejemplo = ejemplo
-            .where((b) => b.supervisor_id == usuario_id)
-            .toList();
-      }
-      return Resultado.exitoso(ejemplo);
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
     } catch (_) {
-      var ejemplo = BecarioAsignadoModulo3Modelo.listaEjemplo();
-      if (es_mentor && usuario_id != null) {
-        ejemplo = ejemplo
-            .where((b) => b.supervisor_id == usuario_id)
-            .toList();
-      }
-      return Resultado.exitoso(ejemplo);
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/api/evaluaciones/modulo-3/becarios-asignados',
+          metodo: 'GET',
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -392,7 +384,12 @@ class EvaluacionesRepositorio {
       final error = ErrorBumand.desdeRespuesta(respuesta);
       return Resultado.desdeErrorBumand(error);
     } catch (_) {
-      return Resultado.exitoso(null);
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/evaluaciones/receptor/mentor-qr',
+          metodo: 'POST',
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -432,8 +429,8 @@ class EvaluacionesRepositorio {
 
       final error = ErrorBumand.desdeRespuesta(respuesta);
       return Resultado.desdeErrorBumand(error);
-    } catch (_) {
-      return Resultado.exitoso(null);
+    } catch (e) {
+      return Resultado.fallido('Error de conexión al subir el documento: $e');
     }
   }
 
@@ -469,9 +466,14 @@ class EvaluacionesRepositorio {
           return Resultado.exitoso(tareas);
         }
       }
-      return Resultado.exitoso(const []);
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
     } catch (_) {
-      return Resultado.exitoso(const []);
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/api/evaluaciones/escuela-lideres/tareas',
+          metodo: 'GET',
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -537,10 +539,10 @@ class EvaluacionesRepositorio {
       final ruta =
           '${ApiConstantes.RUTA_BASE}/api/evaluaciones/escuela-lideres/tareas/entregar';
 
-      final url_evidencia = (archivo_evidencia_url != null &&
-              archivo_evidencia_url.trim().isNotEmpty)
-          ? archivo_evidencia_url.trim()
-          : '/uploads/escuela-lideres/$archivo_nombre';
+      if (archivo_evidencia_url == null || archivo_evidencia_url.trim().isEmpty) {
+        return Resultado.fallido('Debes subir primero el archivo de evidencia al servidor.');
+      }
+      final url_evidencia = archivo_evidencia_url.trim();
 
       final cuerpo = <String, dynamic>{
         'becario_id': id_real,
@@ -683,10 +685,17 @@ class EvaluacionesRepositorio {
           return Resultado.exitoso(resultado);
         }
       }
-    } catch (_) {} finally {
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
+    } catch (_) {
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: '/iglesias',
+          metodo: 'GET',
+        ),
+      );
+    } finally {
       if (cliente == null) cliente_http.close();
     }
-    return Resultado.exitoso([]);
   }
 }
 

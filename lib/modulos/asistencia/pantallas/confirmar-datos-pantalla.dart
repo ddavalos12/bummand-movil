@@ -34,16 +34,10 @@ class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla>
   void _inicializarCamposContacto(Map<String, dynamic> perfil) {
     if (_datos_inicializados) return;
     _telefono_controlador.text =
-        perfil['telefono']?.toString() ??
-        perfil['celular']?.toString() ??
-        '78945612';
-    _direccion_controlador.text =
-        perfil['direccion']?.toString() ??
-        'Zona 16 de Julio, Calle Eulert #120, El Alto';
+        (perfil['telefono'] ?? perfil['celular'] ?? '').toString();
+    _direccion_controlador.text = (perfil['direccion'] ?? '').toString();
     _emergencia_controlador.text =
-        perfil['contactoEmergencia']?.toString() ??
-        perfil['contacto_emergencia']?.toString() ??
-        'Juana Laime (Madre) - Cel: 71234567';
+        (perfil['contactoEmergencia'] ?? perfil['contacto_emergencia'] ?? '').toString();
     _datos_inicializados = true;
   }
 
@@ -57,39 +51,48 @@ class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla>
     );
   }
 
-  Future<void> _guardarDatosContacto() async {
+  Future<bool> _guardarDatosContacto() async {
     final tel = _telefono_controlador.text.trim();
     final dir = _direccion_controlador.text.trim();
     final emg = _emergencia_controlador.text.trim();
 
-    if (tel.isEmpty || dir.isEmpty || emg.isEmpty) {
-      _mensaje('Debes completar todos los datos de contacto requeridos.', es_error: true);
-      return;
+    if (tel.isEmpty || dir.isEmpty) {
+      _mensaje(
+        'Debes completar tu teléfono y dirección de domicilio.',
+        es_error: true,
+      );
+      return false;
     }
 
     final error = await ref
         .read(asistencia_notificador_proveedor.notifier)
         .actualizarPerfil({
       'telefono': tel,
+      'celular': tel,
       'direccion': dir,
-      'contacto_emergencia': emg,
+      if (emg.isNotEmpty) 'contacto_emergencia': emg,
     });
 
     if (error == null) {
       _mensaje('Datos de contacto actualizados correctamente');
+      return true;
     } else {
       _mensaje(error, es_error: true);
+      return false;
     }
   }
 
   Future<void> _confirmar() async {
-    await _guardarDatosContacto();
+    final guardado = await _guardarDatosContacto();
+    if (!guardado) return;
+
     final error = await ref
         .read(asistencia_notificador_proveedor.notifier)
         .confirmarDatosPasajes(widget.periodo);
 
     if (error == null) {
       ref.read(orden_confirmacion_proveedor.notifier).marcarConfirmado();
+      ref.invalidate(perfil_proveedor);
       _mensaje('Confirmación mensual de datos registrada exitosamente');
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -117,23 +120,46 @@ class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla>
       ),
       body: perfil_async.when(
         data: (resultado) {
-          final p = resultado.datos ?? {
-            'nombre': 'Becario',
-            'ci': '',
-            'universidad': '',
-            'carrera': '',
-            'iglesia': '',
-            'lugarPractica': {'nombre': 'Oficina Central Diaconía IFD - El Alto'},
-            'tutor': {'nombre': ''},
-          };
+          if (!resultado.exito || resultado.datos == null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_rounded, size: 48, color: Colors.redAccent),
+                    const SizedBox(height: 12),
+                    Text(
+                      resultado.error ?? 'No se pudo cargar tu ficha desde el servidor.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => ref.invalidate(perfil_proveedor),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          final p = resultado.datos!;
 
           _inicializarCamposContacto(p);
 
-          final universidad = p['universidad']?.toString() ?? 'Universidad Pública de El Alto (UPEA)';
-          final carrera = p['carrera']?.toString() ?? 'Contaduría Pública';
-          final iglesia = p['iglesia']?.toString() ??
-              p['iglesia_nombre']?.toString() ??
-              'Iglesia Bautista Central';
+          final universidad = (p['universidad']?.toString().trim().isNotEmpty == true)
+              ? p['universidad'].toString().trim()
+              : 'No registrada';
+          final carrera = (p['carrera']?.toString().trim().isNotEmpty == true)
+              ? p['carrera'].toString().trim()
+              : 'No registrada';
+          final iglesia_raw = p['iglesia'] is Map
+              ? p['iglesia']['nombre']
+              : (p['iglesia'] ?? p['iglesia_nombre']);
+          final iglesia = (iglesia_raw?.toString().trim().isNotEmpty == true)
+              ? iglesia_raw.toString().trim()
+              : 'No registrada';
 
           return ListView(
             padding: const EdgeInsets.all(18),
@@ -211,7 +237,9 @@ class _ConfirmarDatosPantallaState extends ConsumerState<ConfirmarDatosPantalla>
                     const Divider(height: 20),
                     _FilaBloqueada(
                       etiqueta: "C.I.",
-                      valor: p["ci"]?.toString() ?? "9876543 LP",
+                      valor: (p["ci"]?.toString().trim().isNotEmpty == true)
+                          ? p["ci"].toString().trim()
+                          : "No registrado",
                     ),
                     const Divider(height: 20),
                     _FilaBloqueada(

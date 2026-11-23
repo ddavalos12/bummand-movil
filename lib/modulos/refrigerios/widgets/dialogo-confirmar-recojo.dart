@@ -376,11 +376,21 @@ class _DialogoConfirmarRecojoState extends ConsumerState<DialogoConfirmarRecojo>
                               final navegador = Navigator.of(context);
                               final mensajero = ScaffoldMessenger.of(context);
                               setState(() => _confirmando = true);
-                              await ref
+                              final error = await ref
                                   .read(refrigerios_proveedor.notifier)
                                   .confirmarRecojo(widget.refrigerio.id);
 
                               if (!mounted) return;
+                              if (error != null) {
+                                setState(() => _confirmando = false);
+                                mensajero.showSnackBar(
+                                  SnackBar(
+                                    backgroundColor: Colors.red.shade700,
+                                    content: Text(error),
+                                  ),
+                                );
+                                return;
+                              }
 
                               // Buscar el refrigerio recién actualizado para mostrar su constancia
                               final lista = ref.read(refrigerios_proveedor);

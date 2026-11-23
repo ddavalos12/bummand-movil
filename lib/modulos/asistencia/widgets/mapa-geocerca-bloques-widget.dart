@@ -40,7 +40,7 @@ class MapaGeocercaBloquesWidget extends StatefulWidget {
     required this.escaneando,
     required this.dentro_geocerca,
     this.posicion,
-    this.distancia_m = 32.0,
+    this.distancia_m = 0.0,
     this.radio_m = 60.0,
     this.error_gps,
     required this.bloque_detectado,

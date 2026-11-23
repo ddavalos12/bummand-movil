@@ -221,9 +221,7 @@ class PasajesRepositorio {
         body: jsonEncode({'periodo': periodo}),
       );
 
-      if (respuesta.statusCode == 200 ||
-          respuesta.statusCode == 201 ||
-          respuesta.statusCode == 403) {
+      if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
         return ResultadoPasaje.exitoso(null);
       } else {
         final error = ErrorBumand.desdeRespuesta(respuesta);
@@ -234,7 +232,9 @@ class PasajesRepositorio {
         );
       }
     } catch (_) {
-      return ResultadoPasaje.exitoso(null);
+      return ResultadoPasaje.fallido(
+        'No se pudo conectar con el servidor para confirmar datos.',
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -499,6 +499,33 @@ class PasajesRepositorio {
     }
   }
 
+  Future<ResultadoPasaje<List<Map<String, dynamic>>>> obtenerParadas() async {
+    final cliente_http = _obtenerCliente();
+    try {
+      final respuesta = await cliente_http.get(
+        _url('/paradas'),
+        headers: await _cabeceras(),
+      );
+
+      if (respuesta.statusCode == 200) {
+        final cuerpo = jsonDecode(respuesta.body);
+        final List<dynamic> datos = cuerpo is List
+            ? cuerpo
+            : (cuerpo is Map ? (cuerpo['datos'] ?? cuerpo['paradas'] ?? []) : []);
+        final paradas = datos
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+        return ResultadoPasaje.exitoso(paradas);
+      }
+      return ResultadoPasaje.fallido('Error al obtener paradas (${respuesta.statusCode})');
+    } catch (e) {
+      return ResultadoPasaje.fallido('Error de conexión al obtener paradas: $e');
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
+  }
+
   Future<ResultadoPasaje<Map<String, dynamic>>> obtenerHistorialConsolidadoParadas({
     String? fecha_inicio,
     String? fecha_fin,
@@ -521,14 +548,16 @@ class PasajesRepositorio {
         final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
         return ResultadoPasaje.exitoso(datos);
       }
-    } catch (_) {}
-
-    return ResultadoPasaje.exitoso({
-      'total_recorridos': 0,
-      'total_gastado_bs': 0.0,
-      'total_devolucion_bs': 0.0,
-      'paradas_mas_frecuentes': [],
-      'recorridos': [],
-    });
+      final error = ErrorBumand.desdeRespuesta(respuesta);
+      return ResultadoPasaje.fallido(
+        error.mensaje,
+        codigo: error.codigo_error,
+        error_bumand: error,
+      );
+    } catch (e) {
+      return ResultadoPasaje.fallido('Error de conexión al consultar historial: $e');
+    } finally {
+      if (cliente == null) cliente_http.close();
+    }
   }
 }

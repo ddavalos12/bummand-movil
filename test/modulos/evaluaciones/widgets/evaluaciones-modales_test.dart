@@ -92,7 +92,11 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => DetalleEvaluacionModal.mostrarFormularioMentor(context),
+                onPressed: () => DetalleEvaluacionModal.mostrarFormularioMentor(
+                  context,
+                  becario_id: 1,
+                  becario_nombre: 'Estudiante Prueba',
+                ),
                 child: const Text('Abrir Formulario Mentor F-03'),
               ),
             ),

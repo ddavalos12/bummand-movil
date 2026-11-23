@@ -45,8 +45,8 @@ class Evento {
       descripcion: (mapa['descripcion'] as String?) ?? '',
       tipo_evento: (mapa['tipo_evento'] as String?) ?? 'reunion',
       fecha: mapa['fecha'] != null ? mapa['fecha'].toString().split('T')[0] : '',
-      hora_inicio: (mapa['hora_inicio'] as String?) ?? '08:00',
-      hora_fin: (mapa['hora_fin'] as String?) ?? '12:00',
+      hora_inicio: (mapa['hora_inicio'] as String?) ?? '',
+      hora_fin: (mapa['hora_fin'] as String?) ?? '',
       latitud: double.tryParse(mapa['latitud']?.toString() ?? '0') ?? 0.0,
       longitud: double.tryParse(mapa['longitud']?.toString() ?? '0') ?? 0.0,
       radio_tolerancia_m: double.tryParse(
@@ -55,7 +55,7 @@ class Evento {
           ) ??
           100.0,
       direccion_referencia:
-          (mapa['direccion_referencia'] as String?) ?? 'La Paz, Bolivia',
+          (mapa['direccion_referencia'] as String?) ?? '',
       estado: (mapa['estado'] as String?) ?? 'programado',
       created_at: mapa['created_at'] != null
           ? DateTime.tryParse(mapa['created_at'].toString())

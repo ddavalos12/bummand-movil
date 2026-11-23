@@ -14,7 +14,7 @@ final notificaciones_proveedor = FutureProvider<List<NotificacionModelo>>((ref) 
   if (resultado.exito && resultado.datos != null) {
     return resultado.datos!;
   }
-  return <NotificacionModelo>[];
+  throw Exception(resultado.error ?? 'No se pudieron cargar las notificaciones');
 });
 
 final notificaciones_conteo_proveedor = FutureProvider<int>((ref) async {
@@ -23,7 +23,7 @@ final notificaciones_conteo_proveedor = FutureProvider<int>((ref) async {
   if (resultado.exito && resultado.datos != null) {
     return resultado.datos!;
   }
-  return 0;
+  throw Exception(resultado.error ?? 'No se pudo consultar el conteo de notificaciones');
 });
 
 class NotificacionesNotificador extends AsyncNotifier<List<NotificacionModelo>> {
@@ -40,7 +40,7 @@ class NotificacionesNotificador extends AsyncNotifier<List<NotificacionModelo>> 
     if (res.exito && res.datos != null) {
       return res.datos!;
     }
-    return <NotificacionModelo>[];
+    throw Exception(res.error ?? 'No se pudieron cargar las notificaciones');
   }
 
   Future<void> recargar() async {

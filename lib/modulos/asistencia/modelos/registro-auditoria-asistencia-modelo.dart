@@ -250,14 +250,14 @@ class RegistroAuditoriaAsistencia {
       becario_nombre: (becario['nombre'] ??
               usuario['nombre'] ??
               mapa['becario_nombre'] ??
-              'Becario Institucional')
+              'Sin nombre')
           .toString(),
-      carrera: (becario['carrera'] ?? mapa['carrera'] ?? 'Carrera BUMAND')
+      carrera: (becario['carrera'] ?? mapa['carrera'] ?? 'Sin carrera')
           .toString(),
       sede_nombre: (lugar['nombre'] ??
               mapa['sede_nombre'] ??
               mapa['bloque'] ??
-              'Oficina Central')
+              'Sin sede')
           .toString(),
       fecha: fecha,
       tipo: tipo,
@@ -284,135 +284,4 @@ class RegistroAuditoriaAsistencia {
       observacion_admin: mapa['observacion_admin']?.toString(),
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Catálogo institucional semilla (idéntico a `REGISTROS_AUDITORIA_INICIALES`
-  // de `auditoria-asistencia.tsx`)
-  // ---------------------------------------------------------------------------
-
-  static List<RegistroAuditoriaAsistencia> semillas() => const [
-        RegistroAuditoriaAsistencia(
-          id: 1,
-          becario_id: 101,
-          supervisor_id: 2,
-          becario_nombre: 'Nilda Amalia Churata Paye',
-          carrera: 'Educación Parvularia',
-          sede_nombre: 'Centro Infantil Sagrada Familia',
-          fecha: '2026-10-09',
-          hora_ingreso: '08:12',
-          horas_trabajadas: 4.2,
-          distancia_ingreso_m: 35,
-          estado: 'en_curso',
-          lat_ingreso: -16.5023,
-          lng_ingreso: -68.1511,
-          es_viernes: true,
-          confirmacion_presencial: true,
-          es_semilla: true,
-        ),
-        RegistroAuditoriaAsistencia(
-          id: 2,
-          becario_id: 102,
-          supervisor_id: 2,
-          becario_nombre: 'Edgar Elias Alarcon Huanca',
-          carrera: 'Ingeniería de Sistemas',
-          sede_nombre: 'Oficina Central Bloque A',
-          fecha: '2026-10-09',
-          hora_ingreso: '08:45',
-          horas_trabajadas: 3.5,
-          distancia_ingreso_m: 48,
-          dentro_de_horario: false,
-          estado: 'tardanza',
-          lat_ingreso: -16.4998,
-          lng_ingreso: -68.1502,
-          es_viernes: true,
-          minutos_retraso: 45,
-          confirmacion_presencial: true,
-          es_semilla: true,
-        ),
-        RegistroAuditoriaAsistencia(
-          id: 3,
-          becario_id: 103,
-          supervisor_id: 3,
-          becario_nombre: 'Adai Belen Huayta Cardozo',
-          carrera: 'Contaduría Pública',
-          sede_nombre: 'Agencia Villa Dolores',
-          fecha: '2026-10-09',
-          hora_ingreso: '07:58',
-          hora_salida: '16:30',
-          horas_trabajadas: 8.53,
-          distancia_ingreso_m: 185,
-          dentro_de_radio: false,
-          estado: 'fuera_geocerca',
-          lat_ingreso: -16.518,
-          lng_ingreso: -68.163,
-          es_viernes: true,
-          es_semilla: true,
-        ),
-        RegistroAuditoriaAsistencia(
-          id: 4,
-          becario_id: 104,
-          supervisor_id: 3,
-          becario_nombre: 'Ronald Franz Mamani Quispe',
-          carrera: 'Bioquímica y Farmacia',
-          sede_nombre: 'Consultorio Médico San Lucas',
-          fecha: '2026-10-09',
-          hora_ingreso: '08:00',
-          hora_salida: '17:00',
-          horas_trabajadas: 9.0,
-          distancia_ingreso_m: 22,
-          estado: 'conforme',
-          lat_ingreso: -16.505,
-          lng_ingreso: -68.148,
-          es_viernes: true,
-          confirmacion_presencial: true,
-          es_semilla: true,
-        ),
-        RegistroAuditoriaAsistencia(
-          id: 5,
-          becario_id: 105,
-          supervisor_id: 3,
-          becario_nombre: 'Abigail Ruth Condori Flores',
-          carrera: 'Trabajo Social',
-          sede_nombre: 'Hogar de Niños Amor y Esperanza',
-          fecha: '2026-10-09',
-          hora_ingreso: '08:35',
-          hora_salida: '17:10',
-          horas_trabajadas: 8.58,
-          distancia_ingreso_m: 140,
-          dentro_de_radio: false,
-          dentro_de_horario: false,
-          estado: 'convalidado',
-          estado_aprobacion: 'aprobado_administracion',
-          convalidado_por: 'Lic. Marcos Quispe',
-          lat_ingreso: -16.521,
-          lng_ingreso: -68.169,
-          es_viernes: true,
-          minutos_retraso: 35,
-          confirmacion_presencial: true,
-          es_semilla: true,
-        ),
-        RegistroAuditoriaAsistencia(
-          id: 6,
-          becario_id: 106,
-          supervisor_id: 2,
-          becario_nombre: 'Jhoselin Pamela Mamani Choque',
-          carrera: 'Medicina',
-          sede_nombre: 'Escuela de Líderes (Auditorio Central)',
-          fecha: '2026-10-09',
-          tipo: 'escuela_lideres',
-          hora_ingreso: '14:50',
-          hora_salida: '17:30',
-          horas_trabajadas: 2.67,
-          distancia_ingreso_m: 18,
-          dentro_de_horario: false,
-          estado: 'tardanza',
-          lat_ingreso: -16.5020,
-          lng_ingreso: -68.1510,
-          es_viernes: true,
-          minutos_retraso: 20,
-          monto_multa_bs: 20,
-          confirmacion_presencial: true,
-          es_semilla: true,
-        ),
-      ];
 }

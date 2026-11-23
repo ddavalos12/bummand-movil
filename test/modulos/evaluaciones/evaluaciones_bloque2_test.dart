@@ -50,7 +50,25 @@ void main() {
         token: 'token_prueba',
       );
 
-      final lista_becarios = BecarioAsignadoModulo3Modelo.listaEjemplo();
+      final lista_becarios = [
+        const BecarioAsignadoModulo3Modelo(
+          becario_id: 1,
+          nombre: 'María Catunta Laime',
+          carrera: 'Contaduría Pública',
+          universidad: 'UPEA',
+          agencia: 'Sede Test',
+          estado_evaluacion: 'pendiente',
+        ),
+        const BecarioAsignadoModulo3Modelo(
+          becario_id: 2,
+          nombre: 'Juan Carlos Mamani Quispe',
+          carrera: 'Derecho',
+          universidad: 'UMSA',
+          agencia: 'Sede Test',
+          estado_evaluacion: 'completada',
+          puntaje_actual: 85.0,
+        ),
+      ];
 
       await tester.pumpWidget(
         ProviderScope(

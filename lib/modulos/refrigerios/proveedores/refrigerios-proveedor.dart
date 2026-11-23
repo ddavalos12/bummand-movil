@@ -160,41 +160,27 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
   }
 
   /// Confirma el recojo individual del refrigerio mediante PATCH /api/refrigerios/:id/confirmar-recojo
-  Future<void> confirmarRecojo(int id_refrigerio, {String? comentario}) async {
+  Future<String?> confirmarRecojo(int id_refrigerio, {String? comentario}) async {
     final ahora = DateTime.now();
     final hora_str =
         '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')} hrs';
     final codigo =
-        'CR-2026-${ahora.month.toString().padLeft(2, '0')}${ahora.day.toString().padLeft(2, '0')}-${id_refrigerio.toString().padLeft(2, '0')}';
+        'CR-${ahora.year}-${ahora.month.toString().padLeft(2, '0')}${ahora.day.toString().padLeft(2, '0')}-${id_refrigerio.toString().padLeft(2, '0')}';
 
     final auth = ref.read(autenticacion_proveedor);
     final usuario = auth.usuario;
-    final mi_id = usuario?.id ?? 1;
-    final mi_nombre = usuario?.nombre ?? 'Estudiante Becario';
+    if (usuario == null || usuario.id <= 0) {
+      return 'Sesión no válida. Inicia sesión nuevamente.';
+    }
 
     final cuerpo_firma = {
-      'becario_id': mi_id,
-      'becario_nombre': mi_nombre,
+      'becario_id': usuario.id,
+      'becario_nombre': usuario.nombre,
       'hora_recojo': hora_str,
       'codigo_constancia': codigo,
       'comentario': comentario ?? 'Recibido a conformidad',
       'fecha_recojo': ahora.toIso8601String(),
     };
-
-    // Actualización inmediata en memoria local
-    state = state.map((r) {
-      if (r.id == id_refrigerio) {
-        final firmas_actuales = List<Map<String, dynamic>>.from(r.firmas_conformidad);
-        firmas_actuales.add(cuerpo_firma);
-        return r.copiarCon(
-          recogido: true,
-          hora_recojo: hora_str,
-          codigo_constancia: codigo,
-          firmas_conformidad: firmas_actuales,
-        );
-      }
-      return r;
-    }).toList();
 
     try {
       final cabeceras = await _obtenerCabeceras();
@@ -207,31 +193,54 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
             headers: cabeceras,
             body: jsonEncode(cuerpo_firma),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 12));
 
       if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
         final datos = jsonDecode(respuesta.body);
         if (datos is Map<String, dynamic>) {
           final actualizado = RefrigerioModelo.desdeJson(datos);
           state = state.map((r) => r.id == id_refrigerio ? actualizado : r).toList();
+        } else {
+          await cargarRefrigerios();
         }
-        return;
+        return null;
       }
 
-      // Si el endpoint específico responde 404, intentar actualizar firmas mediante PUT /api/refrigerios/:id
       if (respuesta.statusCode == 404) {
-        final refrigerio_actual = state.firstWhere((r) => r.id == id_refrigerio);
+        final actual = state.firstWhere(
+          (r) => r.id == id_refrigerio,
+          orElse: () => RefrigerioModelo(
+            id: id_refrigerio,
+            fecha: '',
+            evento_o_jornada: '',
+            sede_nombre: '',
+            bloque: '',
+            horario_distribucion: '',
+            cantidad_raciones: 0,
+            menu_detalle: '',
+            responsable_entrega: '',
+            recogido: false,
+          ),
+        );
+        final firmas_actuales = List<Map<String, dynamic>>.from(actual.firmas_conformidad)
+          ..add(cuerpo_firma);
         final url_put = '${ApiConstantes.RUTA_BASE}/api/refrigerios/$id_refrigerio';
-        await http.put(
-          Uri.parse(url_put),
-          headers: cabeceras,
-          body: jsonEncode({
-            'firmas_conformidad': refrigerio_actual.firmas_conformidad,
-          }),
-        ).timeout(const Duration(seconds: 3));
+        final resp_put = await http
+            .put(
+              Uri.parse(url_put),
+              headers: cabeceras,
+              body: jsonEncode({'firmas_conformidad': firmas_actuales}),
+            )
+            .timeout(const Duration(seconds: 12));
+        if (resp_put.statusCode == 200 || resp_put.statusCode == 201) {
+          await cargarRefrigerios();
+          return null;
+        }
       }
+
+      return 'El servidor rechazó el registro (${respuesta.statusCode})';
     } catch (_) {
-      // Conserva la constancia emitida localmente
+      return 'Sin conexión con el servidor para registrar el recojo.';
     }
   }
 
@@ -244,22 +253,6 @@ class RefrigeriosNotificador extends Notifier<List<RefrigerioModelo>> {
     required double costo_total_bs,
     String? observaciones,
   }) async {
-    // Actualización optimista
-    state = state.map((r) {
-      if (r.id == id) {
-        return r.copiarCon(
-          menu_detalle: menu_detalle,
-          modalidad_preparacion: modalidad_preparacion,
-          ingredientes: ingredientes,
-          costo_total_bs: costo_total_bs,
-          monto_devolucion_bs: costo_total_bs,
-          estado: 'rendido_pendiente',
-          observaciones: observaciones,
-        );
-      }
-      return r;
-    }).toList();
-
     try {
       final cabeceras = await _obtenerCabeceras();
       final url = '${ApiConstantes.RUTA_BASE}/api/refrigerios/$id/rendir';
@@ -416,7 +409,7 @@ class InfoTurnoDupla {
     this.refrigerio,
     this.companero_nombre = '',
     this.mi_nombre = '',
-    this.mi_id = 1,
+    this.mi_id = 0,
     this.mi_gasto = 0.0,
     this.gasto_companero = 0.0,
     this.ya_rendido = false,
@@ -430,7 +423,7 @@ final turno_dupla_activo_proveedor = Provider<InfoTurnoDupla>((ref) {
   final auth = ref.watch(autenticacion_proveedor);
   final usuario = auth.usuario;
 
-  final mi_id = usuario?.id ?? 1;
+  final mi_id = usuario?.id ?? 0;
   final mi_nombre = (usuario != null && usuario.nombre.isNotEmpty)
       ? usuario.nombre
       : '';

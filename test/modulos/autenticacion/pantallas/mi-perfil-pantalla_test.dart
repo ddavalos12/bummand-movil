@@ -18,6 +18,11 @@ class RepositorioSimulado extends AutenticacionRepositorio {
   }
 
   @override
+  Future<Resultado<UsuarioModelo>> obtenerMiPerfilCompleto() async {
+    return Resultado.exitoso(usuario_actual);
+  }
+
+  @override
   Future<Resultado<UsuarioModelo>> actualizarMiPerfil({
     required String nombre,
     String? telefono,
@@ -208,6 +213,8 @@ void main() {
           correo: 'maria@diaconia.bo',
           rol: 'becario',
           token: 'token-jwt-prueba',
+          telefono: '70011223',
+          direccion: 'Av. Central #100',
         );
 
         final repo_simulado = RepositorioSimulado(usuario_actual: usuario_prueba);
@@ -266,6 +273,8 @@ void main() {
           correo: 'maria@diaconia.bo',
           rol: 'becario',
           token: 'token-jwt-prueba',
+          telefono: '70011223',
+          direccion: 'Av. Central #100',
         );
 
         final repo_simulado = RepositorioSimulado(usuario_actual: usuario_prueba);
@@ -363,7 +372,7 @@ void main() {
         expect(find.text('Gestión de Cuentas BUMAND'), findsOneWidget);
         expect(find.text('Nuevo Usuario'), findsOneWidget);
         expect(find.text('Todos'), findsOneWidget);
-        expect(find.text('Supervisores'), findsOneWidget);
+        expect(find.text('Mentores'), findsOneWidget);
         expect(find.text('Becarios'), findsOneWidget);
       },
     );

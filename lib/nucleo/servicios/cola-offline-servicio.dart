@@ -179,8 +179,7 @@ class ColaOfflineServicio {
         if (respuesta.statusCode >= 200 && respuesta.statusCode < 300) {
           sincronizados++;
         } else if (respuesta.statusCode >= 400 && respuesta.statusCode < 500) {
-          // Error del cliente: se descarta para evitar bloqueos continuos
-          sincronizados++;
+          // Rechazo definitivo del cliente: se descarta sin contarlo como sincronizado exitoso
         } else {
           no_sincronizados.add(peticion.copiarCon(intentos: peticion.intentos + 1));
         }

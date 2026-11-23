@@ -318,8 +318,8 @@ class RefrigerioModelo {
         .map((f) => Map<String, dynamic>.from(f))
         .toList();
 
-    final cantidad = _parsearInt(json['cantidad_raciones'], 23);
-    final unitario = _parsearDouble(json['costo_unitario_bs'], 5.0);
+    final cantidad = _parsearInt(json['cantidad_raciones'], 0);
+    final unitario = _parsearDouble(json['costo_unitario_bs'], 0.0);
     final costo_total = _parsearDouble(json['costo_total_bs'], (cantidad * unitario));
 
     // Mapear fecha en formato YYYY-MM-DD
@@ -332,21 +332,20 @@ class RefrigerioModelo {
         json['evento_vinculado']?.toString() ??
         json['evento_o_jornada']?.toString() ??
         json['descripcion']?.toString() ??
-        'Escuela de Líderes (Viernes Formativo)';
+        '';
 
     final menu_detalle = json['menu_descripcion']?.toString() ??
         json['menu_detalle']?.toString() ??
         json['observaciones']?.toString() ??
-        'Refrigerio institucional oficial';
+        '';
 
     final sede_nombre = json['sede']?.toString() ??
         json['sede_nombre']?.toString() ??
-        'Oficina Central El Alto';
+        '';
 
-    final bloque = json['bloque']?.toString() ?? 'Bloque B (Auditorio)';
+    final bloque = json['bloque']?.toString() ?? '';
 
-    final responsable = json['responsable_entrega']?.toString() ??
-        'Coordinación General BUMAND';
+    final responsable = json['responsable_entrega']?.toString() ?? '';
 
     final estado = json['estado_reposicion']?.toString() ??
         json['estado']?.toString() ??
@@ -376,7 +375,7 @@ class RefrigerioModelo {
       sede_nombre: sede_nombre,
       bloque: bloque,
       responsable_entrega: responsable,
-      horario_distribucion: json['horario_distribucion']?.toString() ?? '16:00 - 17:30',
+      horario_distribucion: json['horario_distribucion']?.toString() ?? '',
       recogido: fue_recogido,
       hora_recojo: hora_rec,
       codigo_constancia: constancia_rec,
@@ -440,7 +439,7 @@ class RefrigerioModelo {
       'cantidad_raciones': cantidad_raciones,
       'costo_unitario_bs': costo_unitario_bs,
       'costo_total_bs': costo_total_bs,
-      'presupuesto_referencial_bs': 115.0,
+      'presupuesto_referencial_bs': cantidad_raciones * costo_unitario_bs,
       'porcentaje_devolucion': porcentaje_devolucion,
       'monto_devolucion_bs': monto_devolucion_bs,
       'estado': estado,

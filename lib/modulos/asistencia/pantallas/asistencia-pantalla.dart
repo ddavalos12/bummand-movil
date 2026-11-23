@@ -35,28 +35,11 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
 
   Position? _posicion_actual;
   bool _escaneando_gps = false;
-  bool _dentro_de_geocerca = true;
-  double? _distancia_actual_m = 42.0;
-  double _radio_tolerancia_m = 150.0;
+  bool _dentro_de_geocerca = false;
+  double? _distancia_actual_m;
+  double _radio_tolerancia_m = 60.0;
   String? _mensaje_error_gps;
   bool _evaluado_con_perfil = false;
-
-  static const Map<String, dynamic> _SEDE_CENTRAL_DEFECTO = {
-    "nombre": "Oficina Central Diaconía IFD - El Alto",
-    "direccion":
-        "Avenida Juan Pablo II esq. Calle Sbtte. Jorge Eulert 125, El Alto",
-    "latitud": -16.500054,
-    "longitud": -68.173455,
-    "radio_tolerancia_m": 150.0,
-  };
-
-  static const Map<String, dynamic> _SEDE_ESCUELA_LIDERES = {
-    "nombre": "Escuela de Líderes Diaconales",
-    "direccion": "Auditorio Central Diaconía, El Alto — módulo de formación",
-    "latitud": -16.500054,
-    "longitud": -68.173455,
-    "radio_tolerancia_m": 150.0,
-  };
 
   String? _banner_alerta_puntualidad;
   bool _es_retraso = false;
@@ -66,12 +49,8 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
   List<Evento> _eventos_servicio = [];
   Evento? _evento_servicio_activo;
 
-  List<Map<String, dynamic>> _sedes_diaconia = [
-    {
-      "id": 1,
-      ..._SEDE_CENTRAL_DEFECTO,
-    },
-  ];
+  List<Map<String, dynamic>> _sedes_diaconia = [];
+  String? _error_lugares;
 
   @override
   void initState() {
@@ -113,11 +92,20 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
             };
           }).toList();
           if (sedes.isNotEmpty) {
-            setState(() => _sedes_diaconia = sedes);
+            setState(() {
+              _sedes_diaconia = sedes;
+              _error_lugares = null;
+            });
           }
         }
+      } else if (mounted) {
+        setState(() => _error_lugares = 'No se pudieron cargar las sedes');
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error_lugares = 'Sin conexión para cargar sedes');
+      }
+    }
   }
 
   void _mensaje(String texto, {bool es_error = false}) {
@@ -197,19 +185,28 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       if (lugar_perfil != null && lugar_param == null && _lugar_seleccionado == null) {
         _evaluado_con_perfil = true;
       }
+      final sede_principal = _sedes_diaconia.isNotEmpty ? _sedes_diaconia.first : null;
       final lugar = lugar_param ??
           _lugar_seleccionado ??
-          (_tipo == TipoAsistencia.escuelaLideres.valor
-              ? _SEDE_ESCUELA_LIDERES
-              : (lugar_perfil ?? _SEDE_CENTRAL_DEFECTO));
+          (lugar_perfil ?? sede_principal);
+      if (lugar == null) {
+        setState(() {
+          _escaneando_gps = false;
+          _posicion_actual = posicion;
+          _dentro_de_geocerca = false;
+          _distancia_actual_m = null;
+          _mensaje_error_gps = _error_lugares ?? 'Esperando sede desde el servidor...';
+        });
+        return;
+      }
       _evaluarGeocerca(posicion, lugar);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _escaneando_gps = false;
-        _dentro_de_geocerca = true;
-        _distancia_actual_m = 42.0;
-        _mensaje_error_gps = null;
+        _dentro_de_geocerca = false;
+        _distancia_actual_m = null;
+        _mensaje_error_gps = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -791,19 +788,19 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       });
     }
 
-    const lugar_defecto = _SEDE_CENTRAL_DEFECTO;
+    final sede_servidor = _sedes_diaconia.isNotEmpty ? _sedes_diaconia.first : null;
 
     final lugar = _tipo == TipoAsistencia.escuelaLideres.valor
-        ? _SEDE_ESCUELA_LIDERES
-        : (_lugar_seleccionado ?? lugar_perfil_actual ?? lugar_defecto);
+        ? (lugar_perfil_actual ?? sede_servidor)
+        : (_lugar_seleccionado ?? lugar_perfil_actual ?? sede_servidor);
 
-    String nombre_lugar = lugar["nombre"]?.toString() ?? "Lugar asignado";
-    String desc_lugar = lugar["direccion"]?.toString() ?? "Punto de asistencia";
+    String nombre_lugar = _tipo == TipoAsistencia.escuelaLideres.valor
+        ? "Escuela de Líderes Diaconales"
+        : (lugar?["nombre"]?.toString() ??
+            (_error_lugares != null ? "Error al cargar sede" : "Cargando sede..."));
+    String desc_lugar = lugar?["direccion"]?.toString() ?? "Sede configurada en base de datos";
 
-    if (_tipo == TipoAsistencia.escuelaLideres.valor) {
-      nombre_lugar = _SEDE_ESCUELA_LIDERES["nombre"]!.toString();
-      desc_lugar = _SEDE_ESCUELA_LIDERES["direccion"]!.toString();
-    } else if (_tipo == TipoAsistencia.accionesServicio.valor) {
+    if (_tipo == TipoAsistencia.accionesServicio.valor) {
       if (_lugar_seleccionado != null) {
         nombre_lugar = _lugar_seleccionado!["nombre"]?.toString() ??
             "Acción de Servicio Diaconal";
@@ -891,7 +888,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                   escaneando: _escaneando_gps,
                   dentro_geocerca: _dentro_de_geocerca,
                   posicion: _posicion_actual,
-                  distancia_m: _distancia_actual_m ?? 42.0,
+                  distancia_m: _distancia_actual_m,
                   radio_m: _radio_tolerancia_m,
                   error_gps: _mensaje_error_gps,
                   hora_ingreso: _hora_marcada_ingreso,
@@ -1124,11 +1121,20 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                     _aplicarEventoServicio(_evento_servicio_activo!);
                   }
                 } else if (opcion.$1 == TipoAsistencia.escuelaLideres.valor) {
-                  _escanearUbicacion(lugar_param: _SEDE_ESCUELA_LIDERES);
+                  Map<String, dynamic>? sede_lideres;
+                  for (final s in _sedes_diaconia) {
+                    final nom = (s['nombre'] ?? '').toString().toLowerCase();
+                    if (nom.contains('escuela') || nom.contains('lider') || nom.contains('ceja')) {
+                      sede_lideres = s;
+                      break;
+                    }
+                  }
+                  sede_lideres ??= _sedes_diaconia.isNotEmpty ? _sedes_diaconia.first : null;
+                  _escanearUbicacion(lugar_param: sede_lideres);
                 } else {
                   final lugar_practicas = _lugar_seleccionado ??
                       ref.read(perfil_proveedor).asData?.value.datos?["lugarPractica"] ??
-                      _SEDE_CENTRAL_DEFECTO;
+                      (_sedes_diaconia.isNotEmpty ? _sedes_diaconia.first : null);
                   _escanearUbicacion(lugar_param: lugar_practicas);
                 }
               },

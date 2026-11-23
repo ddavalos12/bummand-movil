@@ -77,6 +77,6 @@ final tarifas_pasajes_proveedor =
   if (resultado.exito && resultado.datos != null) {
     return resultado.datos!;
   }
-  return const [];
+  throw Exception(resultado.error ?? 'No se pudieron cargar las tarifas oficiales');
 });
 final tarifasPasajesProveedor = tarifas_pasajes_proveedor;

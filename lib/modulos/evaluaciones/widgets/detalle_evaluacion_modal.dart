@@ -32,7 +32,7 @@ Future<int> _obtenerBecarioIdAutenticado(BuildContext context) async {
       return id_prefs;
     }
   } catch (_) {}
-  return 1;
+  throw Exception('Sesión de usuario no encontrada.');
 }
 
 class DetalleEvaluacionModal extends StatelessWidget {
@@ -154,9 +154,9 @@ class DetalleEvaluacionModal extends StatelessWidget {
 
   static Future<void> mostrarFormularioMentor(
     BuildContext context, {
-    int becario_id = 1,
-    String becario_nombre = "Becario",
-    String supervisor_nombre_inicial = "Mentor",
+    required int becario_id,
+    String becario_nombre = "",
+    String supervisor_nombre_inicial = "",
     String modalidad_llenado = "perfil_supervisor",
     String? codigo_verificacion,
     Map<String, dynamic>? evaluacion_previa,
@@ -323,7 +323,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
                     border: Border.all(color: const Color(0xFFCBD5E1)),
                   ),
                   child: const Text(
-                    "Semestre II - 2026",
+                    "Gestión actual",
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -625,42 +625,15 @@ class _ReceptorAcademicoModal extends StatefulWidget {
 
 class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
   final _repositorio = EvaluacionesRepositorio();
-  final _promedio_ctrl = TextEditingController(text: "81.5");
+  final _promedio_ctrl = TextEditingController();
 
-  int _periodo_seleccionado_id = 2; // Semestre II - 2026
+  int _periodo_seleccionado_id = 1;
 
   static const List<Map<String, dynamic>> PERIODOS_ACADEMICOS = [
-    {"id": 2, "nombre": "Semestre II - 2026", "activo": true},
-    {"id": 1, "nombre": "Semestre I - 2026", "activo": false},
-    {"id": 3, "nombre": "Semestre II - 2025", "activo": false},
+    {"id": 1, "nombre": "Periodo Activo", "activo": true},
   ];
 
-  final Map<int, Map<String, dynamic>> _docs_por_periodo = {
-    2: {
-      "record_nombre": null,
-      "record_tamano": null,
-      "record_estado": "Pendiente de subida",
-      "historial_nombre": null,
-      "historial_tamano": null,
-      "historial_estado": "Pendiente de subida",
-    },
-    1: {
-      "record_nombre": "record_academico_semestre_1_2026.pdf",
-      "record_tamano": "1.2 MB",
-      "record_estado": "Aprobado por Administración",
-      "historial_nombre": "historial_completo_2026_s1.pdf",
-      "historial_tamano": "2.4 MB",
-      "historial_estado": "Aprobado por Administración",
-    },
-    3: {
-      "record_nombre": "record_oficial_2025_s2.pdf",
-      "record_tamano": "980 KB",
-      "record_estado": "Aprobado por Administración",
-      "historial_nombre": "historial_academico_2025.pdf",
-      "historial_tamano": "1.8 MB",
-      "historial_estado": "Aprobado por Administración",
-    },
-  };
+  final Map<int, Map<String, dynamic>> _docs_por_periodo = {};
 
   bool _subiendo_record = false;
   bool _subiendo_historial = false;
@@ -699,14 +672,8 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
         setState(() {
           if (es_record) {
             _subiendo_record = true;
-            _docActual["record_nombre"] = archivo.name;
-            _docActual["record_tamano"] = tamano;
-            _docActual["record_estado"] = "Enviado a Administración";
           } else {
             _subiendo_historial = true;
-            _docActual["historial_nombre"] = archivo.name;
-            _docActual["historial_tamano"] = tamano;
-            _docActual["historial_estado"] = "Enviado a Administración";
           }
         });
 
@@ -722,15 +689,29 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
           if (es_record) {
             _subiendo_record = false;
             if (res.exito) {
+              _docActual["record_nombre"] = archivo.name;
+              _docActual["record_tamano"] = tamano;
               _docActual["record_estado"] = "Enviado a Administración";
             }
           } else {
             _subiendo_historial = false;
             if (res.exito) {
+              _docActual["historial_nombre"] = archivo.name;
+              _docActual["historial_tamano"] = tamano;
               _docActual["historial_estado"] = "Enviado a Administración";
             }
           }
         });
+
+        if (!res.exito) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(res.error ?? "No se pudo subir el documento al servidor."),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+          return;
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1059,6 +1040,17 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                     estado_his.contains("aprob");
 
                 void confirmarEnvio() {
+                  if (!alguno_enviado) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "Debes subir primero tu Récord o Historial Académico.",
+                        ),
+                        backgroundColor: Color(0xFFDC2626),
+                      ),
+                    );
+                    return;
+                  }
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -1573,7 +1565,7 @@ class _FormularioSupervisorEvaluadorState
   late final TextEditingController _mentor_ctrl;
   late final TextEditingController _becario_ctrl;
   late final TextEditingController _agencia_ctrl;
-  final _semestre_ctrl = TextEditingController(text: "Semestre II - 2026");
+  final _semestre_ctrl = TextEditingController(text: "Periodo Activo");
   final _fecha_ctrl = TextEditingController(
     text: "${DateTime.now().day.toString().padLeft(2, '0')}/${DateTime.now().month.toString().padLeft(2, '0')}/${DateTime.now().year}",
   );
@@ -1692,21 +1684,25 @@ class _FormularioSupervisorEvaluadorState
     _mentor_ctrl = TextEditingController(text: widget.supervisor_nombre_inicial);
     _becario_ctrl = TextEditingController(text: widget.becario_nombre);
     _agencia_ctrl = TextEditingController(
-      text: widget.evaluacion_previa?['agencia']?.toString() ?? "Agencia Central Diaconía",
+      text: widget.evaluacion_previa?['agencia']?.toString() ?? "",
     );
 
     final prev_calif = widget.evaluacion_previa?['calificaciones_1_18'];
     _calificaciones_1_18 = {};
     for (int i = 1; i <= 18; i++) {
-      int valor = 10;
+      int valor = 0;
       if (prev_calif is Map) {
         final v = prev_calif[i] ?? prev_calif[i.toString()] ?? prev_calif['pregunta_$i'];
-        if (v != null) valor = int.tryParse(v.toString()) ?? 10;
+        if (v != null) valor = int.tryParse(v.toString()) ?? 0;
       } else if (prev_calif is List && prev_calif.length >= i) {
         final v = prev_calif[i - 1];
-        if (v != null) valor = int.tryParse(v.toString()) ?? 10;
+        if (v != null) valor = int.tryParse(v.toString()) ?? 0;
       }
-      _calificaciones_1_18[i] = valor.clamp(1, 10);
+      if (valor > 0) {
+        _calificaciones_1_18[i] = valor.clamp(1, 10);
+      } else {
+        _calificaciones_1_18[i] = 5;
+      }
     }
 
     if (widget.evaluacion_previa != null) {
@@ -2451,8 +2447,19 @@ class _ReceptorLideresClassroomModalState
 
     final url_evidencia = (res_subida.datos?['archivo_evidencia_url'] ??
             res_subida.datos?['url'] ??
-            '/uploads/escuela-lideres/$nombre_archivo')
-        .toString();
+            '')
+        .toString()
+        .trim();
+    if (url_evidencia.isEmpty) {
+      setState(() => _entregando_por_tarea[numero_tarea] = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("El servidor no devolvió una URL válida para la evidencia."),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
 
     final res_entrega = await _repositorio.entregarTareaLideres(
       tarea_numero: numero_tarea,
@@ -2460,9 +2467,9 @@ class _ReceptorLideresClassroomModalState
       archivo_nombre: nombre_archivo,
       archivo_evidencia_url: url_evidencia,
       tamano_archivo: tamano_archivo,
-      respuesta_texto: "Entrega semestral regular CETI",
+      respuesta_texto: "",
       enlace_externo: "",
-      comentario: "Entrega semestral regular CETI",
+      comentario: "",
     );
 
     if (!mounted) return;
@@ -2505,10 +2512,8 @@ class _ReceptorLideresClassroomModalState
   }
 
   void _abrirDialogoCalificar(TareaEscuelaLideresModelo tarea) {
-    final puntaje_ctrl = TextEditingController(text: "95");
-    final retro_ctrl = TextEditingController(
-      text: "Excelente análisis teológico y aplicabilidad al servicio comunitario.",
-    );
+    final puntaje_ctrl = TextEditingController();
+    final retro_ctrl = TextEditingController();
 
     showDialog<void>(
       context: context,
@@ -2638,7 +2643,16 @@ class _ReceptorLideresClassroomModalState
           ),
           ElevatedButton(
             onPressed: () async {
-              final puntaje = double.tryParse(puntaje_ctrl.text.trim()) ?? 95.0;
+              final puntaje = double.tryParse(puntaje_ctrl.text.trim());
+              if (puntaje == null || puntaje < 0 || puntaje > 100) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Ingresa un puntaje válido entre 0 y 100."),
+                    backgroundColor: Color(0xFFDC2626),
+                  ),
+                );
+                return;
+              }
               final retro = retro_ctrl.text.trim();
               Navigator.of(ctx).pop();
 
@@ -2835,7 +2849,7 @@ class _ReceptorLideresClassroomModalState
                                       .timeout(const Duration(seconds: 12));
                                   if (!ctx.mounted) return;
                                   if (resp.statusCode == 200) {
-                                    await descargarBytesPdf(
+                                    final guardado = await descargarBytesPdf(
                                       resp.bodyBytes,
                                       nombre_descarga,
                                     );
@@ -2844,9 +2858,10 @@ class _ReceptorLideresClassroomModalState
                                     if (!ctx.mounted) return;
                                     setStateModal(() {
                                       descargando = false;
-                                      es_error_descarga = false;
-                                      estado_descarga =
-                                          "✓ PDF descargado ($kb KB). También puedes abrirlo o copiar el enlace.";
+                                      es_error_descarga = !guardado;
+                                      estado_descarga = guardado
+                                          ? "✓ PDF descargado ($kb KB)."
+                                          : "No se pudo guardar en el dispositivo. Usa 'Abrir PDF' o 'Copiar URL'.";
                                     });
                                   } else {
                                     setStateModal(() {
@@ -3992,7 +4007,9 @@ class _ReceptorSocioeconomicoModalState
     extends State<_ReceptorSocioeconomicoModal> {
   final _repositorio = EvaluacionesRepositorio();
 
-  List<PreguntaBienestarModelo> _preguntas = PreguntaBienestarModelo.catalogoCanonico();
+  List<PreguntaBienestarModelo> _preguntas = const [];
+  bool _cargando_preguntas = true;
+  String? _error_preguntas;
   final Map<int, String> _respuestas = {};
   bool _enviando = false;
   bool _enviado_exitosamente = false;
@@ -4004,15 +4021,29 @@ class _ReceptorSocioeconomicoModalState
   }
 
   Future<void> _cargarPreguntasActualizadas() async {
+    setState(() {
+      _cargando_preguntas = true;
+      _error_preguntas = null;
+    });
     try {
       final resultado = await _repositorio.obtenerCuestionarioBienestar();
       if (!mounted) return;
-      if (resultado.exito && resultado.datos != null && resultado.datos!.isNotEmpty) {
-        setState(() {
+      setState(() {
+        _cargando_preguntas = false;
+        if (resultado.exito && resultado.datos != null && resultado.datos!.isNotEmpty) {
           _preguntas = resultado.datos!;
+        } else {
+          _error_preguntas = resultado.error ?? 'No se pudo cargar el cuestionario.';
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _cargando_preguntas = false;
+          _error_preguntas = 'Error al cargar cuestionario: $e';
         });
       }
-    } catch (_) {}
+    }
   }
 
   Future<void> _enviarCuestionarioBienestar() async {
@@ -4180,9 +4211,32 @@ class _ReceptorSocioeconomicoModalState
           ),
           const SizedBox(height: 10),
 
-          // Listado de las 26 preguntas
+          // Listado de las preguntas del servidor
           Expanded(
-            child: ListView.builder(
+            child: _cargando_preguntas
+                ? const Center(child: CircularProgressIndicator())
+                : _preguntas.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.cloud_off_rounded, size: 40, color: Color(0xFF94A3B8)),
+                            const SizedBox(height: 10),
+                            Text(
+                              _error_preguntas ?? 'No hay preguntas configuradas.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Color(0xFF475569), fontSize: 13),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: _cargarPreguntasActualizadas,
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
               itemCount: _preguntas.length,
               itemBuilder: (context, index) {
                 final preg = _preguntas[index];

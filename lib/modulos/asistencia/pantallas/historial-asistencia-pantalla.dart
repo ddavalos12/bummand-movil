@@ -321,9 +321,7 @@ class _HistorialAsistenciaPantallaState
           Expanded(
             child: extractos_async.when(
               data: (lista_extractos) {
-                final todos = lista_extractos.isNotEmpty
-                    ? lista_extractos
-                    : ref.read(asistencia_repositorio_proveedor).generarExtractosLocales();
+                final todos = lista_extractos;
 
                 final query = _controlador_busqueda_asistencia.text.trim().toLowerCase();
 

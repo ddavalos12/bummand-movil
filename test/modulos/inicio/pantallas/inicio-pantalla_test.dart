@@ -59,7 +59,7 @@ void main() {
               ),
               evaluacion_consolidada_proveedor.overrideWith(
                 (ref) async =>
-                    Resultado.exitoso(EvaluacionConsolidadaModelo.modeloEjemplo()),
+                    Resultado.exitoso(EvaluacionConsolidadaModelo.modeloVacio()),
               ),
             ],
             child: const MaterialApp(

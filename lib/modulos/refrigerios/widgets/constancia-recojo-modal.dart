@@ -26,8 +26,8 @@ class ConstanciaRecojoModal extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(autenticacion_proveedor);
-    final nombre_becario = auth.usuario?.nombre ?? 'Estudiante Becario BUMAND';
-    final codigo = refrigerio.codigo_constancia ?? 'CR-2026-1025-01';
+    final nombre_becario = auth.usuario?.nombre ?? '';
+    final codigo = refrigerio.codigo_constancia ?? 'Sin código';
 
     return Container(
       constraints: BoxConstraints(
@@ -199,7 +199,7 @@ class ConstanciaRecojoModal extends ConsumerWidget {
                           _construirFila(
                             icono: Icons.access_time_filled_rounded,
                             etiqueta: 'Hora de Recojo',
-                            valor: refrigerio.hora_recojo ?? '16:24 hrs',
+                            valor: refrigerio.hora_recojo ?? '--:--',
                             es_destacado: true,
                           ),
                           const SizedBox(height: 8),

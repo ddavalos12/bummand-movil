@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../../widgets-comunes/cargando-skeleton.dart';
@@ -117,6 +118,11 @@ class _EventosPantallaState extends ConsumerState<EventosPantalla>
       setState(() => _mostrar_celebracion = true);
       _mostrarMensaje("¡Asistencia confirmada exitosamente!");
       ref.invalidate(eventos_lista_proveedor);
+    } else if (resultado.error_bumand?.fueEncolado == true) {
+      _mostrarMensaje(
+        "Sin conexión: marcación guardada en cola offline para sincronizar luego.",
+      );
+      ref.invalidate(cola_offline_conteo_proveedor);
     } else {
       _mostrarMensaje(
         resultado.error ?? "No se pudo registrar la asistencia",

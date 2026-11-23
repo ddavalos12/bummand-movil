@@ -29,39 +29,6 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
   bool _mostrar_celebracion = false;
   int? _filtro_becario_id;
 
-  static const List<Map<String, dynamic>> SUPERVISADOS_LISTA = [
-    {
-      'id': 10,
-      'nombre': 'María Catunta Laime',
-      'carrera': 'Ing. Comercial',
-      'sede': 'Central',
-    },
-    {
-      'id': 11,
-      'nombre': 'Carlos Mamani Choque',
-      'carrera': 'Contaduría Pública',
-      'sede': 'El Alto',
-    },
-    {
-      'id': 12,
-      'nombre': 'Ana Quispe Condori',
-      'carrera': 'Enfermería',
-      'sede': 'Central',
-    },
-    {
-      'id': 13,
-      'nombre': 'Joel Flores Ticona',
-      'carrera': 'Trabajo Social',
-      'sede': 'Viacha',
-    },
-    {
-      'id': 14,
-      'nombre': 'Ruth Mendoza Alarcón',
-      'carrera': 'Derecho',
-      'sede': 'Central',
-    },
-  ];
-
   void _mostrarDetalleDevocional(BuildContext context, DevocionalModelo d) {
     showDialog(
       context: context,
@@ -352,21 +319,34 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
                   onPressed: () async {
                     if (form_key.currentState?.validate() ?? false) {
                       final repo = ref.read(devocionales_repositorio_proveedor);
-                      await repo.guardarDevocional(
+                      final res = await repo.guardarDevocional(
                         cita_biblica: cita_ctrl.text.trim(),
                         titulo: titulo_ctrl.text.trim(),
                         reflexion: reflexion_ctrl.text.trim(),
                         oracion_peticion: oracion_ctrl.text.trim(),
                       );
-                      ref.invalidate(devocionales_lista_proveedor);
                       if (!mounted) return;
+                      if (!res.exito && res.error_bumand?.fueEncolado != true) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res.error ?? 'No se pudo guardar el devocional'),
+                            backgroundColor: Colors.red.shade700,
+                          ),
+                        );
+                        return;
+                      }
+                      ref.invalidate(devocionales_lista_proveedor);
                       if (ctx.mounted) {
                         Navigator.pop(ctx);
                       }
                       setState(() => _mostrar_celebracion = true);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Devocional registrado con éxito'),
+                        SnackBar(
+                          content: Text(
+                            res.error_bumand?.fueEncolado == true
+                                ? 'Devocional encolado para sincronizar cuando haya conexión'
+                                : 'Devocional registrado con éxito',
+                          ),
                           backgroundColor: BumandColores.AZUL_DIACONIA,
                         ),
                       );
@@ -598,61 +578,71 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
             const SizedBox(height: 18),
 
             // Sección: Mis Becarios Supervisados
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Mis Becarios Supervisados',
-                  style: TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.bold,
-                    color: BumandColores.AZUL_DIACONIA,
-                  ),
-                ),
-                Text(
-                  '${SUPERVISADOS_LISTA.length} en cohorte',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  // Chip Todos
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      selected: _filtro_becario_id == null,
-                      label: const Text('Todos'),
-                      onSelected: (_) =>
-                          setState(() => _filtro_becario_id = null),
-                      selectedColor: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.15),
-                      checkmarkColor: BumandColores.AZUL_DIACONIA,
-                    ),
-                  ),
-                  ...SUPERVISADOS_LISTA.map((b) {
-                    final seleccionado = _filtro_becario_id == b['id'];
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ActionChip(
-                        avatar: Icon(
-                          Icons.person_outline_rounded,
-                          size: 16,
-                          color: seleccionado
-                              ? Colors.white
-                              : BumandColores.AZUL_DIACONIA,
+            Builder(
+              builder: (context) {
+                final supervisados_async = ref.watch(becarios_supervisados_proveedor);
+                final supervisados = supervisados_async.asData?.value ?? const <Map<String, dynamic>>[];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Mis Becarios Supervisados',
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.bold,
+                            color: BumandColores.AZUL_DIACONIA,
+                          ),
                         ),
-                        backgroundColor: seleccionado
-                            ? BumandColores.AZUL_DIACONIA
-                            : Colors.white,
-                        label: Text(
-                          b['nombre'] as String,
+                        Text(
+                          supervisados_async.isLoading
+                              ? 'Cargando...'
+                              : '${supervisados.length} en cohorte',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          // Chip Todos
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              selected: _filtro_becario_id == null,
+                              label: const Text('Todos'),
+                              onSelected: (_) =>
+                                  setState(() => _filtro_becario_id = null),
+                              selectedColor: BumandColores.AZUL_DIACONIA.withValues(alpha: 0.15),
+                              checkmarkColor: BumandColores.AZUL_DIACONIA,
+                            ),
+                          ),
+                          ...supervisados.map((b) {
+                            final b_id = b['id'] as int;
+                            final seleccionado = _filtro_becario_id == b_id;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ActionChip(
+                                avatar: Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 16,
+                                  color: seleccionado
+                                      ? Colors.white
+                                      : BumandColores.AZUL_DIACONIA,
+                                ),
+                                backgroundColor: seleccionado
+                                    ? BumandColores.AZUL_DIACONIA
+                                    : Colors.white,
+                                label: Text(
+                                  b['nombre'] as String,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -672,6 +662,10 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
                   }),
                 ],
               ),
+            ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 20),
 
@@ -1810,18 +1804,42 @@ class _DevocionalesPantallaState extends ConsumerState<DevocionalesPantalla> {
   Widget _construirTarjetaVersiculoDelDia(
     AsyncValue<VersiculoDiarioModelo> versiculo_async,
   ) {
-    final versiculo = versiculo_async.value ??
-        const VersiculoDiarioModelo(
-          cita: 'Filipenses 4:13',
-          libro: 'Filipenses',
-          capitulo: 4,
-          versiculo: 13,
-          texto: 'Todo lo puedo en Cristo que me fortalece.',
-          version: 'Reina-Valera 1960 (RVR60)',
-          tema: 'Fortaleza y Servicio',
-          reflexion_diaconal:
-              'En cada labor y apoyo formativo dentro de Diaconía, Cristo es quien renueva nuestras capacidades para servir con excelencia.',
-        );
+    final versiculo = versiculo_async.value;
+    if (versiculo == null) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF0F2B48),
+              BumandColores.AZUL_DIACONIA,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              versiculo_async.isLoading
+                  ? 'Cargando versículo del día desde el servidor...'
+                  : 'No se pudo cargar el versículo del día sin conexión.',
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+            ),
+            if (versiculo_async.hasError) ...[
+              const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: () => ref.invalidate(versiculo_diario_proveedor),
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                label: const Text('Reintentar', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(

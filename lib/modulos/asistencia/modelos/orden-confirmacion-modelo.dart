@@ -13,12 +13,31 @@ class OrdenConfirmacionModelo {
     this.fecha_limite,
   });
 
+  static String _periodoActualPorDefecto() {
+    const meses = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    final ahora = DateTime.now();
+    return '${meses[ahora.month - 1]} ${ahora.year}';
+  }
+
   factory OrdenConfirmacionModelo.desdeMapa(Map<String, dynamic> mapa) {
     return OrdenConfirmacionModelo(
       activa: mapa['activa'] == true || mapa['orden_activa'] == true,
       confirmada_este_mes: mapa['confirmada_este_mes'] == true ||
           mapa['confirmado'] == true,
-      periodo: mapa['periodo']?.toString() ?? 'Octubre 2026',
+      periodo: mapa['periodo']?.toString() ?? _periodoActualPorDefecto(),
       mensaje_admin: mapa['mensaje_admin']?.toString() ??
           'La administración central de Diaconía IFD requiere la confirmación mensual de tus datos de contacto.',
       fecha_limite: mapa['fecha_limite'] != null

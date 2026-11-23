@@ -22,7 +22,6 @@ class _EvaluacionSocioeconomicaPantallaState
     extends ConsumerState<EvaluacionSocioeconomicaPantalla> {
   static const Color _AZUL_PROFUNDO = BumandColores.azulMarinoProfundo;
   static const Color _TURQUESA_INSTITUCIONAL = BumandColores.azulCieloSuave;
-  static const Color _DORADO_DIACONIA = BumandColores.amarilloRadiante;
   static const Color _FONDO_PANTALLA = BumandColores.fondo;
   static const Color _BORDE_SUAVE = BumandColores.grisClaro;
 
@@ -37,10 +36,11 @@ class _EvaluacionSocioeconomicaPantallaState
   final EvaluacionesRepositorio _repositorio = EvaluacionesRepositorio();
   final TextEditingController _observaciones_ctrl = TextEditingController();
 
-  List<PreguntaBienestarModelo> _preguntas =
-      PreguntaBienestarModelo.catalogoCanonico();
+  List<PreguntaBienestarModelo> _preguntas = const [];
   final Map<int, String> _respuestas = {};
   String _categoria_seleccionada = "Todas (26)";
+  bool _cargando_preguntas = true;
+  String? _error_preguntas;
   bool _enviando = false;
   bool _enviado_exitosamente = false;
 
@@ -61,6 +61,10 @@ class _EvaluacionSocioeconomicaPantallaState
   }
 
   Future<void> _sincronizarCatalogoPreguntas() async {
+    setState(() {
+      _cargando_preguntas = true;
+      _error_preguntas = null;
+    });
     try {
       final resultado = await _repositorio.obtenerCuestionarioBienestar();
       if (!mounted) return;
@@ -69,10 +73,21 @@ class _EvaluacionSocioeconomicaPantallaState
           resultado.datos!.isNotEmpty) {
         setState(() {
           _preguntas = resultado.datos!;
+          _cargando_preguntas = false;
+        });
+      } else {
+        setState(() {
+          _cargando_preguntas = false;
+          _error_preguntas =
+              resultado.error ?? 'No se pudo cargar el cuestionario desde el servidor.';
         });
       }
-    } catch (_) {
-      // Mantiene el catálogo canónico local en modo offline
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cargando_preguntas = false;
+        _error_preguntas = 'Error al cargar cuestionario: $e';
+      });
     }
   }
 
@@ -113,32 +128,6 @@ class _EvaluacionSocioeconomicaPantallaState
     return _preguntas
         .where((p) => _perteneceACategoriaFiltro(p, _categoria_seleccionada))
         .toList();
-  }
-
-  void _autocompletarDemostracion() {
-    setState(() {
-      for (final preg in _preguntas) {
-        if (preg.opciones.isEmpty) continue;
-        // Para las preguntas 21-26 la opción D refleja el mayor entusiasmo/planificación;
-        // para las preguntas 1-20 la opción A refleja condiciones favorables.
-        final tiene_inciso_d = preg.opciones.any((o) => o.inciso == "D");
-        if (preg.numero_orden >= 21 && tiene_inciso_d) {
-          _respuestas[preg.numero_orden] = "D";
-        } else {
-          _respuestas[preg.numero_orden] = preg.opciones.first.inciso;
-        }
-      }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          "Se completaron las 26 respuestas de demostración del cuestionario.",
-        ),
-        backgroundColor: _AZUL_PROFUNDO,
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 
   void _limpiarRespuestas() {
@@ -209,8 +198,22 @@ class _EvaluacionSocioeconomicaPantallaState
 
     final estado_auth = ref.read(autenticacion_proveedor);
     final prefs = await SharedPreferences.getInstance();
-    final becario_id =
-        estado_auth.usuario?.id ?? prefs.getInt('usuario_id') ?? 1;
+    final becario_id = estado_auth.usuario?.id ?? prefs.getInt('usuario_id');
+    if (becario_id == null || becario_id <= 0) {
+      if (mounted) {
+        setState(() => _enviando = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Sesión de usuario inválida. Inicia sesión nuevamente."),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+      return;
+    }
+
+    final periodo_id_activo =
+        ref.read(evaluacion_consolidada_proveedor).asData?.value.datos?.periodo_id ?? 1;
 
     final respuestas_dto = <String, dynamic>{
       for (final entry in _respuestas.entries)
@@ -219,7 +222,7 @@ class _EvaluacionSocioeconomicaPantallaState
 
     final resultado = await _repositorio.enviarEvaluacionSocioeconomica(
       becario_id: becario_id,
-      periodo_id: 1,
+      periodo_id: periodo_id_activo > 0 ? periodo_id_activo : 1,
       respuestas: respuestas_dto,
       observaciones: _observaciones_ctrl.text.trim(),
     );
@@ -279,30 +282,52 @@ class _EvaluacionSocioeconomicaPantallaState
           titulo: "Evaluación Socioeconómica",
           subtitulo: "Cuestionario de Bienestar · 26 preguntas",
         ),
-        body: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
-                  _construirPanelProgresoYFiltros(
-                    respondidas_conteo: respondidas_conteo,
-                    total_preguntas: total_preguntas,
-                    valor_progreso: valor_progreso,
-                  ),
-                  const SizedBox(height: 12),
-                  ...preguntas_filtradas.map(_construirTarjetaPregunta),
-                  const SizedBox(height: 6),
-                  _construirSeccionObservaciones(),
-                ],
-              ),
-            ),
-            _construirBarraInferiorEnvio(
-              respondidas_conteo: respondidas_conteo,
-              total_preguntas: total_preguntas,
-            ),
-          ],
-        ),
+        body: _cargando_preguntas
+            ? const Center(child: CircularProgressIndicator())
+            : (_error_preguntas != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.cloud_off_rounded, size: 48, color: Colors.redAccent),
+                          const SizedBox(height: 12),
+                          Text(_error_preguntas!, textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _sincronizarCatalogoPreguntas,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Reintentar'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                          children: [
+                            _construirPanelProgresoYFiltros(
+                              respondidas_conteo: respondidas_conteo,
+                              total_preguntas: total_preguntas,
+                              valor_progreso: valor_progreso,
+                            ),
+                            const SizedBox(height: 12),
+                            ...preguntas_filtradas.map(_construirTarjetaPregunta),
+                            const SizedBox(height: 6),
+                            _construirSeccionObservaciones(),
+                          ],
+                        ),
+                      ),
+                      _construirBarraInferiorEnvio(
+                        respondidas_conteo: respondidas_conteo,
+                        total_preguntas: total_preguntas,
+                      ),
+                    ],
+                  )),
       ),
     );
   }
@@ -402,40 +427,6 @@ class _EvaluacionSocioeconomicaPantallaState
                           ),
                         ),
                       ),
-                    InkWell(
-                      onTap: _autocompletarDemostracion,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _DORADO_DIACONIA.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _DORADO_DIACONIA),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.auto_fix_high_rounded,
-                              size: 13,
-                              color: _AZUL_PROFUNDO,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              "Autocompletar demostración (26/26)",
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                color: _AZUL_PROFUNDO,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ],

@@ -176,23 +176,35 @@ class AutenticacionRepositorio {
       _CLAVE_USUARIO_CORREOS_ADICIONALES,
       usuario.correos_adicionales,
     );
-    if (usuario.telefono != null) {
+    if (usuario.telefono != null && usuario.telefono!.isNotEmpty) {
       await preferencias.setString(_CLAVE_USUARIO_TELEFONO, usuario.telefono!);
+    } else {
+      await preferencias.remove(_CLAVE_USUARIO_TELEFONO);
     }
-    if (usuario.direccion != null) {
+    if (usuario.direccion != null && usuario.direccion!.isNotEmpty) {
       await preferencias.setString(_CLAVE_USUARIO_DIRECCION, usuario.direccion!);
+    } else {
+      await preferencias.remove(_CLAVE_USUARIO_DIRECCION);
     }
-    if (usuario.carrera != null) {
+    if (usuario.carrera != null && usuario.carrera!.isNotEmpty) {
       await preferencias.setString(_CLAVE_USUARIO_CARRERA, usuario.carrera!);
+    } else {
+      await preferencias.remove(_CLAVE_USUARIO_CARRERA);
     }
-    if (usuario.semestre != null) {
+    if (usuario.semestre != null && usuario.semestre!.isNotEmpty) {
       await preferencias.setString(_CLAVE_USUARIO_SEMESTRE, usuario.semestre!);
+    } else {
+      await preferencias.remove(_CLAVE_USUARIO_SEMESTRE);
     }
-    if (usuario.ci != null) {
+    if (usuario.ci != null && usuario.ci!.isNotEmpty) {
       await preferencias.setString(_CLAVE_USUARIO_CI, usuario.ci!);
+    } else {
+      await preferencias.remove(_CLAVE_USUARIO_CI);
     }
-    if (usuario.universidad != null) {
+    if (usuario.universidad != null && usuario.universidad!.isNotEmpty) {
       await preferencias.setString(_CLAVE_USUARIO_UNIVERSIDAD, usuario.universidad!);
+    } else {
+      await preferencias.remove(_CLAVE_USUARIO_UNIVERSIDAD);
     }
     await preferencias.setString(_CLAVE_USUARIO_ESTADO, usuario.estado);
   }
@@ -274,6 +286,40 @@ class AutenticacionRepositorio {
     );
   }
 
+  Future<Resultado<UsuarioModelo>> obtenerMiPerfilCompleto() async {
+    final token = await obtenerToken();
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada');
+    }
+
+    try {
+      final url = Uri.parse(
+        '${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL}',
+      );
+      final resp = await _cliente_http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (resp.statusCode == 200) {
+        final datos = jsonDecode(resp.body) as Map<String, dynamic>;
+        final usuario_servidor = UsuarioModelo.desdeJson(datos).copiarCon(token: token);
+        await _guardarSesion(usuario_servidor);
+        return Resultado.exitoso(usuario_servidor);
+      }
+
+      final datos = jsonDecode(resp.body);
+      final mensaje = (datos is Map ? (datos['mensaje'] ?? datos['message']) : null) ??
+          'No se pudo obtener el perfil del servidor';
+      return Resultado.fallido(mensaje.toString());
+    } catch (e) {
+      return Resultado.fallido('No se pudo conectar con el servidor: $e');
+    }
+  }
+
   Future<Resultado<UsuarioModelo>> actualizarMiPerfil({
     required String nombre,
     String? telefono,
@@ -287,64 +333,50 @@ class AutenticacionRepositorio {
     }
 
     final token = await obtenerToken();
-    final sesion_actual = await obtenerSesionActual();
-
-    // Actualización local resiliente en preferencias siempre
-    final preferencias = await SharedPreferences.getInstance();
-    await preferencias.setString(_CLAVE_USUARIO_NOMBRE, nombre_limpio);
-    if (telefono != null) await preferencias.setString(_CLAVE_USUARIO_TELEFONO, telefono.trim());
-    if (direccion != null) await preferencias.setString(_CLAVE_USUARIO_DIRECCION, direccion.trim());
-    if (carrera != null) await preferencias.setString(_CLAVE_USUARIO_CARRERA, carrera.trim());
-    if (semestre != null) await preferencias.setString(_CLAVE_USUARIO_SEMESTRE, semestre.trim());
-
-    final usuario_actualizado = (sesion_actual ?? UsuarioModelo(
-      id: 0,
-      nombre: nombre_limpio,
-      correo: '',
-      rol: 'becario',
-      token: token ?? '',
-    )).copiarCon(
-      nombre: nombre_limpio,
-      telefono: telefono?.trim(),
-      direccion: direccion?.trim(),
-      carrera: carrera?.trim(),
-      semestre: semestre?.trim(),
-    );
-
-    if (token != null && token.isNotEmpty) {
-      try {
-        final encabezados = {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        };
-        final cuerpo = jsonEncode({
-          'nombre': nombre_limpio,
-          if (telefono != null) 'telefono': telefono.trim(),
-          if (direccion != null) 'direccion': direccion.trim(),
-          if (carrera != null) 'carrera': carrera.trim(),
-          if (semestre != null) 'semestre': semestre.trim(),
-        });
-
-        // Intentar PATCH /api/usuarios/mi-perfil
-        final url_patch = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL}');
-        final resp = await _cliente_http.patch(url_patch, headers: encabezados, body: cuerpo);
-
-        if (resp.statusCode == 200 || resp.statusCode == 201) {
-          final datos = jsonDecode(resp.body) as Map<String, dynamic>;
-          final usuario_servidor = UsuarioModelo.desdeJson(datos).copiarCon(token: token);
-          await _guardarSesion(usuario_servidor);
-          return Resultado.exitoso(usuario_servidor);
-        } else if (resp.statusCode == 404) {
-          // Fallback
-          final url_alt = Uri.parse('${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil');
-          await _cliente_http.patch(url_alt, headers: encabezados, body: cuerpo);
-        }
-      } catch (_) {
-        // Fallback local resiliente: persiste localmente si el servidor no responde
-      }
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada. Vuelve a iniciar sesión.');
     }
 
-    return Resultado.exitoso(usuario_actualizado);
+    try {
+      final encabezados = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+      final cuerpo = jsonEncode({
+        'nombre': nombre_limpio,
+        if (telefono != null) 'telefono': telefono.trim(),
+        if (direccion != null) 'direccion': direccion.trim(),
+        if (carrera != null && carrera.trim().isNotEmpty) 'carrera': carrera.trim(),
+        if (semestre != null && semestre.trim().isNotEmpty) 'semestre': semestre.trim(),
+      });
+
+      final url_patch = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL}');
+      var resp = await _cliente_http.patch(url_patch, headers: encabezados, body: cuerpo);
+
+      if (resp.statusCode == 404) {
+        final url_alt = Uri.parse('${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil');
+        resp = await _cliente_http.patch(url_alt, headers: encabezados, body: cuerpo);
+      }
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final datos = jsonDecode(resp.body) as Map<String, dynamic>;
+        final usuario_servidor = UsuarioModelo.desdeJson(datos).copiarCon(token: token);
+        await _guardarSesion(usuario_servidor);
+        return Resultado.exitoso(usuario_servidor);
+      }
+
+      String mensaje_error = 'No se pudo actualizar los datos (${resp.statusCode})';
+      try {
+        final datos = jsonDecode(resp.body);
+        if (datos is Map) {
+          mensaje_error =
+              (datos['mensaje'] ?? datos['message'] ?? mensaje_error).toString();
+        }
+      } catch (_) {}
+      return Resultado.fallido(mensaje_error);
+    } catch (e) {
+      return Resultado.fallido('Error de conexión con el servidor: $e');
+    }
   }
 
   Future<Resultado<Map<String, dynamic>>> listarMisCorreos() async {
@@ -391,51 +423,44 @@ class AutenticacionRepositorio {
     }
 
     final token = await obtenerToken();
-    final usuario = await obtenerSesionActual();
-
-    // Actualizar preferencias locales
-    final preferencias = await SharedPreferences.getInstance();
-    final actuales = List<String>.from(
-      preferencias.getStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES) ?? const [],
-    );
-    if (!actuales.contains(correo_limpio)) {
-      actuales.add(correo_limpio);
-      await preferencias.setStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES, actuales);
-    }
-    if (usuario?.correo_alternativo == null || usuario!.correo_alternativo!.isEmpty) {
-      await preferencias.setString(_CLAVE_USUARIO_CORREO_ALTERNATIVO, correo_limpio);
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada. Inicia sesión para vincular correos.');
     }
 
-    if (token != null && token.isNotEmpty) {
-      try {
-        final encabezados = {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        };
-        final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL_CORREOS}');
-        final resp = await _cliente_http.post(
-          url,
-          headers: encabezados,
-          body: jsonEncode({'correo': correo_limpio, 'etiqueta': etiqueta}),
+    try {
+      final encabezados = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+      final url = Uri.parse('${ApiConstantes.RUTA_BASE}${ApiConstantes.PUNTO_USUARIOS_MI_PERFIL_CORREOS}');
+      final resp = await _cliente_http.post(
+        url,
+        headers: encabezados,
+        body: jsonEncode({'correo': correo_limpio, 'etiqueta': etiqueta}),
+      );
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final preferencias = await SharedPreferences.getInstance();
+        final actuales = List<String>.from(
+          preferencias.getStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES) ?? const [],
         );
-        if (resp.statusCode == 200 || resp.statusCode == 201) {
-          final datos = jsonDecode(resp.body) as Map<String, dynamic>;
-          return Resultado.exitoso(datos);
-        } else {
-          final datos = jsonDecode(resp.body);
-          final mensaje = datos['mensaje'] ?? datos['message'] ?? 'Error al vincular correo';
-          return Resultado.fallido(mensaje.toString());
+        if (!actuales.contains(correo_limpio)) {
+          actuales.add(correo_limpio);
+          await preferencias.setStringList(_CLAVE_USUARIO_CORREOS_ADICIONALES, actuales);
         }
-      } catch (_) {
-        // Fallback local exitoso si no hay red
+        final usuario = await obtenerSesionActual();
+        if (usuario?.correo_alternativo == null || usuario!.correo_alternativo!.isEmpty) {
+          await preferencias.setString(_CLAVE_USUARIO_CORREO_ALTERNATIVO, correo_limpio);
+        }
+        final datos = jsonDecode(resp.body) as Map<String, dynamic>;
+        return Resultado.exitoso(datos);
+      } else {
+        final datos = jsonDecode(resp.body);
+        final mensaje = datos['mensaje'] ?? datos['message'] ?? 'Error al vincular correo';
+        return Resultado.fallido(mensaje.toString());
       }
+    } catch (e) {
+      return Resultado.fallido('No se pudo conectar con el servidor para vincular el correo: $e');
     }
-
-    return Resultado.exitoso({
-      'correo_principal': usuario?.correo ?? '',
-      'correo_alternativo': correo_limpio,
-      'correos_adicionales': actuales.asMap().entries.map((e) => {'id': e.key + 1, 'correo': e.value, 'etiqueta': etiqueta}).toList(),
-    });
   }
 
   Future<Resultado<Map<String, dynamic>>> desvincularCorreoAlternativo({
@@ -528,41 +553,44 @@ class AutenticacionRepositorio {
 
     final preferencias = await SharedPreferences.getInstance();
     final token = preferencias.getString(_CLAVE_TOKEN);
+    if (token == null || token.isEmpty) {
+      return Resultado.fallido('Sesión no encontrada');
+    }
 
-    if (token != null && token.isNotEmpty) {
-      try {
-        final encabezados = {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        };
-        final url_patch = Uri.parse(
-          '${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil/correo-alternativo',
-        );
-        final resp_patch = await _cliente_http.patch(
-          url_patch,
-          headers: encabezados,
-          body: jsonEncode({'correo_alternativo': correo_limpio}),
-        );
+    try {
+      final encabezados = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+      final url_patch = Uri.parse(
+        '${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil/correo-alternativo',
+      );
+      final resp_patch = await _cliente_http.patch(
+        url_patch,
+        headers: encabezados,
+        body: jsonEncode({'correo_alternativo': correo_limpio}),
+      );
 
-        final url_post = Uri.parse(
-          '${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil/correos',
-        );
-        await _cliente_http.post(
-          url_post,
-          headers: encabezados,
-          body: jsonEncode({'correo': correo_limpio}),
-        );
+      final url_post = Uri.parse(
+        '${ApiConstantes.RUTA_BASE}/usuarios/mi-perfil/correos',
+      );
+      await _cliente_http.post(
+        url_post,
+        headers: encabezados,
+        body: jsonEncode({'correo': correo_limpio}),
+      );
 
-        if (resp_patch.statusCode >= 400 && resp_patch.statusCode != 404) {
-          final cuerpo = jsonDecode(resp_patch.body);
-          final mensaje_err = cuerpo['mensaje'] ??
-              cuerpo['message'] ??
-              'No se pudo actualizar el correo alternativo';
-          return Resultado.fallido(mensaje_err.toString());
-        }
-      } catch (_) {
-        // Permite persistencia local si el servidor no responde
+      if (resp_patch.statusCode >= 400) {
+        final cuerpo = jsonDecode(resp_patch.body);
+        final mensaje_err = cuerpo['mensaje'] ??
+            cuerpo['message'] ??
+            'No se pudo actualizar el correo alternativo';
+        return Resultado.fallido(mensaje_err.toString());
       }
+    } catch (e) {
+      return Resultado.fallido(
+        'No se pudo guardar el correo alternativo en el servidor: $e',
+      );
     }
 
     await preferencias.setString(

@@ -38,41 +38,8 @@ class DarCitaSeguimientoModal extends ConsumerStatefulWidget {
 
 class _DarCitaSeguimientoModalState
     extends ConsumerState<DarCitaSeguimientoModal> {
-  static const List<Map<String, dynamic>> SUPERVISADOS_DEFAULT = [
-    {
-      'id': 10,
-      'nombre': 'María Catunta Laime',
-      'carrera': 'Ing. Comercial',
-      'sede': 'Central',
-    },
-    {
-      'id': 11,
-      'nombre': 'Carlos Mamani Choque',
-      'carrera': 'Contaduría Pública',
-      'sede': 'El Alto',
-    },
-    {
-      'id': 12,
-      'nombre': 'Ana Quispe Condori',
-      'carrera': 'Enfermería',
-      'sede': 'Central',
-    },
-    {
-      'id': 13,
-      'nombre': 'Joel Flores Ticona',
-      'carrera': 'Trabajo Social',
-      'sede': 'Viacha',
-    },
-    {
-      'id': 14,
-      'nombre': 'Ruth Mendoza Alarcón',
-      'carrera': 'Derecho',
-      'sede': 'Central',
-    },
-  ];
-
-  late int _becario_id_seleccionado;
-  late String _becario_nombre_seleccionado;
+  int? _becario_id_seleccionado;
+  String _becario_nombre_seleccionado = '';
   late TextEditingController _fecha_controlador;
   late TextEditingController _hora_controlador;
   late TextEditingController _lugar_controlador;
@@ -86,12 +53,8 @@ class _DarCitaSeguimientoModalState
   @override
   void initState() {
     super.initState();
-    _becario_id_seleccionado = widget.becario_id_inicial ?? 10;
-    _becario_nombre_seleccionado = widget.becario_nombre_inicial ??
-        SUPERVISADOS_DEFAULT.firstWhere(
-          (b) => b['id'] == _becario_id_seleccionado,
-          orElse: () => SUPERVISADOS_DEFAULT.first,
-        )['nombre'] as String;
+    _becario_id_seleccionado = widget.becario_id_inicial;
+    _becario_nombre_seleccionado = widget.becario_nombre_inicial ?? '';
 
     final manana = DateTime.now().add(const Duration(days: 2));
     final fecha_str =
@@ -99,13 +62,9 @@ class _DarCitaSeguimientoModalState
 
     _fecha_controlador = TextEditingController(text: fecha_str);
     _hora_controlador = TextEditingController(text: '15:30');
-    _lugar_controlador = TextEditingController(
-      text: 'Oficina Central Diaconía - Sala Pastoral',
-    );
-    _motivo_controlador = TextEditingController(
-      text: 'Revisión de avance formativo diaconal y balance académico.',
-    );
-    _cita_biblica_controlador = TextEditingController(text: 'Josué 1:9');
+    _lugar_controlador = TextEditingController();
+    _motivo_controlador = TextEditingController();
+    _cita_biblica_controlador = TextEditingController();
   }
 
   @override
@@ -151,12 +110,21 @@ class _DarCitaSeguimientoModalState
 
   Future<void> _guardarCita() async {
     if (!(_formulario_clave.currentState?.validate() ?? false)) return;
+    if (_becario_id_seleccionado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Selecciona un becario asignado para agendar la cita.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
 
     setState(() => _guardando = true);
     try {
       final repo = ref.read(devocionales_repositorio_proveedor);
-      await repo.crearCitaSeguimiento(
-        becario_id: _becario_id_seleccionado,
+      final res = await repo.crearCitaSeguimiento(
+        becario_id: _becario_id_seleccionado!,
         becario_nombre: _becario_nombre_seleccionado,
         fecha_cita: _fecha_controlador.text.trim(),
         hora_cita: _hora_controlador.text.trim(),
@@ -168,19 +136,29 @@ class _DarCitaSeguimientoModalState
             : null,
       );
 
-      ref.invalidate(citas_seguimiento_proveedor);
-
-      if (mounted) {
-        Navigator.pop(context);
+      if (!mounted) return;
+      if (!res.exito && res.error_bumand?.fueEncolado != true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Cita de seguimiento agendada con éxito para $_becario_nombre_seleccionado',
-            ),
-            backgroundColor: BumandColores.AZUL_DIACONIA,
+            content: Text(res.error ?? 'No se pudo agendar la cita'),
+            backgroundColor: Colors.red.shade700,
           ),
         );
+        return;
       }
+
+      ref.invalidate(citas_seguimiento_proveedor);
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            res.error_bumand?.fueEncolado == true
+                ? 'Cita encolada para sincronizar con el servidor'
+                : 'Cita de seguimiento agendada con éxito para $_becario_nombre_seleccionado',
+          ),
+          backgroundColor: BumandColores.AZUL_DIACONIA,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _guardando = false);
     }
@@ -244,39 +222,75 @@ class _DarCitaSeguimientoModalState
               const SizedBox(height: 16),
 
               // Selección del Becario Supervisado
-              DropdownButtonFormField<int>(
-                isExpanded: true,
-                initialValue: _becario_id_seleccionado,
-                decoration: InputDecoration(
-                  labelText: 'Becario a supervisar',
-                  prefixIcon: const Icon(Icons.person_outline_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                ),
-                items: SUPERVISADOS_DEFAULT.map((becario) {
-                  return DropdownMenuItem<int>(
-                    value: becario['id'] as int,
-                    child: Text(
-                      '${becario['nombre']} (${becario['carrera']})',
-                      style: const TextStyle(fontSize: 13.5),
-                      overflow: TextOverflow.ellipsis,
+              Builder(
+                builder: (context) {
+                  final sup_async = ref.watch(becarios_supervisados_proveedor);
+                  return sup_async.when(
+                    data: (lista) {
+                      if (lista.isEmpty) {
+                        return const Text(
+                          'No hay becarios asignados en base de datos.',
+                          style: TextStyle(color: Colors.redAccent),
+                        );
+                      }
+                      final ids_validos = lista.map((b) => b['id'] as int).toSet();
+                      final valor_actual = (_becario_id_seleccionado != null &&
+                              ids_validos.contains(_becario_id_seleccionado))
+                          ? _becario_id_seleccionado
+                          : lista.first['id'] as int;
+                      if (_becario_id_seleccionado != valor_actual) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          final enc = lista.firstWhere((b) => b['id'] == valor_actual);
+                          setState(() {
+                            _becario_id_seleccionado = valor_actual;
+                            _becario_nombre_seleccionado = enc['nombre'] as String;
+                          });
+                        });
+                      }
+                      return DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        initialValue: valor_actual,
+                        decoration: InputDecoration(
+                          labelText: 'Becario a supervisar',
+                          prefixIcon: const Icon(Icons.person_outline_rounded),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                        ),
+                        items: lista.map((becario) {
+                          final carrera_txt = (becario['carrera'] ?? '').toString();
+                          return DropdownMenuItem<int>(
+                            value: becario['id'] as int,
+                            child: Text(
+                              carrera_txt.isNotEmpty
+                                  ? '${becario['nombre']} ($carrera_txt)'
+                                  : '${becario['nombre']}',
+                              style: const TextStyle(fontSize: 13.5),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            final encontrado = lista.firstWhere((b) => b['id'] == val);
+                            setState(() {
+                              _becario_id_seleccionado = val;
+                              _becario_nombre_seleccionado =
+                                  encontrado['nombre'] as String;
+                            });
+                          }
+                        },
+                      );
+                    },
+                    loading: () => const LinearProgressIndicator(),
+                    error: (e, _) => Text(
+                      'Error al cargar becarios: $e',
+                      style: const TextStyle(color: Colors.redAccent, fontSize: 12),
                     ),
                   );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    final encontrado = SUPERVISADOS_DEFAULT.firstWhere(
-                      (b) => b['id'] == val,
-                    );
-                    setState(() {
-                      _becario_id_seleccionado = val;
-                      _becario_nombre_seleccionado =
-                          encontrado['nombre'] as String;
-                    });
-                  }
                 },
               ),
               const SizedBox(height: 14),

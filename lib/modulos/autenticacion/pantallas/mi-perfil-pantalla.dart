@@ -91,13 +91,28 @@ class _MiPerfilPantallaState extends ConsumerState<MiPerfilPantalla>
   void _inicializarDatosUsuario() {
     final usuario = ref.read(autenticacion_proveedor).usuario;
     if (usuario != null && !_datos_inicializados) {
-      _nombre_controlador.text = usuario.nombre;
-      _telefono_controlador.text = usuario.telefono ?? '78945612';
-      _direccion_controlador.text =
-          usuario.direccion ?? 'Zona 16 de Julio, Calle Eulert #120, El Alto';
-      _carrera_controlador.text = usuario.carrera ?? 'Contaduría Pública';
-      _semestre_controlador.text = usuario.semestre ?? '6to Semestre';
+      _aplicarUsuarioAControladores(usuario);
       _datos_inicializados = true;
+    }
+    _cargarPerfilDesdeServidor();
+  }
+
+  void _aplicarUsuarioAControladores(UsuarioModelo usuario) {
+    _nombre_controlador.text = usuario.nombre;
+    _telefono_controlador.text = usuario.telefono ?? '';
+    _direccion_controlador.text = usuario.direccion ?? '';
+    _carrera_controlador.text = usuario.carrera ?? '';
+    _semestre_controlador.text = usuario.semestre ?? '';
+  }
+
+  Future<void> _cargarPerfilDesdeServidor() async {
+    final res = await ref.read(autenticacion_proveedor.notifier).refrescarMiPerfil();
+    if (!mounted) return;
+    if (res.exito && res.datos != null) {
+      setState(() {
+        _aplicarUsuarioAControladores(res.datos!);
+        _datos_inicializados = true;
+      });
     }
   }
 
@@ -566,9 +581,14 @@ class _MiPerfilPantallaState extends ConsumerState<MiPerfilPantalla>
     UsuarioModelo? usuario, {
     required bool es_becario,
   }) {
-    final ci_texto = usuario?.ci ?? '9876543 LP';
+    final ci_texto =
+        (usuario?.ci != null && usuario!.ci!.trim().isNotEmpty)
+            ? usuario.ci!.trim()
+            : 'No registrado';
     final universidad_texto =
-        usuario?.universidad ?? 'Universidad Pública de El Alto (UPEA)';
+        (usuario?.universidad != null && usuario!.universidad!.trim().isNotEmpty)
+            ? usuario.universidad!.trim()
+            : 'No registrada';
 
     return Container(
       padding: const EdgeInsets.all(18),

@@ -49,14 +49,22 @@ class _DetalleExtractoAsistenciaPantallaState
   @override
   void initState() {
     super.initState();
-    if (widget.extracto_inicial != null) {
-      _extracto = widget.extracto_inicial!;
-    } else {
-      final repo = ref.read(asistencia_repositorio_proveedor);
-      _extracto = repo.obtenerExtractoLocalPorMes(
-        widget.mes_inicial ?? "Mayo 2026",
-      );
-    }
+    final ahora = DateTime.now();
+    _extracto = widget.extracto_inicial ??
+        ExtractoMensualAsistencia(
+          mes_id: '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}',
+          mes_nombre: widget.mes_inicial ?? '${ahora.month}/${ahora.year}',
+          mes_corto: '${ahora.month}',
+          anio: ahora.year,
+          mes_numero: ahora.month,
+          horas_totales: 0.0,
+          diferencia_horas: 0.0,
+          porcentaje_cumplido: 0,
+          estado: 'EN PROGRESO',
+          jornadas_totales: 0,
+          tasa_puntualidad: 0,
+          movimientos: const [],
+        );
   }
 
   void _sincronizarConLista(List<ExtractoMensualAsistencia> lista) {

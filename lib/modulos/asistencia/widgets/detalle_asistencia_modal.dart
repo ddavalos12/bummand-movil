@@ -43,7 +43,7 @@ class DetalleAsistenciaModal extends StatelessWidget {
     required this.horas_trabajadas,
     required this.distancia,
     this.dentro_geocerca = true,
-    this.precision_gps = 6.0,
+    this.precision_gps = 0.0,
     this.becario_nombre,
     this.carrera,
     this.latitud,
@@ -67,7 +67,7 @@ class DetalleAsistenciaModal extends StatelessWidget {
     required String horas_trabajadas,
     required String distancia,
     bool dentro_geocerca = true,
-    double precision_gps = 6.0,
+    double precision_gps = 0.0,
     String? becario_nombre,
     String? carrera,
     double? latitud,
@@ -197,8 +197,7 @@ class DetalleAsistenciaModal extends StatelessWidget {
               dentro_geocerca: dentro_geocerca,
               distancia_m: double.tryParse(
                     distancia.replaceAll(RegExp(r'[^0-9\.]'), ''),
-                  ) ??
-                  38.0,
+                  ),
               radio_m: 50.0,
             ),
             const SizedBox(height: 18),

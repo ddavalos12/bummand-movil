@@ -77,128 +77,6 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
   List<Map<String, dynamic>> _iglesias = [];
   bool _cargando_iglesias = false;
 
-  static const List<Map<String, dynamic>> _IGLESIAS_OFICIALES_DEFECTO = [
-    {
-      "nombre": "Iglesia Evangélica Amigos Central de Bolivia Bautista Saavedra Más que Vencedores",
-      "direccion": "Zona Bautista Saavedra / Villa Adela, El Alto",
-      "pastor": "Luis Álvaro Quispe Condori",
-      "telefono": "73236864",
-      "pastor_correo": "pastor.luis.quispe@diaconia.bo",
-    },
-    {
-      "nombre": "Eli - Ezer",
-      "direccion": "Zona Central / Villa Adela, El Alto",
-      "pastor": "Antonio Ali Mayta",
-      "telefono": "62388850",
-      "pastor_correo": "pastor.antonio.ali@diaconia.bo",
-    },
-    {
-      "nombre": "Sinai Los Andes",
-      "direccion": "Zona Los Andes, El Alto",
-      "pastor": "Pedro Pablo Callisaya Callisaya",
-      "telefono": "70659050",
-      "pastor_correo": "pastor.pedro.callisaya@diaconia.bo",
-    },
-    {
-      "nombre": "IGLESIA METODISTA MONTE DE HOREB",
-      "direccion": "Zona 16 de Julio, El Alto",
-      "pastor": "Julio Llanquichoque",
-      "telefono": "71209902",
-      "pastor_correo": "pastor.julio.llanquichoque@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia del Nazareno El Progreso",
-      "direccion": "Zona El Progreso, El Alto",
-      "pastor": "René Max Condori Quispe",
-      "telefono": "72095673",
-      "pastor_correo": "pastor.rene.condori@diaconia.bo",
-    },
-    {
-      "nombre": "6 de Junio",
-      "direccion": "Zona 6 de Junio, El Alto",
-      "pastor": "Abdias Espinoza Aleluya",
-      "telefono": "67316797",
-      "pastor_correo": "pastor.abdias.espinoza@diaconia.bo",
-    },
-    {
-      "nombre": "Centro Evangelístico Caluyo",
-      "direccion": "Zona Caluyo, El Alto",
-      "pastor": "Víctor Mendoza Ramos",
-      "telefono": "71548821",
-      "pastor_correo": "pastor.victor.mendoza@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia de Dios de la Profecía Villa Esperanza",
-      "direccion": "Zona Villa Esperanza, El Alto",
-      "pastor": "Gonzalo Mamani Quispe",
-      "telefono": "73012948",
-      "pastor_correo": "pastor.gonzalo.mamani@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia Bautista Emanuel",
-      "direccion": "Zona Ciudad Satélite, El Alto",
-      "pastor": "Marcos Paredes Luna",
-      "telefono": "76201948",
-      "pastor_correo": "pastor.marcos.paredes@diaconia.bo",
-    },
-    {
-      "nombre": "Asambleas de Dios Belén",
-      "direccion": "Zona Río Seco, El Alto",
-      "pastor": "Carlos Ticona Huanca",
-      "telefono": "71938472",
-      "pastor_correo": "pastor.carlos.ticona@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia Evangélica Cuadrangular Betel",
-      "direccion": "Zona San Pedro, La Paz",
-      "pastor": "David Choque Flores",
-      "telefono": "72561938",
-      "pastor_correo": "pastor.david.choque@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia Cristiana Evangélica Filadelfia",
-      "direccion": "Zona Miraflores, La Paz",
-      "pastor": "Samuel Apaza Quispe",
-      "telefono": "73294810",
-      "pastor_correo": "pastor.samuel.apaza@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia Alianza Cristiana y Misionera Central",
-      "direccion": "Zona Sopocachi, La Paz",
-      "pastor": "Javier Gutiérrez Rojas",
-      "telefono": "71502938",
-      "pastor_correo": "pastor.javier.gutierrez@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia Evangélica Metodista Emanuel",
-      "direccion": "Zona Villa Fátima, La Paz",
-      "pastor": "Rubén Nina Mamani",
-      "telefono": "74019283",
-      "pastor_correo": "pastor.ruben.nina@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia Presbiteriana Sion",
-      "direccion": "Zona San Antonio, La Paz",
-      "pastor": "Freddy Huanca Flores",
-      "telefono": "76501928",
-      "pastor_correo": "pastor.freddy.huanca@diaconia.bo",
-    },
-    {
-      "nombre": "Iglesia del Nazareno La Portada",
-      "direccion": "Zona La Portada, La Paz",
-      "pastor": "Elías Condori Laura",
-      "telefono": "71283940",
-      "pastor_correo": "pastor.elias.condori@diaconia.bo",
-    },
-    {
-      "nombre": "Comunidad Cristiana Vida Nueva",
-      "direccion": "Zona Obrajes, La Paz",
-      "pastor": "Esteban Ramos Morales",
-      "telefono": "70619284",
-      "pastor_correo": "pastor.esteban.ramos@diaconia.bo",
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -214,10 +92,10 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
     if (!mounted) return;
     setState(() {
       _cargando_iglesias = false;
-      if (res.exito && res.datos != null && res.datos!.isNotEmpty) {
+      if (res.exito && res.datos != null) {
         _iglesias = res.datos!;
       } else {
-        _iglesias = _IGLESIAS_OFICIALES_DEFECTO;
+        _iglesias = [];
       }
     });
   }
@@ -291,8 +169,21 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
     final auth = ref.read(autenticacion_proveedor);
     final usuario = auth.usuario;
     final preferencias = await SharedPreferences.getInstance();
-    final int id_becario_real =
-        widget.becario_id ?? usuario?.id ?? preferencias.getInt('usuario_id') ?? 1;
+    final id_becario_nullable =
+        widget.becario_id ?? usuario?.id ?? preferencias.getInt('usuario_id');
+    if (id_becario_nullable == null || id_becario_nullable <= 0) {
+      if (mounted) {
+        setState(() => _enviando = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Sesión no válida para enviar el formulario."),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+      return;
+    }
+    final int id_becario_real = id_becario_nullable;
     final String nombre_becario_real = usuario?.nombre.isNotEmpty == true
         ? usuario!.nombre
         : widget.nombre_becario;
@@ -310,7 +201,7 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
       "iglesia_nombre": _iglesia_nombre_ctrl.text.trim(),
       "iglesia_direccion": _iglesia_dir_ctrl.text.trim(),
       "campos_formulario": {
-        "periodo": "Semestre II - 2026",
+        "periodo": "Periodo Activo",
         "frecuencia": _frecuencia,
         "compromiso": _compromiso,
         "cargo_iglesia": _cargo_iglesia,
@@ -460,7 +351,10 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
     try {
       final preferencias = await SharedPreferences.getInstance();
       final token = preferencias.getString('token');
-      final id_becario = widget.becario_id ?? 1;
+      final id_becario = widget.becario_id ?? preferencias.getInt('usuario_id');
+      if (id_becario == null || id_becario <= 0) {
+        throw Exception("Sesión no válida para descargar el PDF.");
+      }
 
       final url = Uri.parse('${ApiConstantes.RUTA_BASE}/api/pdf/evaluacion/$id_becario');
       final cabeceras = {
@@ -475,10 +369,19 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
         final nombre_limpio = widget.nombre_becario.replaceAll(RegExp(r'\s+'), '_');
         final nombre_archivo = "Formulario_F03_$nombre_limpio.pdf";
 
-        await descargarBytesPdf(respuesta.bodyBytes, nombre_archivo);
+        final guardado = await descargarBytesPdf(respuesta.bodyBytes, nombre_archivo);
 
         if (!mounted) return;
         setState(() => _enviando = false);
+        if (!guardado) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("No se pudo guardar el archivo PDF en el dispositivo."),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+          return;
+        }
         Navigator.of(context).pop();
 
         ScaffoldMessenger.of(context).showSnackBar(

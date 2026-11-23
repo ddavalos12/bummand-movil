@@ -99,8 +99,8 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
 
   @override
   Widget build(BuildContext context) {
-    final precision_m = (widget.posicion?.accuracy ?? 6.0).round();
-    final distancia_m = (widget.distancia_m ?? 42.0).round();
+    final precision_m = widget.posicion?.accuracy.round();
+    final distancia_m = widget.distancia_m?.round();
     final hora_ingreso_texto = widget.hora_ingreso ?? '--:--';
     final hora_salida_texto = widget.hora_salida ?? '--:--';
 
@@ -165,7 +165,9 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    "GPS · precisión $precision_m m",
+                    precision_m != null
+                        ? "GPS · precisión $precision_m m"
+                        : "GPS · esperando señal",
                     style: const TextStyle(
                       color: Color(0xFFCBD5E1),
                       fontSize: 11.5,
@@ -270,9 +272,13 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
                       ? (widget.dentro_geocerca
                           ? "Agencia rotativa · GPS en vivo verificado"
                           : "Ubicación GPS no verificable (desactiva GPS falso)")
-                      : (widget.dentro_geocerca
-                          ? "Dentro del radio permitido · $distancia_m m"
-                          : "Fuera del radio permitido · $distancia_m m"),
+                      : (distancia_m == null
+                          ? (widget.dentro_geocerca
+                              ? "Dentro del radio permitido"
+                              : "Verificando distancia GPS...")
+                          : (widget.dentro_geocerca
+                              ? "Dentro del radio permitido · $distancia_m m"
+                              : "Fuera del radio permitido · $distancia_m m")),
                   style: TextStyle(
                     color: widget.dentro_geocerca
                         ? const Color(0xFFD1FAE5)
@@ -313,7 +319,7 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.nombre_lugar ?? "Iglesia Bautista Central",
+                              widget.nombre_lugar ?? "Sede no asignada",
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 13,

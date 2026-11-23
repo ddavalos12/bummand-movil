@@ -45,13 +45,11 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
 
   String? _encargado_1;
   String? _encargado_2;
-  String _sede_seleccionada = 'Oficina Central Diaconía IFD - El Alto';
+  String _sede_seleccionada = '';
   String _bloque_seleccionado = 'Bloque B (Auditorio / Cocina Diaconía)';
   bool _guardando = false;
 
-  List<String> _sedes = [
-    'Oficina Central Diaconía IFD - El Alto',
-  ];
+  List<String> _sedes = [];
 
   final List<String> _bloques = const [
     'Bloque A (Administración)',
@@ -87,7 +85,7 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
     _responsable_ctrl = TextEditingController(
       text: item?.responsable_entrega.isNotEmpty == true
           ? item!.responsable_entrega
-          : 'Coordinación General BUMAND',
+          : (ref.read(autenticacion_proveedor).usuario?.nombre ?? ''),
     );
 
     _observaciones_ctrl = TextEditingController(
@@ -260,7 +258,7 @@ class _RendirRefrigerioModalState extends ConsumerState<RendirRefrigerioModal> {
               id: widget.refrigerio!.id,
               menu_detalle: obs.isNotEmpty ? obs : _evento_ctrl.text.trim(),
               modalidad_preparacion: widget.refrigerio!.modalidad_preparacion,
-              ingredientes: const [],
+              ingredientes: widget.refrigerio!.ingredientes,
               costo_total_bs: total,
               observaciones: obs,
             );

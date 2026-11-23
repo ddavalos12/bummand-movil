@@ -197,7 +197,11 @@ void main() {
           probador.view.resetDevicePixelRatio();
         });
 
-        final evaluacion_ejemplo = EvaluacionConsolidadaModelo.modeloEjemplo();
+        final evaluacion_ejemplo = EvaluacionConsolidadaModelo.modeloVacio(
+          becario_id: 1,
+          periodo_id: 1,
+          periodo_nombre: 'Semestre I - Test',
+        );
 
         await probador.pumpWidget(
           ProviderScope(

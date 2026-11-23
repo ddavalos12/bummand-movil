@@ -17,7 +17,62 @@ void main() {
       addTearDown(probador.view.resetPhysicalSize);
       addTearDown(probador.view.resetDevicePixelRatio);
 
-      final modelo_prueba = EvaluacionConsolidadaModelo.modeloEjemplo();
+      const modelo_prueba = EvaluacionConsolidadaModelo(
+        becario_id: 1,
+        periodo_id: 1,
+        periodo_nombre: 'Semestre II - 2026',
+        total_porcentual: 0.0,
+        total_vigesimal: 0.0,
+        modulos_evaluados: 0,
+        total_modulos: 5,
+        desglose_modulos: [
+          DetalleModuloEvaluacion(
+            modulo_id: 1,
+            nombre: 'Liderazgo en la Iglesia',
+            evaluador_rol: 'Iglesia',
+            peso_porcentaje: 20,
+            puntaje: 0,
+            contribucion_ponderada: 0,
+            estado: 'pendiente',
+          ),
+          DetalleModuloEvaluacion(
+            modulo_id: 2,
+            nombre: 'Autoevaluación Académica',
+            evaluador_rol: 'Becario',
+            peso_porcentaje: 20,
+            puntaje: 0,
+            contribucion_ponderada: 0,
+            estado: 'pendiente',
+          ),
+          DetalleModuloEvaluacion(
+            modulo_id: 3,
+            nombre: 'Evaluación del Mentor',
+            evaluador_rol: 'Mentor',
+            peso_porcentaje: 20,
+            puntaje: 0,
+            contribucion_ponderada: 0,
+            estado: 'pendiente',
+          ),
+          DetalleModuloEvaluacion(
+            modulo_id: 4,
+            nombre: 'Evaluación Escuela de Líderes',
+            evaluador_rol: 'Tutor',
+            peso_porcentaje: 20,
+            puntaje: 0,
+            contribucion_ponderada: 0,
+            estado: 'pendiente',
+          ),
+          DetalleModuloEvaluacion(
+            modulo_id: 5,
+            nombre: 'Evaluación Socioeconómica',
+            evaluador_rol: 'Trabajador Social',
+            peso_porcentaje: 20,
+            puntaje: 0,
+            contribucion_ponderada: 0,
+            estado: 'pendiente',
+          ),
+        ],
+      );
 
       await probador.pumpWidget(
         ProviderScope(

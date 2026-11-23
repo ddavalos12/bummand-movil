@@ -317,12 +317,14 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
           const SizedBox(height: 8),
           becarios_async.when(
             data: (resultado) {
-              var lista = resultado.datos ??
-                  (es_mentor && mentor_id != null
-                      ? BecarioAsignadoModulo3Modelo.listaEjemplo()
-                          .where((b) => b.supervisor_id == mentor_id)
-                          .toList()
-                      : BecarioAsignadoModulo3Modelo.listaEjemplo());
+              if (!resultado.exito || resultado.datos == null) {
+                return ErrorWidgetPersonalizado(
+                  mensaje: resultado.error ?? "Error al cargar becarios asignados",
+                  alReintentar: () =>
+                      ref.invalidate(becarios_asignados_modulo3_proveedor),
+                );
+              }
+              var lista = resultado.datos!;
               if (es_mentor &&
                   mentor_id != null &&
                   lista.any((b) => b.supervisor_id != null)) {
@@ -467,9 +469,13 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                     const SizedBox(width: 4),
                     Text(
                       es_aprobado
-                          ? "Aprobado (${becario.puntaje_actual?.toStringAsFixed(0) ?? '94'})"
+                          ? (becario.puntaje_actual != null
+                              ? "Aprobado (${becario.puntaje_actual!.toStringAsFixed(0)})"
+                              : "Aprobado")
                           : es_completada
-                          ? "Evaluado (${becario.puntaje_actual?.toStringAsFixed(0) ?? '94'})"
+                          ? (becario.puntaje_actual != null
+                              ? "Evaluado (${becario.puntaje_actual!.toStringAsFixed(0)})"
+                              : "Evaluado")
                           : es_observado
                           ? "Observado"
                           : "Pendiente",
@@ -584,7 +590,20 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
       },
       child: evaluacion_async.when(
         data: (resultado) {
-          final desglose = resultado.datos?.desglose_modulos ?? const [];
+          if (!resultado.exito || resultado.datos == null) {
+            return ListView(
+              padding: const EdgeInsets.all(24),
+              children: [
+                ErrorWidgetPersonalizado(
+                  mensaje: resultado.error ?? "No se pudo cargar tu evaluación",
+                  alReintentar: () =>
+                      ref.invalidate(evaluacion_consolidada_proveedor),
+                ),
+              ],
+            );
+          }
+          final periodo_nombre = resultado.datos!.periodo_nombre;
+          final desglose = resultado.datos!.desglose_modulos;
           String estadoModuloReal(int numero, String respaldo) {
             for (final mod in desglose) {
               if (mod.modulo_id == numero && mod.estado.trim().isNotEmpty) {
@@ -637,18 +656,18 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Semestre II - 2026",
-                              style: TextStyle(
+                              periodo_nombre,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                                 color: BumandColores.NEGRO,
                               ),
                             ),
-                            Text(
+                            const Text(
                               "Periodo activo de recepción",
                               style: TextStyle(
                                 fontSize: 11,
@@ -713,36 +732,7 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                   ),
                   accion: item["accion"] as String,
                 ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Los 5 módulos están habilitados para recepción semestral.",
-                      ),
-                      backgroundColor: BumandColores.AZUL_DIACONIA,
-                    ),
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                icon: const Icon(Icons.list_alt, size: 18),
-                label: const Text(
-                  "Ver todos los módulos",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: BumandColores.AZUL_DIACONIA,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
             ],
           );
         },

@@ -110,7 +110,12 @@ class DevocionalesRepositorio {
       final error = ErrorBumand.desdeRespuesta(respuesta);
       return Resultado.desdeErrorBumand(error);
     } catch (_) {
-      return Resultado.exitoso(const []);
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: ApiConstantes.PUNTO_DEVOCIONALES,
+          metodo: 'GET',
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -187,9 +192,6 @@ class DevocionalesRepositorio {
     required bool es_supervisor,
   }) async {
     final cliente_http = _obtenerCliente();
-    final semillas = es_supervisor
-        ? CitaSeguimientoModelo.semillasSupervisor()
-        : CitaSeguimientoModelo.semillasBecario();
 
     try {
       final cabeceras = await _cabeceras();
@@ -218,9 +220,14 @@ class DevocionalesRepositorio {
           return Resultado.exitoso(lista);
         }
       }
-      return Resultado.exitoso(List<CitaSeguimientoModelo>.from(semillas));
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
     } catch (_) {
-      return Resultado.exitoso(List<CitaSeguimientoModelo>.from(semillas));
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(
+          ruta: ApiConstantes.PUNTO_CITAS_SEGUIMIENTO,
+          metodo: 'GET',
+        ),
+      );
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -261,24 +268,10 @@ class DevocionalesRepositorio {
 
       if (respuesta.statusCode == 200 || respuesta.statusCode == 201) {
         final dynamic datos = jsonDecode(respuesta.body);
-        final creada = datos is Map<String, dynamic>
-            ? CitaSeguimientoModelo.desdeJson(datos)
-            : CitaSeguimientoModelo(
-                id: DateTime.now().millisecondsSinceEpoch,
-                supervisor_id: 1,
-                supervisor_nombre: 'Pastor Marcos Quispe',
-                becario_id: becario_id,
-                becario_nombre: becario_nombre,
-                fecha_cita: fecha_cita,
-                hora_cita: hora_cita,
-                modalidad: modalidad,
-                lugar_o_enlace: lugar_o_enlace,
-                motivo_retroalimentacion: motivo_retroalimentacion,
-                cita_biblica: cita_biblica,
-                estado: 'programada',
-                created_at: DateTime.now().toIso8601String(),
-              );
-        return Resultado.exitoso(creada);
+        if (datos is Map<String, dynamic>) {
+          return Resultado.exitoso(CitaSeguimientoModelo.desdeJson(datos));
+        }
+        return Resultado.fallido('Respuesta inesperada del servidor al crear la cita.');
       }
       final error = ErrorBumand.desdeRespuesta(respuesta);
       return Resultado.desdeErrorBumand(error);
@@ -290,23 +283,13 @@ class DevocionalesRepositorio {
           cuerpo: cuerpo,
           tipo: 'cita_seguimiento',
         );
+        return Resultado.desdeErrorBumand(
+          ErrorBumand.encoladoOffline(ruta: ruta, metodo: 'POST'),
+        );
       }
-      final local = CitaSeguimientoModelo(
-        id: DateTime.now().millisecondsSinceEpoch,
-        supervisor_id: 1,
-        supervisor_nombre: 'Pastor Marcos Quispe',
-        becario_id: becario_id,
-        becario_nombre: becario_nombre,
-        fecha_cita: fecha_cita,
-        hora_cita: hora_cita,
-        modalidad: modalidad,
-        lugar_o_enlace: lugar_o_enlace,
-        motivo_retroalimentacion: motivo_retroalimentacion,
-        cita_biblica: cita_biblica,
-        estado: 'programada',
-        created_at: DateTime.now().toIso8601String(),
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(ruta: ruta, metodo: 'POST'),
       );
-      return Resultado.exitoso(local);
     } finally {
       if (cliente == null) cliente_http.close();
     }
@@ -349,22 +332,24 @@ class DevocionalesRepositorio {
         if (datos is Map<String, dynamic>) {
           return Resultado.exitoso(CitaSeguimientoModelo.desdeJson(datos));
         }
+        return Resultado.exitoso(
+          CitaSeguimientoModelo(
+            id: cita_id,
+            supervisor_id: 0,
+            supervisor_nombre: '',
+            becario_id: 0,
+            becario_nombre: '',
+            fecha_cita: nueva_fecha ?? '',
+            hora_cita: nueva_hora ?? '',
+            modalidad: '',
+            lugar_o_enlace: '',
+            motivo_retroalimentacion: '',
+            acuerdos_retroalimentacion: acuerdos_retroalimentacion,
+            estado: estado,
+          ),
+        );
       }
-      final modelo_actualizado = CitaSeguimientoModelo(
-        id: cita_id,
-        supervisor_id: 1,
-        supervisor_nombre: 'Pastor Marcos Quispe',
-        becario_id: 10,
-        becario_nombre: 'Becario Diaconía',
-        fecha_cita: nueva_fecha ?? '2026-10-30',
-        hora_cita: nueva_hora ?? '15:30',
-        modalidad: 'presencial',
-        lugar_o_enlace: 'Oficina Central Diaconía',
-        motivo_retroalimentacion: 'Seguimiento y retroalimentación pastoral',
-        acuerdos_retroalimentacion: acuerdos_retroalimentacion,
-        estado: estado,
-      );
-      return Resultado.exitoso(modelo_actualizado);
+      return Resultado.desdeErrorBumand(ErrorBumand.desdeRespuesta(respuesta));
     } catch (_) {
       if (cola_offline != null) {
         await cola_offline!.encolar(
@@ -373,22 +358,13 @@ class DevocionalesRepositorio {
           cuerpo: cuerpo,
           tipo: 'actualizar_cita_seguimiento',
         );
+        return Resultado.desdeErrorBumand(
+          ErrorBumand.encoladoOffline(ruta: ruta, metodo: 'PATCH'),
+        );
       }
-      final modelo_local = CitaSeguimientoModelo(
-        id: cita_id,
-        supervisor_id: 1,
-        supervisor_nombre: 'Pastor Marcos Quispe',
-        becario_id: 10,
-        becario_nombre: 'Becario Diaconía',
-        fecha_cita: nueva_fecha ?? '2026-10-30',
-        hora_cita: nueva_hora ?? '15:30',
-        modalidad: 'presencial',
-        lugar_o_enlace: 'Oficina Central Diaconía',
-        motivo_retroalimentacion: 'Seguimiento y retroalimentación pastoral',
-        acuerdos_retroalimentacion: acuerdos_retroalimentacion,
-        estado: estado,
+      return Resultado.desdeErrorBumand(
+        ErrorBumand.conexionOffline(ruta: ruta, metodo: 'PATCH'),
       );
-      return Resultado.exitoso(modelo_local);
     } finally {
       if (cliente == null) cliente_http.close();
     }

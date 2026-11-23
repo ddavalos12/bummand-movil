@@ -21,15 +21,14 @@ class VersiculoDiarioModelo {
 
   factory VersiculoDiarioModelo.desdeJson(Map<String, dynamic> json) {
     return VersiculoDiarioModelo(
-      cita: json['cita'] as String? ?? 'Filipenses 4:13',
-      libro: json['libro'] as String? ?? 'Filipenses',
-      capitulo: (json['capitulo'] as num?)?.toInt() ?? 4,
-      versiculo: (json['versiculo'] as num?)?.toInt() ?? 13,
-      texto: json['texto'] as String? ?? 'Todo lo puedo en Cristo que me fortalece.',
+      cita: json['cita'] as String? ?? '',
+      libro: json['libro'] as String? ?? '',
+      capitulo: (json['capitulo'] as num?)?.toInt() ?? 0,
+      versiculo: (json['versiculo'] as num?)?.toInt() ?? 0,
+      texto: json['texto'] as String? ?? '',
       version: json['version'] as String? ?? 'Reina-Valera 1960 (RVR60)',
-      tema: json['tema'] as String? ?? 'Fortaleza y Servicio',
-      reflexion_diaconal: json['reflexion_diaconal'] as String? ??
-          'En cada labor y apoyo formativo, Cristo renueva nuestras fuerzas.',
+      tema: json['tema'] as String? ?? '',
+      reflexion_diaconal: json['reflexion_diaconal'] as String? ?? '',
     );
   }
 

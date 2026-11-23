@@ -57,6 +57,14 @@ class AutenticacionNotificador extends Notifier<AutenticacionEstado> {
     }
   }
 
+  Future<Resultado<UsuarioModelo>> refrescarMiPerfil() async {
+    final res = await _repositorio.obtenerMiPerfilCompleto();
+    if (res.exito && res.datos != null) {
+      state = state.copiarCon(usuario: res.datos);
+    }
+    return res;
+  }
+
   Future<bool> registrar(String ci, String correo, String contrasena) async {
     state = state.copiarCon(cargando: true, limpiar_error: true);
 

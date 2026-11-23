@@ -110,7 +110,7 @@ class _RegistrarAcuerdosCitaModalState
     setState(() => _guardando = true);
     try {
       final repo = ref.read(devocionales_repositorio_proveedor);
-      await repo.actualizarCitaSeguimiento(
+      final res = await repo.actualizarCitaSeguimiento(
         cita_id: widget.cita.id,
         estado: _estado_seleccionado,
         acuerdos_retroalimentacion: _acuerdos_controlador.text.trim().isNotEmpty
@@ -124,19 +124,29 @@ class _RegistrarAcuerdosCitaModalState
             : null,
       );
 
-      ref.invalidate(citas_seguimiento_proveedor);
-
-      if (mounted) {
-        Navigator.pop(context);
+      if (!mounted) return;
+      if (!res.exito && res.error_bumand?.fueEncolado != true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Acuerdos y estado de seguimiento registrados con éxito',
-            ),
-            backgroundColor: BumandColores.AZUL_DIACONIA,
+          SnackBar(
+            content: Text(res.error ?? 'No se pudieron guardar los acuerdos'),
+            backgroundColor: Colors.red.shade700,
           ),
         );
+        return;
       }
+
+      ref.invalidate(citas_seguimiento_proveedor);
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            res.error_bumand?.fueEncolado == true
+                ? 'Acuerdos guardados en cola offline para sincronizar'
+                : 'Acuerdos y estado de seguimiento registrados con éxito',
+          ),
+          backgroundColor: BumandColores.AZUL_DIACONIA,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _guardando = false);
     }
