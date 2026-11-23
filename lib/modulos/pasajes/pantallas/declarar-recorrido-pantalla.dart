@@ -108,6 +108,7 @@ class _DeclararRecorridoPantallaState
 
   List<String> _paradas_frecuentes = [];
   final Map<String, ({double lat, double lng})> _coordenadas_paradas = {};
+  final Map<String, String> _cache_nominatim = {};
 
   double _calcularDistanciaMetros(double lat1, double lon1, double lat2, double lon2) {
     const double r = 6371000;
@@ -908,7 +909,22 @@ class _DeclararRecorridoPantallaState
     );
   }
 
+  String _limpiarNombreCiudad(String? crudo) {
+    if (crudo == null) return '';
+    return crudo
+        .replaceFirst(RegExp(r'^Municipio\s+Nuestra\s+Se[ñn]ora\s+de\s+', caseSensitive: false), '')
+        .replaceFirst(RegExp(r'^Municipio\s+de\s+', caseSensitive: false), '')
+        .trim();
+  }
+
   Future<String> _obtenerCalleGps(Position pos) async {
+    final clave_cache =
+        '${pos.latitude.toStringAsFixed(4)},${pos.longitude.toStringAsFixed(4)}';
+    final en_cache = _cache_nominatim[clave_cache];
+    if (en_cache != null && en_cache.isNotEmpty) {
+      return en_cache;
+    }
+
     // Buscar la parada estratégica más cercana cargada desde la BD
     String? parada_ref;
     double menor_dist = double.infinity;
@@ -919,6 +935,7 @@ class _DeclararRecorridoPantallaState
         parada_ref = nombre;
       }
     });
+    final parada_cercana_ref = (parada_ref != null && menor_dist <= 350) ? parada_ref : null;
 
     try {
       final uri = Uri.parse(
@@ -927,7 +944,7 @@ class _DeclararRecorridoPantallaState
       final respuesta = await http.get(
         uri,
         headers: {'User-Agent': 'BumandMovilApp/1.0', 'Accept-Language': 'es'},
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 8));
 
       if (respuesta.statusCode == 200) {
         final dynamic datos = jsonDecode(respuesta.body);
@@ -946,53 +963,74 @@ class _DeclararRecorridoPantallaState
                 direccion['quarter'] ??
                 direccion['suburb'];
 
-            final dynamic distrito_obj = direccion['city_district'] ??
-                direccion['city'] ??
-                direccion['town'];
+            final suburb_raw = direccion['suburb']?.toString().trim();
+            final distrito_raw = (direccion['city_district'] ??
+                    direccion['city'] ??
+                    direccion['town'])
+                ?.toString()
+                .trim();
 
             final calle = calle_obj?.toString().trim();
             String? barrio = barrio_obj?.toString().trim();
-            final distrito = distrito_obj?.toString().trim();
+            final distrito = _limpiarNombreCiudad(distrito_raw);
+            final ciudad = _limpiarNombreCiudad(direccion['city']?.toString() ?? direccion['town']?.toString());
 
-            // OpenStreetMap suele etiquetar calles de Bella Vista (ej. Pastor Tejada) bajo el polígono "Irpavi".
+            // OpenStreetMap suele etiquetar calles de Bella Vista (ej. Pastor Tejada) bajo "Irpavi" u "Obrajes".
             final en_corredor_bella_vista =
-                (pos.latitude >= -16.5345 &&
-                    pos.latitude <= -16.5205 &&
-                    pos.longitude >= -68.1060 &&
-                    pos.longitude <= -68.0935) ||
+                (pos.latitude >= -16.5355 &&
+                    pos.latitude <= -16.5195 &&
+                    pos.longitude >= -68.1070 &&
+                    pos.longitude <= -68.0915) ||
                 (calle != null &&
                     (calle.toLowerCase().contains('pastor tejada') ||
                         calle.toLowerCase().contains('bella vista')));
             if (en_corredor_bella_vista &&
-                (barrio == null || barrio.toLowerCase() == 'irpavi' || barrio.toLowerCase() == 'obrajes')) {
+                (barrio == null ||
+                    barrio.toLowerCase().contains('irpavi') ||
+                    barrio.toLowerCase().contains('obrajes'))) {
               barrio = 'Bella Vista';
             }
 
+            String? texto_resuelto;
             if (calle != null && calle.isNotEmpty) {
               if (barrio != null && barrio.isNotEmpty) {
-                return '$calle, $barrio';
-              } else if (distrito != null && distrito.isNotEmpty) {
-                return '$calle, $distrito';
+                texto_resuelto = '$calle, $barrio';
+              } else if (distrito.isNotEmpty) {
+                texto_resuelto = '$calle, $distrito';
+              } else {
+                texto_resuelto = calle;
               }
-              return calle;
             } else {
               final zona = (barrio != null && barrio.isNotEmpty)
                   ? barrio
-                  : (distrito != null && distrito.isNotEmpty)
-                      ? distrito
-                      : null;
+                  : (distrito.isNotEmpty ? distrito : null);
               if (zona != null) {
-                return parada_ref != null
-                    ? 'Zona $zona · Ref. $parada_ref'
+                final contexto = (suburb_raw != null &&
+                        suburb_raw.isNotEmpty &&
+                        suburb_raw.toLowerCase() != zona.toLowerCase() &&
+                        !en_corredor_bella_vista)
+                    ? suburb_raw
+                    : ciudad;
+                final etiqueta_zona = contexto.isNotEmpty && contexto.toLowerCase() != zona.toLowerCase()
+                    ? 'Zona $zona, $contexto'
                     : 'Zona $zona';
+                texto_resuelto = parada_cercana_ref != null
+                    ? '$etiqueta_zona · Ref. $parada_cercana_ref'
+                    : etiqueta_zona;
+              } else if (parada_ref != null) {
+                texto_resuelto = 'Ref. $parada_ref';
               }
-              return parada_ref != null ? 'Ref. $parada_ref' : '';
+            }
+
+            if (texto_resuelto != null && texto_resuelto.isNotEmpty) {
+              _cache_nominatim[clave_cache] = texto_resuelto;
+              return texto_resuelto;
             }
           }
         }
       }
     } catch (_) {}
-    final sufijo = parada_ref != null ? ' · Ref. $parada_ref' : '';
+    final sufijo = parada_cercana_ref != null ? ' · Ref. $parada_cercana_ref' : '';
     return 'Ubicación GPS (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})$sufijo';
   }
 
