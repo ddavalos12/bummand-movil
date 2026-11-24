@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -13,6 +15,7 @@ import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../../notificaciones/proveedores/notificaciones-proveedor.dart';
 import '../modelos/evaluacion-modelo.dart';
 import '../modelos/pregunta-bienestar-modelo.dart';
+import '../proveedores/evaluaciones-proveedor.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
 import 'botones-accion-evaluacion.dart';
 import 'formulario_f03_dialogo.dart';
@@ -117,6 +120,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _ReceptorAcademicoModal(),
     );
@@ -126,6 +130,7 @@ class DetalleEvaluacionModal extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _ReceptorMentorModal(),
     );
@@ -620,12 +625,21 @@ class _ReceptorAcademicoModal extends StatefulWidget {
   const _ReceptorAcademicoModal();
 
   @override
-  State<_ReceptorAcademicoModal> createState() => _ReceptorAcademicoModalState();
+  State<_ReceptorAcademicoModal> createState() =>
+      _ReceptorAcademicoModalState();
 }
 
 class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
   final _repositorio = EvaluacionesRepositorio();
   final _promedio_ctrl = TextEditingController();
+
+  ProviderContainer? _obtenerContenedorRiverpod(BuildContext context) {
+    try {
+      return ProviderScope.containerOf(context, listen: false);
+    } catch (_) {
+      return null;
+    }
+  }
 
   int _periodo_seleccionado_id = 1;
 
@@ -713,6 +727,10 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
           return;
         }
 
+        _obtenerContenedorRiverpod(context)?.invalidate(
+          evaluacion_consolidada_proveedor,
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -754,28 +772,72 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
     });
   }
 
+  String _extraerEstadoServidor(
+    EvaluacionConsolidadaModelo? datos_consolidados,
+  ) {
+    if (datos_consolidados != null) {
+      for (final mod in datos_consolidados.desglose_modulos) {
+        if (mod.modulo_id == 2 && mod.estado.trim().isNotEmpty) {
+          return mod.estado.trim().toLowerCase();
+        }
+      }
+    }
+    return 'pendiente';
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_obtenerContenedorRiverpod(context) != null) {
+      return Consumer(
+        builder: (context, ref, _) {
+          final evaluacion_async = ref.watch(evaluacion_consolidada_proveedor);
+          final estado_servidor = _extraerEstadoServidor(
+            evaluacion_async.asData?.value.datos,
+          );
+          return _construirModalContenido(context, estado_servidor);
+        },
+      );
+    }
+    return _construirModalContenido(context, 'pendiente');
+  }
+
+  Widget _construirModalContenido(
+    BuildContext context,
+    String estado_servidor,
+  ) {
     final periodo_actual = PERIODOS_ACADEMICOS.firstWhere(
       (p) => p["id"] == _periodo_seleccionado_id,
       orElse: () => PERIODOS_ACADEMICOS.first,
     );
+    final ya_enviado_servidor =
+        estado_servidor != 'pendiente' && estado_servidor != 'borrador';
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.92,
+        ),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            14,
+            20,
+            math.max(
+                  MediaQuery.of(context).viewInsets.bottom,
+                  MediaQuery.of(context).viewPadding.bottom,
+                ) +
+                24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(
               child: Container(
@@ -969,6 +1031,7 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
               icono: Icons.description_outlined,
               color_icono: const Color(0xFF2563EB),
               cargando: _subiendo_record,
+              habilitado: !ya_enviado_servidor,
               alSubir: () => _subirDocumento(es_record: true),
               alEliminar: () => _eliminarDocumento(es_record: true),
               texto_boton: _docActual["record_nombre"] == null
@@ -987,6 +1050,7 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
               icono: Icons.history_edu_outlined,
               color_icono: const Color(0xFF0D9488),
               cargando: _subiendo_historial,
+              habilitado: !ya_enviado_servidor,
               alSubir: () => _subirDocumento(es_record: false),
               alEliminar: () => _eliminarDocumento(es_record: false),
               texto_boton: _docActual["historial_nombre"] == null
@@ -1010,6 +1074,7 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                 const SizedBox(height: 6),
                 TextField(
                   controller: _promedio_ctrl,
+                  enabled: !ya_enviado_servidor,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                     hintText: "Ej. 82.50",
@@ -1027,6 +1092,38 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
             ),
             const SizedBox(height: 20),
 
+            if (ya_enviado_servidor) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF86EFAC)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 18,
+                      color: Color(0xFF047857),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Documentación académica ya enviada. No es posible reenviar.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF065F46),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             Builder(
               builder: (context) {
                 final estado_rec = (_docActual["record_estado"] ?? "").toLowerCase();
@@ -1034,12 +1131,14 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                 final ambos_aprobados =
                     estado_rec.contains("aprob") && estado_his.contains("aprob");
                 final alguno_enviado =
+                    ya_enviado_servidor ||
                     estado_rec.contains("enviad") ||
                     estado_his.contains("enviad") ||
                     estado_rec.contains("aprob") ||
                     estado_his.contains("aprob");
 
                 void confirmarEnvio() {
+                  if (ya_enviado_servidor) return;
                   if (!alguno_enviado) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -1051,6 +1150,9 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                     );
                     return;
                   }
+                  _obtenerContenedorRiverpod(context)?.invalidate(
+                    evaluacion_consolidada_proveedor,
+                  );
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -1073,11 +1175,14 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                   icono_pendiente: Icons.check_circle_outline,
                   al_ejecutar_pendiente: confirmarEnvio,
                   texto_completado: ambos_aprobados ? "Aprobado" : "Enviado",
-                  al_hacer_clic_completado: confirmarEnvio,
+                  al_hacer_clic_completado:
+                      ya_enviado_servidor ? null : confirmarEnvio,
                 );
               },
             ),
           ],
+        ),
+      ),
         ),
       ),
     );
@@ -1092,6 +1197,7 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
     required IconData icono,
     required Color color_icono,
     required bool cargando,
+    bool habilitado = true,
     required VoidCallback alSubir,
     required VoidCallback alEliminar,
     required String texto_boton,
@@ -1217,12 +1323,13 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: alEliminar,
-                    tooltip: "Quitar archivo",
-                  ),
+                  if (habilitado)
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: alEliminar,
+                      tooltip: "Quitar archivo",
+                    ),
                 ],
               ),
             ),
@@ -1230,9 +1337,8 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
           ],
           SizedBox(
             width: double.infinity,
-            height: 38,
             child: ElevatedButton.icon(
-              onPressed: cargando ? null : alSubir,
+              onPressed: (cargando || !habilitado) ? null : alSubir,
               style: ElevatedButton.styleFrom(
                 backgroundColor: nombre_archivo == null
                     ? BumandColores.AZUL_DIACONIA
@@ -1241,6 +1347,8 @@ class _ReceptorAcademicoModalState extends State<_ReceptorAcademicoModal> {
                     ? Colors.white
                     : BumandColores.azulMarinoSecundario,
                 elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                minimumSize: const Size(0, 42),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(
@@ -1326,18 +1434,30 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
         ? "Aprobado por Administración"
         : (_evaluado ? "Evaluado por tu Mentor" : "Pendiente de evaluación");
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.92,
+        ),
+        child: SingleChildScrollView(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              14,
+              20,
+              math.max(
+                    MediaQuery.of(context).viewInsets.bottom,
+                    MediaQuery.of(context).viewPadding.bottom,
+                  ) +
+                  24,
+            ),
+            child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1530,6 +1650,9 @@ class _ReceptorMentorModalState extends State<_ReceptorMentorModal> {
             child: const Text("Cerrar"),
           ),
         ],
+      ),
+    ),
+        ),
       ),
     );
   }

@@ -74,8 +74,11 @@ class BotonesAccionEvaluacion extends StatelessWidget {
           color: BumandColores.azulCieloSuave,
           width: 1.2,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        minimumSize: const Size(0, 34),
+        padding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: expandir ? 12 : 8,
+        ),
+        minimumSize: Size(0, expandir ? 46 : 34),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: const StadiumBorder(),
       ),
@@ -86,6 +89,8 @@ class BotonesAccionEvaluacion extends StatelessWidget {
       ),
       label: Text(
         texto_revisar,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
@@ -106,8 +111,11 @@ class BotonesAccionEvaluacion extends StatelessWidget {
             disabledBackgroundColor: _verde_solido.withValues(alpha: 0.6),
             disabledForegroundColor: Colors.white,
             elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            minimumSize: const Size(0, 34),
+            padding: EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: expandir ? 12 : 8,
+            ),
+            minimumSize: Size(0, expandir ? 46 : 34),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: const StadiumBorder(),
           ),
@@ -123,6 +131,8 @@ class BotonesAccionEvaluacion extends StatelessWidget {
               : Icon(icono_pendiente, size: 15, color: Colors.white),
           label: Text(
             texto_pendiente,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -198,12 +208,16 @@ class BotonesAccionEvaluacion extends StatelessWidget {
           else
             Icon(icono, size: 15, color: icono_color),
           const SizedBox(width: 6),
-          Text(
-            texto,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: texto_color,
+          Flexible(
+            child: Text(
+              texto,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: texto_color,
+              ),
             ),
           ),
         ],

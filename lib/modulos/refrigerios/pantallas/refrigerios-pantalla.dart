@@ -27,7 +27,7 @@ class RefrigeriosPantalla extends ConsumerWidget {
       backgroundColor: BumandColores.fondo,
       appBar: const BarraSuperiorBumand(
         titulo: 'Mis Refrigerios',
-        subtitulo: 'Sorteo de Duplas, Rendición 100% y Recojo',
+        subtitulo: 'Duplas Encargadas, Rendición 100% y Recojo',
         mostrar_perfil: false,
       ),
       body: RefreshIndicator(
@@ -337,7 +337,7 @@ class RefrigeriosPantalla extends ConsumerWidget {
 
           // Título y Compañero de Dupla
           Text(
-            'Te tocó en el sorteo junto a ${turno.companero_nombre}',
+            'Te corresponde la dupla junto a ${turno.companero_nombre}',
             style: GoogleFonts.montserrat(
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -1214,7 +1214,7 @@ class RefrigeriosPantalla extends ConsumerWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        'Sorteado',
+        'Programado',
         style: GoogleFonts.poppins(
           fontSize: 9.5,
           fontWeight: FontWeight.w700,

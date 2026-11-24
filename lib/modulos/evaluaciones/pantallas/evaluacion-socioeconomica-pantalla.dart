@@ -180,7 +180,20 @@ class _EvaluacionSocioeconomicaPantallaState
     return confirmar ?? false;
   }
 
+  bool _esModuloSocioeconomicoEnviado() {
+    final datos = ref.read(evaluacion_consolidada_proveedor).asData?.value.datos;
+    if (datos == null) return false;
+    for (final mod in datos.desglose_modulos) {
+      if (mod.modulo_id == 5 && mod.estado.trim().isNotEmpty) {
+        final estado = mod.estado.trim().toLowerCase();
+        return estado != 'pendiente' && estado != 'borrador';
+      }
+    }
+    return false;
+  }
+
   Future<void> _enviarEvaluacionSocioeconomica() async {
+    if (_enviado_exitosamente || _esModuloSocioeconomicoEnviado()) return;
     if (_respuestas.length < _preguntas.length) {
       final faltantes = _preguntas.length - _respuestas.length;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -261,6 +274,20 @@ class _EvaluacionSocioeconomicaPantallaState
 
   @override
   Widget build(BuildContext context) {
+    final evaluacion_async = ref.watch(evaluacion_consolidada_proveedor);
+    bool enviado_servidor = false;
+    final datos_consolidados = evaluacion_async.asData?.value.datos;
+    if (datos_consolidados != null) {
+      for (final mod in datos_consolidados.desglose_modulos) {
+        if (mod.modulo_id == 5 && mod.estado.trim().isNotEmpty) {
+          final estado = mod.estado.trim().toLowerCase();
+          enviado_servidor = estado != 'pendiente' && estado != 'borrador';
+          break;
+        }
+      }
+    }
+    final ya_enviado = _enviado_exitosamente || enviado_servidor;
+
     final respondidas_conteo = _respuestas.length;
     final total_preguntas = _preguntas.length;
     final valor_progreso =
@@ -268,7 +295,7 @@ class _EvaluacionSocioeconomicaPantallaState
     final preguntas_filtradas = _obtenerPreguntasFiltradas();
 
     return PopScope(
-      canPop: !_tieneCambiosSinGuardar(),
+      canPop: ya_enviado || !_tieneCambiosSinGuardar(),
       onPopInvokedWithResult: (did_pop, _) async {
         if (did_pop) return;
         final salir = await _confirmarSalidaSinGuardar();
@@ -310,6 +337,39 @@ class _EvaluacionSocioeconomicaPantallaState
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                           children: [
+                            if (ya_enviado) ...[
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFECFDF5),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFF86EFAC),
+                                  ),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.lock_outline,
+                                      size: 18,
+                                      color: Color(0xFF047857),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        "Evaluación Socioeconómica ya enviada. No es posible reenviar.",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF065F46),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             _construirPanelProgresoYFiltros(
                               respondidas_conteo: respondidas_conteo,
                               total_preguntas: total_preguntas,
@@ -325,6 +385,7 @@ class _EvaluacionSocioeconomicaPantallaState
                       _construirBarraInferiorEnvio(
                         respondidas_conteo: respondidas_conteo,
                         total_preguntas: total_preguntas,
+                        ya_enviado: ya_enviado,
                       ),
                     ],
                   )),
@@ -736,6 +797,7 @@ class _EvaluacionSocioeconomicaPantallaState
   Widget _construirBarraInferiorEnvio({
     required int respondidas_conteo,
     required int total_preguntas,
+    required bool ya_enviado,
   }) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -755,16 +817,17 @@ class _EvaluacionSocioeconomicaPantallaState
         child: BotonesAccionEvaluacion(
           expandir: true,
           mostrar_revisar: false,
-          estado: _enviado_exitosamente
+          estado: ya_enviado
               ? EstadoAccionEvaluacion.completado
               : EstadoAccionEvaluacion.pendiente,
           texto_pendiente: _enviando
               ? "Enviando cuestionario..."
               : "Enviar Evaluación ($respondidas_conteo/$total_preguntas)",
           icono_pendiente: Icons.send_rounded,
-          al_ejecutar_pendiente: _enviarEvaluacionSocioeconomica,
+          al_ejecutar_pendiente:
+              ya_enviado ? null : _enviarEvaluacionSocioeconomica,
           texto_completado: "Enviado",
-          al_hacer_clic_completado: _enviarEvaluacionSocioeconomica,
+          al_hacer_clic_completado: null,
           cargando: _enviando,
         ),
       ),

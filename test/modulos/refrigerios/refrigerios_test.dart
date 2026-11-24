@@ -183,7 +183,7 @@ void main() {
         'Compra Directa',
       );
 
-      expect(refrigerio_prueba.estadoLegible, 'Sorteado / Programado');
+      expect(refrigerio_prueba.estadoLegible, 'Programado');
       expect(
         refrigerio_prueba.copiarCon(estado: 'rendido_pendiente').estadoLegible,
         'Rendido (Pendiente Revisión)',

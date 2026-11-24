@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -106,21 +105,9 @@ class _DeclararRecorridoPantallaState
   List<Map<String, dynamic>> _tarifas = [];
   bool _cargando_tarifas = false;
 
-  List<String> _paradas_frecuentes = [];
-  final Map<String, ({double lat, double lng})> _coordenadas_paradas = {};
-  final Map<String, String> _cache_nominatim = {};
+  static const double _UMBRAL_PRECISION_INTERIOR_M = 80.0;
 
-  double _calcularDistanciaMetros(double lat1, double lon1, double lat2, double lon2) {
-    const double r = 6371000;
-    final double dLat = (lat2 - lat1) * (math.pi / 180.0);
-    final double dLon = (lon2 - lon1) * (math.pi / 180.0);
-    final double a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
-        math.cos(lat1 * (math.pi / 180.0)) *
-            math.cos(lat2 * (math.pi / 180.0)) *
-            (math.sin(dLon / 2) * math.sin(dLon / 2));
-    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return r * c;
-  }
+  final Map<String, String> _cache_nominatim = {};
 
   bool get _esSoloIda {
     final usuario = ref.watch(autenticacion_proveedor).usuario;
@@ -134,30 +121,20 @@ class _DeclararRecorridoPantallaState
     return modalidad == 'solo_ida';
   }
 
-  List<String> _obtenerOpcionesParadaDisponibles(
+  bool _esDuplicadoEnTramo(
     List<_ParadaRuta> lista_paradas,
     int indice_actual,
+    String texto_candidato,
   ) {
-    final usadas_en_otras = <String>{};
+    final normalizado = texto_candidato.trim().toLowerCase();
+    if (normalizado.isEmpty) return false;
     for (int i = 0; i < lista_paradas.length; i++) {
       if (i == indice_actual) continue;
-      final valor = lista_paradas[i].controlador.text.trim().toLowerCase();
-      if (valor.isNotEmpty) {
-        usadas_en_otras.add(valor);
+      if (lista_paradas[i].controlador.text.trim().toLowerCase() == normalizado) {
+        return true;
       }
     }
-
-    final catalogo = <String>[
-      ..._paradas_frecuentes,
-      if (widget.destino_inicial != null &&
-          widget.destino_inicial!.trim().isNotEmpty &&
-          !_paradas_frecuentes.contains(widget.destino_inicial!.trim()))
-        widget.destino_inicial!.trim(),
-    ];
-
-    return catalogo
-        .where((op) => !usadas_en_otras.contains(op.trim().toLowerCase()))
-        .toList();
+    return false;
   }
 
   bool _tieneParadasDuplicadas(List<_ParadaRuta> lista_paradas) {
@@ -176,7 +153,6 @@ class _DeclararRecorridoPantallaState
     super.initState();
     _tipo_actividad = "Prácticas";
     _cargarTarifas();
-    _cargarParadas();
     final destino_base =
         (widget.destino_inicial != null && widget.destino_inicial!.isNotEmpty)
             ? widget.destino_inicial!
@@ -217,12 +193,23 @@ class _DeclararRecorridoPantallaState
       ),
     );
 
-    _cargarUltimoRecorrido();
-    _autoDetectarUbicacionInicial();
+    _inicializarUbicacionesIniciales();
+  }
+
+  Future<void> _inicializarUbicacionesIniciales() async {
+    await _cargarUltimoRecorrido();
+    if (!mounted) return;
+    await _autoDetectarUbicacionInicial();
   }
 
   Future<void> _autoDetectarUbicacionInicial() async {
     try {
+      final origen_ida_vacio = _paradas_ida.isNotEmpty &&
+          _paradas_ida[0].controlador.text.trim().isEmpty;
+      final destino_vuelta_vacio = _paradas_vuelta.length > 1 &&
+          _paradas_vuelta.last.controlador.text.trim().isEmpty;
+      if (!origen_ida_vacio && !destino_vuelta_vacio) return;
+
       final habilitado = await Geolocator.isLocationServiceEnabled();
       if (!habilitado) return;
       final permiso = await Geolocator.checkPermission();
@@ -230,21 +217,31 @@ class _DeclararRecorridoPantallaState
 
       final posicion = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 4),
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 6),
         ),
       );
       if (!mounted) return;
+      if (posicion.accuracy > _UMBRAL_PRECISION_INTERIOR_M) return;
 
       final nombre_calle = await _obtenerCalleGps(posicion);
       if (!mounted) return;
 
       setState(() {
-        if (_paradas_ida.isNotEmpty) {
+        if (_paradas_ida.isNotEmpty &&
+            _paradas_ida[0].controlador.text.trim().isEmpty &&
+            !_esDuplicadoEnTramo(_paradas_ida, 0, nombre_calle)) {
           _paradas_ida[0].posicion_gps = posicion;
           _paradas_ida[0].controlador.text = nombre_calle;
         }
-        if (_paradas_vuelta.length > 1) {
+        if (_paradas_vuelta.length > 1 &&
+            _paradas_vuelta.last.controlador.text.trim().isEmpty &&
+            !_esDuplicadoEnTramo(
+              _paradas_vuelta,
+              _paradas_vuelta.length - 1,
+              nombre_calle,
+            )) {
+          _paradas_vuelta.last.posicion_gps = posicion;
           _paradas_vuelta.last.controlador.text = nombre_calle;
         }
       });
@@ -318,41 +315,6 @@ class _DeclararRecorridoPantallaState
       } else {
         setState(() => _cargando_tarifas = false);
       }
-    }
-  }
-
-  Future<void> _cargarParadas() async {
-    final repo = ref.read(pasajes_repositorio_proveedor);
-    final resultado = await repo.obtenerParadas();
-    if (!mounted) return;
-    if (resultado.exito && resultado.datos != null) {
-      final nombres = <String>[];
-      final coords = <String, ({double lat, double lng})>{};
-      for (final p in resultado.datos!) {
-        final nombre = (p['nombre'] ?? '').toString().trim();
-        if (nombre.isEmpty) continue;
-        final zona = (p['zona'] ?? '').toString().trim();
-        final ciudad = (p['ciudad'] ?? '').toString().trim();
-        final etiqueta = zona.isNotEmpty && !nombre.contains(zona)
-            ? '$nombre — $zona${ciudad.isNotEmpty ? ' ($ciudad)' : ''}'
-            : (ciudad.isNotEmpty && !nombre.contains(ciudad)
-                ? '$nombre ($ciudad)'
-                : nombre);
-        if (!nombres.contains(etiqueta)) {
-          nombres.add(etiqueta);
-        }
-        final lat = double.tryParse((p['latitud'] ?? '').toString());
-        final lng = double.tryParse((p['longitud'] ?? '').toString());
-        if (lat != null && lng != null) {
-          coords[etiqueta] = (lat: lat, lng: lng);
-        }
-      }
-      setState(() {
-        _paradas_frecuentes = nombres;
-        _coordenadas_paradas
-          ..clear()
-          ..addAll(coords);
-      });
     }
   }
 
@@ -917,6 +879,19 @@ class _DeclararRecorridoPantallaState
         .trim();
   }
 
+  String? _primerValorValido(List<dynamic> candidatos) {
+    for (final c in candidatos) {
+      final texto = c?.toString().trim() ?? '';
+      if (texto.isEmpty) continue;
+      final lower = texto.toLowerCase();
+      if (lower == 'yes' || lower == 'no' || lower == 'true' || lower == 'false') {
+        continue;
+      }
+      return texto;
+    }
+    return null;
+  }
+
   Future<String> _obtenerCalleGps(Position pos) async {
     final clave_cache =
         '${pos.latitude.toStringAsFixed(4)},${pos.longitude.toStringAsFixed(4)}';
@@ -924,18 +899,6 @@ class _DeclararRecorridoPantallaState
     if (en_cache != null && en_cache.isNotEmpty) {
       return en_cache;
     }
-
-    // Buscar la parada estratégica más cercana cargada desde la BD
-    String? parada_ref;
-    double menor_dist = double.infinity;
-    _coordenadas_paradas.forEach((nombre, coords) {
-      final d = _calcularDistanciaMetros(pos.latitude, pos.longitude, coords.lat, coords.lng);
-      if (d < menor_dist) {
-        menor_dist = d;
-        parada_ref = nombre;
-      }
-    });
-    final parada_cercana_ref = (parada_ref != null && menor_dist <= 350) ? parada_ref : null;
 
     try {
       final uri = Uri.parse(
@@ -951,13 +914,43 @@ class _DeclararRecorridoPantallaState
         if (datos is Map<String, dynamic>) {
           final direccion = datos['address'] as Map<String, dynamic>?;
           if (direccion != null) {
-            final dynamic calle_obj = direccion['road'] ??
-                direccion['pedestrian'] ??
-                direccion['footway'] ??
-                direccion['path'] ??
-                direccion['residential'] ??
-                direccion['amenity'] ??
-                direccion['building'];
+            final calle_via = _primerValorValido([
+              direccion['road'],
+              direccion['pedestrian'],
+              direccion['footway'],
+              direccion['path'],
+              direccion['residential'],
+            ]);
+
+            final poi_edificio = _primerValorValido([
+              direccion['bus_station'],
+              direccion['terminal'],
+              direccion['station'],
+              direccion['public_building'],
+              direccion['amenity'],
+              direccion['building'],
+              direccion['office'],
+              direccion['commercial'],
+              direccion['retail'],
+              direccion['tourism'],
+              direccion['leisure'],
+              direccion['shop'],
+              direccion['historic'],
+              direccion['healthcare'],
+            ]);
+
+            final categoria = (datos['category'] ?? '').toString().toLowerCase();
+            final tipo_lugar = (datos['type'] ?? '').toString().toLowerCase();
+            final es_administrativo = categoria == 'boundary' ||
+                tipo_lugar == 'administrative' ||
+                tipo_lugar == 'suburb' ||
+                tipo_lugar == 'neighbourhood' ||
+                tipo_lugar == 'quarter' ||
+                tipo_lugar == 'city' ||
+                tipo_lugar == 'town';
+            final nombre_lugar = es_administrativo
+                ? null
+                : _primerValorValido([datos['name']]);
 
             final dynamic barrio_obj = direccion['neighbourhood'] ??
                 direccion['quarter'] ??
@@ -970,7 +963,7 @@ class _DeclararRecorridoPantallaState
                 ?.toString()
                 .trim();
 
-            final calle = calle_obj?.toString().trim();
+            final calle = calle_via ?? poi_edificio ?? nombre_lugar;
             String? barrio = barrio_obj?.toString().trim();
             final distrito = _limpiarNombreCiudad(distrito_raw);
             final ciudad = _limpiarNombreCiudad(direccion['city']?.toString() ?? direccion['town']?.toString());
@@ -993,9 +986,12 @@ class _DeclararRecorridoPantallaState
 
             String? texto_resuelto;
             if (calle != null && calle.isNotEmpty) {
-              if (barrio != null && barrio.isNotEmpty) {
+              if (barrio != null &&
+                  barrio.isNotEmpty &&
+                  barrio.toLowerCase() != calle.toLowerCase()) {
                 texto_resuelto = '$calle, $barrio';
-              } else if (distrito.isNotEmpty) {
+              } else if (distrito.isNotEmpty &&
+                  distrito.toLowerCase() != calle.toLowerCase()) {
                 texto_resuelto = '$calle, $distrito';
               } else {
                 texto_resuelto = calle;
@@ -1011,14 +1007,9 @@ class _DeclararRecorridoPantallaState
                         !en_corredor_bella_vista)
                     ? suburb_raw
                     : ciudad;
-                final etiqueta_zona = contexto.isNotEmpty && contexto.toLowerCase() != zona.toLowerCase()
+                texto_resuelto = contexto.isNotEmpty && contexto.toLowerCase() != zona.toLowerCase()
                     ? 'Zona $zona, $contexto'
                     : 'Zona $zona';
-                texto_resuelto = parada_cercana_ref != null
-                    ? '$etiqueta_zona · Ref. $parada_cercana_ref'
-                    : etiqueta_zona;
-              } else if (parada_ref != null) {
-                texto_resuelto = 'Ref. $parada_ref';
               }
             }
 
@@ -1030,15 +1021,14 @@ class _DeclararRecorridoPantallaState
         }
       }
     } catch (_) {}
-    final sufijo = parada_cercana_ref != null ? ' · Ref. $parada_cercana_ref' : '';
-    return 'Ubicación GPS (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})$sufijo';
+    return 'Ubicación GPS (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})';
   }
 
-  Future<void> _capturarGps(
+  Future<bool> _capturarGps(
     String identificador,
     _ParadaRuta parada, {
-    bool? es_ida,
-    int? indice,
+    required bool es_ida,
+    required int indice,
   }) async {
     setState(() => _capturando_gps_id = identificador);
     HapticFeedback.selectionClick();
@@ -1046,7 +1036,7 @@ class _DeclararRecorridoPantallaState
       final servicioHabilitado = await Geolocator.isLocationServiceEnabled();
       if (!servicioHabilitado) {
         _mensaje("Activa el servicio de GPS", es_error: true);
-        return;
+        return false;
       }
 
       var permiso = await Geolocator.checkPermission();
@@ -1054,7 +1044,7 @@ class _DeclararRecorridoPantallaState
         permiso = await Geolocator.requestPermission();
         if (permiso == LocationPermission.denied) {
           _mensaje("Permiso GPS denegado", es_error: true);
-          return;
+          return false;
         }
       }
 
@@ -1065,48 +1055,50 @@ class _DeclararRecorridoPantallaState
         ),
       );
 
-      if (!mounted) return;
+      if (!mounted) return false;
 
-      // Calcular distancia Haversine a paradas oficiales desde la BD
-      String? parada_mas_cercana;
-      double menor_distancia = double.infinity;
+      final calle_detectada = await _obtenerCalleGps(posicion);
+      if (!mounted) return false;
 
-      _coordenadas_paradas.forEach((nombre, coords) {
-        final dist = _calcularDistanciaMetros(
-          posicion.latitude,
-          posicion.longitude,
-          coords.lat,
-          coords.lng,
-        );
-        if (dist < menor_distancia) {
-          menor_distancia = dist;
-          parada_mas_cercana = nombre;
-        }
-      });
+      final lista_paradas = es_ida ? _paradas_ida : _paradas_vuelta;
+      final baja_precision = posicion.accuracy > _UMBRAL_PRECISION_INTERIOR_M;
 
-      if (parada_mas_cercana != null && menor_distancia <= 150) {
-        final nombre_asignado = "Parada $parada_mas_cercana";
+      if (_esDuplicadoEnTramo(lista_paradas, indice, calle_detectada)) {
         setState(() {
-          parada.posicion_gps = posicion;
-          parada.controlador.text = nombre_asignado;
-          parada.confirmada = true;
+          parada.confirmada = false;
         });
         _mensaje(
-          "📍 Parada oficial detectada: $parada_mas_cercana (a ${menor_distancia.round()} m)",
+          baja_precision
+              ? "Precisión GPS baja (${posicion.accuracy.round()} m) y coincide con una parada ya agregada. Desplázate o escribe la parada manualmente."
+              : "La ubicación GPS detectada coincide con una parada ya agregada. Desplázate o escribe la parada manualmente.",
+          es_error: true,
         );
-      } else {
-        final calle_detectada = await _obtenerCalleGps(posicion);
-        if (!mounted) return;
+        return false;
+      }
+
+      if (baja_precision) {
         setState(() {
           parada.posicion_gps = posicion;
           parada.controlador.text = calle_detectada;
-          parada.confirmada = true;
+          parada.confirmada = false;
         });
-        _mensaje("📍 Ubicación GPS: $calle_detectada");
+        _mensaje(
+          "Precisión GPS baja (${posicion.accuracy.round()} m en interiores): '$calle_detectada'. Verifica o edita la parada antes de confirmar.",
+        );
+        return false;
       }
+
+      setState(() {
+        parada.posicion_gps = posicion;
+        parada.controlador.text = calle_detectada;
+        parada.confirmada = true;
+      });
+      _mensaje("📍 Ubicación GPS: $calle_detectada");
+      return true;
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return false;
       _mensaje("No se pudo obtener la ubicación GPS", es_error: true);
+      return false;
     } finally {
       if (mounted) setState(() => _capturando_gps_id = null);
     }
@@ -2181,10 +2173,6 @@ class _DeclararRecorridoPantallaState
   }) {
     final lista_paradas = es_ida ? _paradas_ida : _paradas_vuelta;
     final es_ultima = numero == lista_paradas.length;
-    final opciones_disponibles = _obtenerOpcionesParadaDisponibles(
-      lista_paradas,
-      numero - 1,
-    );
 
     return Container(
       key: ObjectKey(parada),
@@ -2234,18 +2222,21 @@ class _DeclararRecorridoPantallaState
               ),
               const SizedBox(width: 8),
 
-              // Campo de parada con ancho completo legible (sin aplastarse junto al botón de confirmar)
+              // Campo de parada de texto libre sincronizado directamente con el controlador
               Expanded(
-                child: _CampoParadaCombobox(
+                child: _CampoParadaTexto(
                   key: ObjectKey(parada.controlador),
                   controlador: parada.controlador,
                   pista: numero == 1
-                      ? "Origen (escribe zona/calle o elige parada)"
+                      ? "Origen (escribe zona/calle o usa GPS)"
                       : es_ultima
-                          ? "Destino final (escribe o elige parada)"
+                          ? "Destino final (escribe zona/calle o usa GPS)"
                           : "Parada intermedia $numero",
-                  opciones: opciones_disponibles,
-                  alCambiar: (_) => setState(() {}),
+                  alCambiar: (_) => setState(() {
+                    if (parada.confirmada) {
+                      parada.confirmada = false;
+                    }
+                  }),
                 ),
               ),
 
@@ -2319,12 +2310,6 @@ class _DeclararRecorridoPantallaState
               GestureDetector(
                 onTap: () async {
                   final indice = numero - 1;
-                  final anterior = indice > 0
-                      ? lista_paradas[indice - 1].controlador.text.trim()
-                      : null;
-                  final siguiente = indice < lista_paradas.length - 1
-                      ? lista_paradas[indice + 1].controlador.text.trim()
-                      : null;
                   final texto_actual = parada.controlador.text.trim();
 
                   if (parada.confirmada) {
@@ -2335,20 +2320,21 @@ class _DeclararRecorridoPantallaState
                     return;
                   }
 
-                  final es_igual_al_anterior = anterior != null &&
-                      anterior.isNotEmpty &&
-                      anterior.toLowerCase() == texto_actual.toLowerCase();
-                  final necesita_gps = parada.lat == null ||
-                      texto_actual.isEmpty ||
-                      es_igual_al_anterior;
+                  final es_duplicado_actual = _esDuplicadoEnTramo(
+                    lista_paradas,
+                    indice,
+                    texto_actual,
+                  );
+                  final necesita_gps = texto_actual.isEmpty || es_duplicado_actual;
 
                   if (necesita_gps) {
-                    await _capturarGps(
+                    final capturado = await _capturarGps(
                       'parada_${es_ida ? "ida" : "vuelta"}_$numero',
                       parada,
                       es_ida: es_ida,
                       indice: indice,
                     );
+                    if (!capturado) return;
                   }
 
                   final texto_final = parada.controlador.text.trim();
@@ -2357,21 +2343,12 @@ class _DeclararRecorridoPantallaState
                     return;
                   }
 
-                  if (anterior != null &&
-                      anterior.isNotEmpty &&
-                      anterior.toLowerCase() == texto_final.toLowerCase()) {
+                  if (_esDuplicadoEnTramo(lista_paradas, indice, texto_final)) {
+                    setState(() {
+                      parada.confirmada = false;
+                    });
                     _mensaje(
-                      "El punto de partida y llegada no pueden ser la misma ubicación",
-                      es_error: true,
-                    );
-                    return;
-                  }
-
-                  if (siguiente != null &&
-                      siguiente.isNotEmpty &&
-                      siguiente.toLowerCase() == texto_final.toLowerCase()) {
-                    _mensaje(
-                      "El punto de partida y llegada no pueden ser la misma ubicación",
+                      "La ubicación GPS detectada coincide con una parada ya agregada. Desplázate o escribe la parada manualmente.",
                       es_error: true,
                     );
                     return;
@@ -2400,9 +2377,11 @@ class _DeclararRecorridoPantallaState
                     parada.confirmada
                         ? "✓ Ubicación fijada"
                         : (parada.controlador.text.trim().isEmpty ||
-                                (numero > 1 &&
-                                    parada.controlador.text.trim().toLowerCase() ==
-                                        lista_paradas[numero - 2].controlador.text.trim().toLowerCase()))
+                                _esDuplicadoEnTramo(
+                                  lista_paradas,
+                                  numero - 1,
+                                  parada.controlador.text,
+                                ))
                             ? "📍 Fijar aquí"
                             : "Confirmar",
                     style: TextStyle(
@@ -2897,141 +2876,50 @@ class _PintorMapaTrayecto extends CustomPainter {
   }
 }
 
-class _CampoParadaCombobox extends StatelessWidget {
+class _CampoParadaTexto extends StatelessWidget {
   final TextEditingController controlador;
   final String pista;
-  final List<String> opciones;
   final ValueChanged<String>? alCambiar;
 
-  const _CampoParadaCombobox({
+  const _CampoParadaTexto({
     super.key,
     required this.controlador,
     required this.pista,
-    required this.opciones,
     this.alCambiar,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Autocomplete<String>(
-          initialValue: TextEditingValue(text: controlador.text),
-          optionsBuilder: (TextEditingValue valorTexto) {
-            if (valorTexto.text.isEmpty) {
-              return opciones;
-            }
-            return opciones.where((opcion) =>
-                opcion.toLowerCase().contains(valorTexto.text.toLowerCase()));
-          },
-          onSelected: (String seleccion) {
-            controlador.text = seleccion;
-            alCambiar?.call(seleccion);
-          },
-          fieldViewBuilder:
-              (context, textController, focusNode, onFieldSubmitted) {
-            if (controlador.text != textController.text && !focusNode.hasFocus) {
-              textController.text = controlador.text;
-            }
-            return TextField(
-              controller: textController,
-              focusNode: focusNode,
-              onChanged: (val) {
-                controlador.text = val;
-                alCambiar?.call(val);
-              },
-              onSubmitted: (_) => onFieldSubmitted(),
-              style: const TextStyle(fontSize: 13.5),
-              decoration: InputDecoration(
-                hintText: pista,
-                hintStyle:
-                    TextStyle(fontSize: 12.5, color: Colors.grey.shade400),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                suffixIcon: PopupMenuButton<String>(
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    size: 22,
-                    color: Color(0xFF64748B),
-                  ),
-                  tooltip: "Paradas frecuentes",
-                  onSelected: (String parada) {
-                    textController.text = parada;
-                    controlador.text = parada;
-                    alCambiar?.call(parada);
-                  },
-                  itemBuilder: (context) {
-                    return opciones.map((p) {
-                      return PopupMenuItem<String>(
-                        value: p,
-                        height: 38,
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              size: 16,
-                              color: BumandColores.AZUL_DIACONIA,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                p,
-                                style: const TextStyle(fontSize: 13),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList();
-                  },
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                ),
-              ),
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4.0,
-                borderRadius: BorderRadius.circular(10),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: 200,
-                    maxWidth: constraints.maxWidth,
-                  ),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final option = options.elementAt(index);
-                      return ListTile(
-                        dense: true,
-                        leading: const Icon(
-                          Icons.location_on_outlined,
-                          size: 16,
-                          color: BumandColores.AZUL_DIACONIA,
-                        ),
-                        title:
-                            Text(option, style: const TextStyle(fontSize: 13)),
-                        onTap: () => onSelected(option),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+    return TextField(
+      controller: controlador,
+      onChanged: alCambiar,
+      style: const TextStyle(fontSize: 13.5),
+      decoration: InputDecoration(
+        hintText: pista,
+        hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey.shade400),
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: BumandColores.AZUL_DIACONIA,
+            width: 1.5,
+          ),
+        ),
+      ),
     );
   }
 }

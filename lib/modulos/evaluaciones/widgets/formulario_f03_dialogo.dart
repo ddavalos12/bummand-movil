@@ -8,6 +8,7 @@ import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
 import '../../../nucleo/utilidades/descargador_archivo.dart';
+import '../proveedores/evaluaciones-proveedor.dart';
 import '../repositorios/evaluaciones-repositorio.dart';
 import 'botones-accion-evaluacion.dart';
 
@@ -29,6 +30,7 @@ class FormularioF03Dialogo extends ConsumerStatefulWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => FormularioF03Dialogo(
         nombre_becario: nombre_becario,
@@ -306,6 +308,7 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
       _enviando = false;
       _enviado_exitosamente = true;
     });
+    ref.invalidate(evaluacion_consolidada_proveedor);
     Navigator.of(context).pop();
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -411,13 +414,31 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
 
   @override
   Widget build(BuildContext context) {
+    final evaluacion_async = ref.watch(evaluacion_consolidada_proveedor);
+    String estado_servidor = 'pendiente';
+    final datos_consolidados = evaluacion_async.asData?.value.datos;
+    if (datos_consolidados != null) {
+      for (final mod in datos_consolidados.desglose_modulos) {
+        if (mod.modulo_id == 1 && mod.estado.trim().isNotEmpty) {
+          estado_servidor = mod.estado.trim().toLowerCase();
+          break;
+        }
+      }
+    }
+    final ya_enviado =
+        _enviado_exitosamente ||
+        (estado_servidor != 'pendiente' && estado_servidor != 'borrador');
+
     return Material(
       color: Colors.white,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.90,
-        child: Column(
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.90,
+          child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
@@ -488,7 +509,14 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
             child: Form(
               key: _clave_form,
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  24 +
+                      MediaQuery.of(context).viewPadding.bottom +
+                      MediaQuery.of(context).viewInsets.bottom,
+                ),
                 children: [
                   _construirTituloSeccion("I. Datos del pastor y de la iglesia local"),
                   _construirCampoTexto("Nombre del pastor", _pastor_nombre_ctrl, "Nombre completo"),
@@ -570,13 +598,51 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _declara_veridico,
-                    onChanged: (v) => setState(() => _declara_veridico = v ?? false),
+                    onChanged: ya_enviado
+                        ? null
+                        : (v) => setState(() => _declara_veridico = v ?? false),
                     title: const Text(
                       "Como pastor de la congregación del/la becario, declaro que todos los datos proporcionados son verídicos.",
-                      style: TextStyle(fontSize: 12.5, color: Color(0xFF475569)),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF475569),
+                        height: 1.35,
+                      ),
                     ),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
+
+                  if (ya_enviado) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.lock_outline,
+                            size: 18,
+                            color: Color(0xFF047857),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              "Formulario F-03 ya enviado. No es posible reenviarlo; puedes exportar una copia en PDF.",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF065F46),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   if (_mensaje_error != null) ...[
                     const SizedBox(height: 8),
@@ -602,25 +668,29 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
                   BotonesAccionEvaluacion(
                     expandir: true,
                     mostrar_revisar: false,
-                    estado: _enviado_exitosamente
+                    estado: ya_enviado
                         ? EstadoAccionEvaluacion.completado
                         : EstadoAccionEvaluacion.pendiente,
                     texto_pendiente: _enviando
                         ? "Registrando recepción..."
                         : "Enviar Formulario a Recepción",
                     icono_pendiente: Icons.send_rounded,
-                    al_ejecutar_pendiente: _enviarRecepcion,
+                    al_ejecutar_pendiente: ya_enviado ? null : _enviarRecepcion,
                     texto_completado: "Enviado",
-                    al_hacer_clic_completado: _enviarRecepcion,
+                    al_hacer_clic_completado: null,
                     cargando: _enviando,
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
-                    height: 44,
                     child: OutlinedButton.icon(
                       onPressed: _enviando ? null : _exportarPdf,
                       style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        minimumSize: const Size(double.infinity, 46),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -637,6 +707,7 @@ class _FormularioF03DialogoState extends ConsumerState<FormularioF03Dialogo> {
             ),
           ),
         ],
+      ),
       ),
       ),
     );

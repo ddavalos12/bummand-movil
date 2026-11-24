@@ -471,7 +471,8 @@ final turno_dupla_activo_proveedor = Provider<InfoTurnoDupla>((ref) {
     }
   }
 
-  final ya_rendido = refrigerio_turno.estado != 'sorteado' &&
+  final ya_rendido = refrigerio_turno.estado != 'programado' &&
+      refrigerio_turno.estado != 'sorteado' &&
       refrigerio_turno.estado != 'sorteado_programado';
   final entregada = refrigerio_turno.devolucionEntregada;
   final yo_recibi = entregada &&

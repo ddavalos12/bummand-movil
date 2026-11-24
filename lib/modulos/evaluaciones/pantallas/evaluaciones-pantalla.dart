@@ -607,14 +607,17 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
           String estadoModuloReal(int numero, String respaldo) {
             for (final mod in desglose) {
               if (mod.modulo_id == numero && mod.estado.trim().isNotEmpty) {
-                final e = mod.estado.toLowerCase();
+                final e = mod.estado.trim().toLowerCase();
                 if (e.contains("aprob")) return "Aprobado";
-                if (e.contains("complet") || e.contains("evaluad")) {
-                  return "Completado";
+                if (e.contains("convalid")) return "Convalidado";
+                if (e.contains("enviad") ||
+                    e.contains("complet") ||
+                    e.contains("revis") ||
+                    e.contains("pre_evaluado") ||
+                    e.contains("recib") ||
+                    e.contains("evaluad")) {
+                  return "Enviado";
                 }
-                if (e.contains("revis")) return "Revisado";
-                if (e.contains("recib")) return "Documentos Recibidos";
-                if (e.contains("enviad")) return "Enviado";
                 if (e.contains("observ")) return "Observado";
                 return "Pendiente";
               }
@@ -760,9 +763,14 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
         estado_lower.contains("complet") ||
         estado_lower.contains("recib") ||
         estado_lower.contains("aprob") ||
+        estado_lower.contains("convalid") ||
         estado_lower.contains("revis") ||
         estado_lower.contains("enviad");
     final es_observado = estado_lower.contains("observ");
+    final bloquear_reapertura = es_completado && (numero == 2 || numero == 5);
+    final texto_accion = es_completado
+        ? (numero == 1 ? "Enviado · Ver / PDF" : (bloquear_reapertura ? "Enviado ✓" : accion))
+        : accion;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -784,7 +792,18 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _abrirModuloReceptor(context, numero),
+          onTap: bloquear_reapertura
+              ? () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "Este módulo ya fue enviado y no permite reenvíos.",
+                      ),
+                      backgroundColor: BumandColores.AZUL_DIACONIA,
+                    ),
+                  );
+                }
+              : () => _abrirModuloReceptor(context, numero),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Column(
@@ -895,18 +914,24 @@ class _EvaluacionesPantallaState extends ConsumerState<EvaluacionesPantalla> {
                     Row(
                       children: [
                         Text(
-                          accion,
+                          texto_accion,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: color_icono,
+                            color: bloquear_reapertura
+                                ? const Color(0xFF047857)
+                                : color_icono,
                           ),
                         ),
                         const SizedBox(width: 2),
                         Icon(
-                          Icons.chevron_right,
+                          bloquear_reapertura
+                              ? Icons.lock_outline
+                              : Icons.chevron_right,
                           size: 16,
-                          color: color_icono,
+                          color: bloquear_reapertura
+                              ? const Color(0xFF047857)
+                              : color_icono,
                         ),
                       ],
                     ),

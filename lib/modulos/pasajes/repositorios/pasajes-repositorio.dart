@@ -499,33 +499,6 @@ class PasajesRepositorio {
     }
   }
 
-  Future<ResultadoPasaje<List<Map<String, dynamic>>>> obtenerParadas() async {
-    final cliente_http = _obtenerCliente();
-    try {
-      final respuesta = await cliente_http.get(
-        _url('/paradas'),
-        headers: await _cabeceras(),
-      );
-
-      if (respuesta.statusCode == 200) {
-        final cuerpo = jsonDecode(respuesta.body);
-        final List<dynamic> datos = cuerpo is List
-            ? cuerpo
-            : (cuerpo is Map ? (cuerpo['datos'] ?? cuerpo['paradas'] ?? []) : []);
-        final paradas = datos
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
-        return ResultadoPasaje.exitoso(paradas);
-      }
-      return ResultadoPasaje.fallido('Error al obtener paradas (${respuesta.statusCode})');
-    } catch (e) {
-      return ResultadoPasaje.fallido('Error de conexión al obtener paradas: $e');
-    } finally {
-      if (cliente == null) cliente_http.close();
-    }
-  }
-
   Future<ResultadoPasaje<Map<String, dynamic>>> obtenerHistorialConsolidadoParadas({
     String? fecha_inicio,
     String? fecha_fin,

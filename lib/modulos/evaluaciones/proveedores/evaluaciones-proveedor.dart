@@ -20,7 +20,10 @@ final evaluacion_consolidada_proveedor =
     return Resultado.fallido('Sesión de usuario no encontrada.');
   }
 
-  return repo.obtenerEvaluacionConsolidada(becario_id: becario_id);
+  return repo.obtenerEvaluacionConsolidada(
+    becario_id: becario_id,
+    periodo_id: 0,
+  );
 });
 
 final becarios_asignados_modulo3_proveedor =

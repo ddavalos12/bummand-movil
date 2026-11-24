@@ -41,13 +41,13 @@ class EvaluacionesRepositorio {
 
   Future<Resultado<EvaluacionConsolidadaModelo>> obtenerEvaluacionConsolidada({
     required int becario_id,
-    int periodo_id = 1,
+    int periodo_id = 0,
   }) async {
     final cliente_http = _obtenerCliente();
     try {
       final cabeceras = await _cabeceras();
       final ruta =
-          '${ApiConstantes.RUTA_BASE}/evaluaciones/becario/$becario_id/periodo/$periodo_id/calificacion-total';
+          '${ApiConstantes.RUTA_BASE}/api/evaluaciones/becario/$becario_id/periodo/$periodo_id/calificacion-total';
 
       final respuesta = await cliente_http.get(
         Uri.parse(ruta),
@@ -73,7 +73,7 @@ class EvaluacionesRepositorio {
     } catch (_) {
       return Resultado.desdeErrorBumand(
         ErrorBumand.conexionOffline(
-          ruta: '/evaluaciones/becario/$becario_id/periodo/$periodo_id/calificacion-total',
+          ruta: '/api/evaluaciones/becario/$becario_id/periodo/$periodo_id/calificacion-total',
           metodo: 'GET',
         ),
       );
@@ -403,7 +403,7 @@ class EvaluacionesRepositorio {
   }) async {
     try {
       final token = await _obtenerToken();
-      final ruta = '${ApiConstantes.RUTA_BASE}/evaluaciones/academica/subir-documento';
+      final ruta = '${ApiConstantes.RUTA_BASE}/api/evaluaciones/academica/subir-documento';
 
       final peticion = http.MultipartRequest('POST', Uri.parse(ruta));
       if (token != null) {

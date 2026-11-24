@@ -95,7 +95,7 @@ class RefrigerioModelo {
   final double costo_total_bs;
   final int porcentaje_devolucion; // Siempre 100%
   final double monto_devolucion_bs;
-  final String estado; // 'sorteado' | 'rendido_pendiente' | 'revisado_supervisor' | 'aprobado_administracion'
+  final String estado; // 'programado' | 'sorteado' | 'rendido_pendiente' | 'revisado_supervisor' | 'aprobado_administracion'
   final int? becario_receptor_devolucion_id;
   final String? becario_receptor_devolucion_nombre;
   final String? fecha_entrega_devolucion;
@@ -125,7 +125,7 @@ class RefrigerioModelo {
     this.costo_total_bs = 115.0,
     this.porcentaje_devolucion = 100,
     this.monto_devolucion_bs = 115.0,
-    this.estado = 'sorteado',
+    this.estado = 'programado',
     this.becario_receptor_devolucion_id,
     this.becario_receptor_devolucion_nombre,
     this.fecha_entrega_devolucion,
@@ -213,7 +213,7 @@ class RefrigerioModelo {
       case 'sorteado':
       case 'sorteado_programado':
       case 'programado':
-        return 'Sorteado / Programado';
+        return 'Programado';
       case 'rendido_pendiente':
       case 'rendido':
         return 'Rendido (Pendiente Revisión)';
@@ -349,7 +349,7 @@ class RefrigerioModelo {
 
     final estado = json['estado_reposicion']?.toString() ??
         json['estado']?.toString() ??
-        'sorteado';
+        'programado';
 
     final bool fue_recogido = json['recogido'] == true || lista_firmas.isNotEmpty;
 

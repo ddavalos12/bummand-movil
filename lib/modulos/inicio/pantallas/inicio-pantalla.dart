@@ -272,7 +272,7 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
             titulo: 'Mis Refrigerios',
             subtitulo: turno_dupla.es_encargado
                 ? '¡De turno con ${turno_dupla.companero_nombre}! Devolución 100%'
-                : 'Sorteo de duplas, recojo y devolución 100%',
+                : 'Duplas asignadas, recojo y devolución 100%',
             alTocar: () {
               ref.read(menu_principal_proveedor.notifier).ocultar();
               Navigator.of(context).push(
