@@ -150,18 +150,33 @@ class _HistorialAsistenciaPantallaState
     );
   }
 
-  static const List<String> _MESES_DISPONIBLES = [
-    "todos",
-    "Noviembre",
-    "Octubre",
-    "Septiembre",
-    "Agosto",
-    "Julio",
-    "Junio",
-    "Mayo",
-    "Abril",
-    "Marzo",
-  ];
+  static List<String> _obtenerMesesDisponibles() {
+    const meses_calendario = [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre",
+    ];
+    final ahora = DateTime.now();
+    final lista = <String>["todos"];
+    if (ahora.month < 3) {
+      for (int m = ahora.month; m >= 1; m--) {
+        lista.add(meses_calendario[m - 1]);
+      }
+    }
+    for (int m = 12; m >= 3; m--) {
+      lista.add(meses_calendario[m - 1]);
+    }
+    return lista;
+  }
 
   /// Pestaña de asistencias: el becario ve sus extractos; Administrador y
   /// Supervisor ven además la auditoría institucional (paridad con Web).
@@ -231,7 +246,7 @@ class _HistorialAsistenciaPantallaState
             child: TextField(
               controller: _controlador_busqueda_asistencia,
               decoration: InputDecoration(
-                hintText: "Teclea un mes (ej. Mayo, Junio, Octubre)...",
+                hintText: "Teclea un mes (ej. Octubre, Noviembre, Diciembre)...",
                 hintStyle: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF94A3B8),
@@ -271,7 +286,7 @@ class _HistorialAsistenciaPantallaState
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: _MESES_DISPONIBLES.map((mes) {
+                children: _obtenerMesesDisponibles().map((mes) {
                   final seleccionado =
                       _mes_seleccionado_asistencia.toLowerCase() ==
                           mes.toLowerCase();
