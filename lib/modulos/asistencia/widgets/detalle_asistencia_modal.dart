@@ -199,6 +199,11 @@ class DetalleAsistenciaModal extends StatelessWidget {
                     distancia.replaceAll(RegExp(r'[^0-9\.]'), ''),
                   ),
               radio_m: 50.0,
+              nombre_lugar: lugar,
+              hora_ingreso: ingreso,
+              hora_salida: salida,
+              es_historico: true,
+              fecha_etiqueta: subtitulo,
             ),
             const SizedBox(height: 18),
 

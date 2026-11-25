@@ -1,3 +1,5 @@
+import '../../../nucleo/utilidades/formato-horas.dart';
+
 /// Registro institucional de auditoría de asistencia (paridad con
 /// `RegistroAuditoriaAsistencia` de `auditoria-asistencia.tsx` en Web).
 class RegistroAuditoriaAsistencia {
@@ -110,11 +112,29 @@ class RegistroAuditoriaAsistencia {
     return (partes.first[0] + partes[1][0]).toUpperCase();
   }
 
-  String get horario_texto => '$hora_ingreso -> ${hora_salida ?? '--:--'}';
+  String get horario_texto {
+    final ingreso_fmt = normalizarHoraConSegundos(hora_ingreso);
+    final salida_fmt = hora_salida == null || hora_salida!.trim().isEmpty
+        ? 'En curso'
+        : normalizarHoraConSegundos(hora_salida);
+    return '$ingreso_fmt -> $salida_fmt';
+  }
 
-  String get horas_texto => horas_trabajadas == null
-      ? 'Jornada en curso'
-      : '${horas_trabajadas!.toStringAsFixed(2)} hrs computadas';
+  String get horas_texto {
+    if (tipo == 'escuela_lideres') {
+      return '00:00:00 (No suma a prácticas)';
+    }
+    if ((hora_salida == null || hora_salida!.trim().isEmpty) &&
+        horas_trabajadas == null) {
+      return 'Jornada en curso';
+    }
+    final duracion = formatearDuracionAsistencia(
+      hora_ingreso: hora_ingreso,
+      hora_salida: hora_salida,
+      horas_decimal: horas_trabajadas,
+    );
+    return '$duracion computadas';
+  }
 
   String get distancia_texto => distancia_ingreso_m == null
       ? 'Distancia: --'
@@ -231,7 +251,7 @@ class RegistroAuditoriaAsistencia {
     String texto_hora(dynamic v, String defecto) {
       final s = v?.toString() ?? '';
       if (s.isEmpty) return defecto;
-      return s.length >= 5 ? s.substring(0, 5) : s;
+      return normalizarHoraConSegundos(s, valor_defecto: defecto);
     }
 
     final sup_raw = mapa['supervisor_id'] ??
@@ -261,7 +281,7 @@ class RegistroAuditoriaAsistencia {
           .toString(),
       fecha: fecha,
       tipo: tipo,
-      hora_ingreso: texto_hora(mapa['hora_ingreso'], '--:--'),
+      hora_ingreso: texto_hora(mapa['hora_ingreso'], '--:--:--'),
       hora_salida: (hora_salida == null || hora_salida.isEmpty)
           ? null
           : texto_hora(hora_salida, '--:--'),

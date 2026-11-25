@@ -8,6 +8,7 @@ import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/errores/error-bumand.dart';
 import '../../../nucleo/servicios/cola-offline-servicio.dart';
 import '../../../nucleo/utilidades/filtro-mentor.dart';
+import '../../../nucleo/utilidades/formato-horas.dart';
 import '../../../nucleo/utilidades/resultado.dart';
 import '../modelos/registro-auditoria-asistencia-modelo.dart';
 
@@ -518,7 +519,17 @@ class AsistenciaRepositorio {
       'Diciembre',
     ];
     final ahora = DateTime.now();
-    return '${meses[ahora.month - 1]} ${ahora.year}';
+    var anio = ahora.year;
+    var mes = ahora.month;
+    if (ahora.day >= 24) {
+      if (mes == 12) {
+        anio += 1;
+        mes = 1;
+      } else {
+        mes += 1;
+      }
+    }
+    return '${meses[mes - 1]} $anio';
   }
 
   /// Consulta el extracto mensual bancario de asistencia desde el backend.
@@ -627,13 +638,17 @@ class MovimientoExtractoAsistencia {
   final String actividad; // "Prácticas Pre-Profesionales"
   final String tipo; // "practicas", "liderazgo", "servicio", "devocional"
   final String lugar; // "Oficina Central Diaconía IFD"
-  final String hora_entrada; // "08:00"
-  final String hora_salida; // "12:15"
-  final double horas_dia; // 4.25
+  final String hora_entrada; // "08:00:43"
+  final String hora_salida; // "13:50:04" | "En curso"
+  final double horas_dia; // 5.82
+  final int segundos_dia;
   final double horas_acumuladas; // Saldo progresivo acumulado en el mes
+  final int segundos_acumulados;
   final bool es_puntual;
   final bool dentro_geocerca;
   final double distancia_gps;
+  final double? lat_ingreso;
+  final double? lng_ingreso;
   final bool confirmado_organizador;
   final bool es_manual;
   final String estado;
@@ -656,10 +671,14 @@ class MovimientoExtractoAsistencia {
     required this.hora_entrada,
     required this.hora_salida,
     required this.horas_dia,
+    int? segundos_dia,
     required this.horas_acumuladas,
+    int? segundos_acumulados,
     this.es_puntual = true,
     this.dentro_geocerca = true,
     this.distancia_gps = 0.0,
+    this.lat_ingreso,
+    this.lng_ingreso,
     this.confirmado_organizador = true,
     this.es_manual = false,
     this.estado = "aprobado",
@@ -671,11 +690,31 @@ class MovimientoExtractoAsistencia {
     this.monto_multa_bs = 0.0,
     this.confirmacion_presencial = false,
     this.estado_aprobacion = "pendiente",
-  });
+  })  : segundos_dia = segundos_dia ?? (horas_dia * 3600).round(),
+        segundos_acumulados =
+            segundos_acumulados ?? (horas_acumuladas * 3600).round();
+
+  bool get es_escuela_lideres =>
+      tipo.toLowerCase().contains('escuela') ||
+      tipo.toLowerCase().contains('lider');
+
+  bool get esta_en_curso {
+    final s = hora_salida.trim().toLowerCase();
+    return !es_escuela_lideres &&
+        segundos_dia == 0 &&
+        (s.isEmpty || s == 'en curso' || s == '--:--' || s == '--:--:--');
+  }
+
+  String get horas_dia_hms =>
+      esta_en_curso ? 'En curso' : formatearSegundosAHhmmss(segundos_dia);
+
+  String get horas_acumuladas_hms =>
+      formatearSegundosAHhmmss(segundos_acumulados);
 
   factory MovimientoExtractoAsistencia.desdeMapa(
     Map<String, dynamic> mapa, {
     double acumulado_previo = 0.0,
+    int? segundos_acumulados_previos,
   }) {
     DateTime fecha_dt = DateTime.now();
     if (mapa["fecha"] != null) {
@@ -690,10 +729,11 @@ class MovimientoExtractoAsistencia {
     final dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
     final dia_sem = dias_semana[(fecha_dt.weekday - 1).clamp(0, 6)];
 
-    final h_in =
-        mapa["horaIngreso"]?.toString() ?? mapa["hora_entrada"]?.toString() ?? "--:--";
-    final h_out =
-        mapa["horaSalida"]?.toString() ?? mapa["hora_salida"]?.toString() ?? "--:--";
+    final h_in_raw =
+        (mapa["horaIngreso"] ?? mapa["hora_entrada"] ?? mapa["hora_ingreso"])
+            ?.toString();
+    final h_out_raw =
+        (mapa["horaSalida"] ?? mapa["hora_salida"])?.toString();
 
     final tipo_str = mapa["tipo"]?.toString().toLowerCase() ?? "practicas";
     final act_str = (mapa["actividad"]?.toString() ??
@@ -707,52 +747,97 @@ class MovimientoExtractoAsistencia {
         act_str.contains("líder") ||
         act_str.contains("lider");
 
-    double horas = 0.0;
-    if (es_escuela_lideres) {
-      // Horas reales computadas (no se fuerzan a 0); no suman al acumulado de prácticas.
-      final h_real = mapa["horas_dia"] ?? mapa["horas_trabajadas"] ?? mapa["horasTrabajadas"];
-      final h_real_num = h_real == null
-          ? null
-          : double.tryParse(h_real.toString().replaceAll("h", "").trim());
-      horas = h_real_num ?? _calcularHorasEntre(h_in, h_out);
-    } else if (mapa["horas_dia"] != null) {
-      horas = double.tryParse(mapa["horas_dia"].toString()) ?? _calcularHorasEntre(h_in, h_out);
-    } else if (mapa["horasTrabajadas"] != null) {
-      final h_str = mapa["horasTrabajadas"].toString().replaceAll("h", "").trim();
-      horas = double.tryParse(h_str) ?? _calcularHorasEntre(h_in, h_out);
+    final h_in = normalizarHoraConSegundos(
+      h_in_raw,
+      valor_defecto: '--:--:--',
+    );
+    final tiene_salida = h_out_raw != null &&
+        h_out_raw.trim().isNotEmpty &&
+        h_out_raw.trim() != '--:--' &&
+        h_out_raw.trim() != '--:--:--' &&
+        h_out_raw.trim().toLowerCase() != 'en curso';
+    final h_out = tiene_salida
+        ? normalizarHoraConSegundos(h_out_raw)
+        : (es_escuela_lideres ? '--:--:--' : 'En curso');
+
+    int segs_dia = int.tryParse((mapa["segundos_dia"] ?? "").toString()) ?? -1;
+    if (segs_dia < 0) {
+      if (es_escuela_lideres) {
+        segs_dia = 0;
+      } else if (tiene_salida && h_in != '--:--:--') {
+        final calc = calcularSegundosEntreHoras(h_in, h_out);
+        if (calc > 0) {
+          segs_dia = calc;
+        }
+      }
     }
+    if (segs_dia < 0) {
+      final h_raw = mapa["horas_dia"] ??
+          mapa["horas_trabajadas"] ??
+          mapa["horasTrabajadas"];
+      final h_num = h_raw == null
+          ? null
+          : double.tryParse(h_raw.toString().replaceAll("h", "").trim());
+      segs_dia = h_num != null && h_num > 0 ? (h_num * 3600).round() : 0;
+    }
+
+    final double horas =
+        double.parse((segs_dia / 3600.0).toStringAsFixed(2));
 
     final minutos_retraso =
         int.tryParse((mapa["minutos_retraso"] ?? "0").toString()) ?? 0;
-    double monto_multa = double.tryParse((mapa["monto_multa_bs"] ?? "0").toString()) ?? 0.0;
+    double monto_multa =
+        double.tryParse((mapa["monto_multa_bs"] ?? "0").toString()) ?? 0.0;
     if (monto_multa == 0.0 && es_escuela_lideres && minutos_retraso > 0) {
-      monto_multa = RegistroAuditoriaAsistencia.calcularMultaEscuelaLideres(minutos_retraso);
+      monto_multa =
+          RegistroAuditoriaAsistencia.calcularMultaEscuelaLideres(minutos_retraso);
     }
 
-    final acum = es_escuela_lideres
-        ? acumulado_previo
-        : ((mapa["horas_acumuladas"] != null)
-            ? (double.tryParse(mapa["horas_acumuladas"].toString()) ?? (acumulado_previo + horas))
-            : (acumulado_previo + horas));
+    final prev_segs =
+        segundos_acumulados_previos ?? (acumulado_previo * 3600).round();
+    final int? segs_backend_acum = int.tryParse(
+        (mapa["saldo_acumulado_segundos"] ?? "").toString());
+    final int segs_acum = es_escuela_lideres
+        ? prev_segs
+        : (segs_backend_acum ?? (prev_segs + segs_dia));
+    final double acum = double.parse((segs_acum / 3600.0).toStringAsFixed(2));
+
+    final distancia_raw = mapa["distancia_metros"] ??
+        mapa["distancia_ingreso_m"] ??
+        mapa["distancia_gps"] ??
+        mapa["distancia"];
 
     return MovimientoExtractoAsistencia(
       fecha: fecha_dt,
       fecha_formateada: "$dia-$mes",
       dia_semana: dia_sem,
-      actividad: mapa["actividad"]?.toString() ?? mapa["tipo_etiqueta"]?.toString() ?? mapa["titulo"]?.toString() ?? "Prácticas Diaconía",
-      tipo: es_escuela_lideres ? "escuela_lideres" : (mapa["tipo"]?.toString().toLowerCase() ?? "practicas"),
+      actividad: mapa["actividad"]?.toString() ??
+          mapa["tipo_etiqueta"]?.toString() ??
+          mapa["titulo"]?.toString() ??
+          "Prácticas Diaconía",
+      tipo: es_escuela_lideres
+          ? "escuela_lideres"
+          : (mapa["tipo"]?.toString().toLowerCase() ?? "practicas"),
       lugar: mapa["lugar"]?.toString() ?? mapa["sede"]?.toString() ?? "Sin sede",
       hora_entrada: h_in,
       hora_salida: h_out,
       horas_dia: horas,
+      segundos_dia: segs_dia,
       horas_acumuladas: acum,
+      segundos_acumulados: segs_acum,
       es_puntual: mapa["es_puntual"] != false && minutos_retraso == 0,
-      dentro_geocerca: mapa["dentro_geocerca"] != false,
-      distancia_gps: double.tryParse(mapa["distancia"]?.toString() ?? "0") ?? 0.0,
+      dentro_geocerca:
+          mapa["dentro_geocerca"] != false && mapa["dentro_de_radio"] != false,
+      distancia_gps: double.tryParse(distancia_raw?.toString() ?? "0") ?? 0.0,
+      lat_ingreso: double.tryParse(
+          (mapa["lat_ingreso"] ?? mapa["latIngreso"] ?? "").toString()),
+      lng_ingreso: double.tryParse(
+          (mapa["lng_ingreso"] ?? mapa["lngIngreso"] ?? "").toString()),
       confirmado_organizador: mapa["confirmado_organizador"] != false,
       es_manual: mapa["es_registro_manual"] == true,
       estado: mapa["estado"]?.toString() ?? "aprobado",
-      registro_id: int.tryParse((mapa["id"] ?? mapa["registro_id"] ?? "").toString()),
+      registro_id:
+          int.tryParse((mapa["id"] ?? mapa["registro_id"] ?? "").toString()),
       becario_id: int.tryParse((mapa["becario_id"] ?? "").toString()),
       becario_nombre: mapa["becario_nombre"]?.toString(),
       carrera: mapa["carrera"]?.toString(),
@@ -764,20 +849,6 @@ class MovimientoExtractoAsistencia {
     );
   }
 
-  static double _calcularHorasEntre(String ingreso, String salida) {
-    final a = ingreso.split(":");
-    final b = salida.split(":");
-    if (a.length < 2 || b.length < 2) return 0.0;
-    final h_a = int.tryParse(a[0]);
-    final m_a = int.tryParse(a[1]);
-    final h_b = int.tryParse(b[0]);
-    final m_b = int.tryParse(b[1]);
-    if (h_a == null || m_a == null || h_b == null || m_b == null) return 0.0;
-    final minutos = (h_b * 60 + m_b) - (h_a * 60 + m_a);
-    if (minutos <= 0) return 0.0;
-    return (minutos / 60 * 100).round() / 100;
-  }
-
   Map<String, dynamic> aMapaRegistro() {
     return {
       "fecha":
@@ -785,9 +856,9 @@ class MovimientoExtractoAsistencia {
       "tipo": tipo,
       "horaIngreso": hora_entrada,
       "horaSalida": hora_salida,
-      "horasTrabajadas": "${horas_dia.toStringAsFixed(2)} h",
+      "horasTrabajadas": horas_dia_hms,
       "lugar": lugar,
-      "distancia": distancia_gps.toInt(),
+      "distancia": distancia_gps.round(),
       "dentro_geocerca": dentro_geocerca,
       "confirmado_organizador": confirmado_organizador,
       "es_registro_manual": es_manual,
@@ -798,12 +869,13 @@ class MovimientoExtractoAsistencia {
 
 /// Estado de cuenta / extracto mensual bancario de asistencia consolidado por mes.
 class ExtractoMensualAsistencia {
-  final String mes_id; // "2026-05"
-  final String mes_nombre; // "Mayo 2026"
-  final String mes_corto; // "Mayo"
+  final String mes_id; // "2026-12"
+  final String mes_nombre; // "Diciembre 2026"
+  final String mes_corto; // "Diciembre"
   final int anio; // 2026
-  final int mes_numero; // 5
+  final int mes_numero; // 12
   final double horas_totales; // 38.00
+  final int segundos_totales;
   final double meta_mensual; // 36.00
   final double diferencia_horas; // +2.00
   final int porcentaje_cumplido; // 106
@@ -821,6 +893,7 @@ class ExtractoMensualAsistencia {
     required this.anio,
     required this.mes_numero,
     required this.horas_totales,
+    int? segundos_totales,
     this.meta_mensual = 36.0,
     required this.diferencia_horas,
     required this.porcentaje_cumplido,
@@ -830,16 +903,40 @@ class ExtractoMensualAsistencia {
     this.horas_compensadas_permiso = 0.0,
     this.dias_permiso_aprobado = 0,
     required this.movimientos,
-  });
+  }) : segundos_totales =
+            segundos_totales ?? (horas_totales * 3600).round();
+
+  String get horas_totales_hms => formatearSegundosAHhmmss(segundos_totales);
+
+  String get meta_mensual_hms => formatearHorasDecimalAHhmmss(meta_mensual);
+
+  String get diferencia_hms {
+    final segs_meta = (meta_mensual * 3600).round();
+    final dif = segundos_totales - segs_meta;
+    if (dif == 0) return '00:00:00';
+    return '${dif < 0 ? '-' : '+'}${formatearSegundosAHhmmss(dif.abs())}';
+  }
+
+  String get faltante_hms {
+    final segs_meta = (meta_mensual * 3600).round();
+    final faltante = (segs_meta - segundos_totales).clamp(0, 9999999);
+    return formatearSegundosAHhmmss(faltante);
+  }
 
   factory ExtractoMensualAsistencia.desdeMapa(Map<String, dynamic> mapa) {
     final movimientos_raw = (mapa["movimientos"] as List? ?? []);
+    int acum_segs = 0;
     double acum = 0.0;
     final List<MovimientoExtractoAsistencia> movs = [];
     for (final m in movimientos_raw) {
       if (m is Map<String, dynamic>) {
-        final mov = MovimientoExtractoAsistencia.desdeMapa(m, acumulado_previo: acum);
+        final mov = MovimientoExtractoAsistencia.desdeMapa(
+          m,
+          acumulado_previo: acum,
+          segundos_acumulados_previos: acum_segs,
+        );
         acum = mov.horas_acumuladas;
+        acum_segs = mov.segundos_acumulados;
         movs.add(mov);
       }
     }
@@ -853,25 +950,39 @@ class ExtractoMensualAsistencia {
         ) ??
         0;
 
-    final double total_movs = movs.isNotEmpty ? movs.last.horas_acumuladas : 0.0;
+    final int? segs_backend = int.tryParse(
+      (mapa["segundos_acumulados"] ?? mapa["segundos_totales"] ?? "").toString(),
+    );
+    final int total_segs_movs =
+        movs.isNotEmpty ? movs.last.segundos_acumulados : 0;
+    int total_segs = segs_backend != null && segs_backend >= total_segs_movs
+        ? segs_backend
+        : total_segs_movs;
+
+    final double total_movs =
+        double.parse((total_segs_movs / 3600.0).toStringAsFixed(2));
     final double? total_backend = double.tryParse(
       (mapa["horas_totales"] ?? mapa["horas_acumuladas"] ?? "").toString(),
     );
-    double total = (total_backend != null && total_backend > total_movs)
-        ? total_backend
-        : (total_movs > 0 ? total_movs : (total_backend ?? 0.0));
-    if (total_backend == null && horas_compensadas > 0) {
-      total += horas_compensadas;
+    if (segs_backend == null && total_backend != null && total_backend > total_movs) {
+      total_segs = (total_backend * 3600).round();
+    } else if (segs_backend == null && total_backend == null && horas_compensadas > 0) {
+      total_segs += (horas_compensadas * 3600).round();
     }
+    final double total =
+        double.parse((total_segs / 3600.0).toStringAsFixed(2));
 
-    final double meta = double.tryParse(mapa["meta_horas"]?.toString() ?? "") ?? 36.0;
+    final double meta =
+        double.tryParse(mapa["meta_horas"]?.toString() ?? "") ?? 36.0;
     final double diff = total - meta;
     final int? pct_backend = int.tryParse(
-      (mapa["porcentaje_cumplimiento"] ?? mapa["porcentaje_cumplido"] ?? "").toString(),
+      (mapa["porcentaje_cumplimiento"] ?? mapa["porcentaje_cumplido"] ?? "")
+          .toString(),
     );
     final int pct = pct_backend ?? (meta > 0 ? ((total / meta) * 100).round() : 0);
 
-    int tasa_punt = int.tryParse(mapa["tasa_puntualidad"]?.toString() ?? "") ?? 100;
+    int tasa_punt =
+        int.tryParse(mapa["tasa_puntualidad"]?.toString() ?? "") ?? 100;
     if (mapa["tasa_puntualidad"] == null && movs.isNotEmpty) {
       final puntuales = movs.where((m) {
         final est = m.estado.toLowerCase();
@@ -886,28 +997,43 @@ class ExtractoMensualAsistencia {
     }
 
     final ahora_dt = DateTime.now();
-    final mesNom = mapa["mes_nombre"]?.toString() ?? AsistenciaRepositorio._mesActualTexto();
+    var anio_corte = ahora_dt.year;
+    var mes_corte = ahora_dt.month;
+    if (ahora_dt.day >= 24) {
+      if (mes_corte == 12) {
+        anio_corte += 1;
+        mes_corte = 1;
+      } else {
+        mes_corte += 1;
+      }
+    }
+    final mesNom =
+        mapa["mes_nombre"]?.toString() ?? AsistenciaRepositorio._mesActualTexto();
     final mesCorto = mapa["mes_corto"]?.toString() ?? mesNom.split(" ")[0];
-    final mesIdDefecto = '${ahora_dt.year}-${ahora_dt.month.toString().padLeft(2, '0')}';
+    final mesIdDefecto =
+        '$anio_corte-${mes_corte.toString().padLeft(2, '0')}';
 
     return ExtractoMensualAsistencia(
-      mes_id: mapa["mes_id"]?.toString() ?? mapa["periodo"]?.toString() ?? mesIdDefecto,
+      mes_id:
+          mapa["mes_id"]?.toString() ?? mapa["periodo"]?.toString() ?? mesIdDefecto,
       mes_nombre: mesNom,
       mes_corto: mesCorto,
       anio: int.tryParse(mapa["anio"]?.toString() ?? "") ??
           (mapa["periodo"] != null
-              ? int.tryParse(mapa["periodo"].toString().split("-")[0]) ?? ahora_dt.year
-              : ahora_dt.year),
+              ? int.tryParse(mapa["periodo"].toString().split("-")[0]) ?? anio_corte
+              : anio_corte),
       mes_numero: int.tryParse(mapa["mes_numero"]?.toString() ?? "") ??
           (mapa["periodo"] != null
-              ? int.tryParse(mapa["periodo"].toString().split("-")[1]) ?? ahora_dt.month
-              : ahora_dt.month),
+              ? int.tryParse(mapa["periodo"].toString().split("-")[1]) ?? mes_corte
+              : mes_corte),
       horas_totales: total,
+      segundos_totales: total_segs,
       meta_mensual: meta,
       diferencia_horas: diff,
       porcentaje_cumplido: pct,
       estado: total >= meta ? "META CUMPLIDA" : "EN PROGRESO",
-      jornadas_totales: int.tryParse(mapa["jornadas_totales"]?.toString() ?? "") ?? movs.length,
+      jornadas_totales:
+          int.tryParse(mapa["jornadas_totales"]?.toString() ?? "") ?? movs.length,
       tasa_puntualidad: tasa_punt,
       horas_compensadas_permiso: horas_compensadas,
       dias_permiso_aprobado: dias_permiso,

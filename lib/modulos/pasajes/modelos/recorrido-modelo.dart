@@ -5,6 +5,7 @@ class RecorridoModelo {
   final String origen;
   final String destino;
   final double tarifa;
+  final String? tipo_actividad;
   final String? apoyo_realizado;
   final String? calles_declaradas;
   final String? medio_transporte;
@@ -21,6 +22,7 @@ class RecorridoModelo {
     required this.origen,
     required this.destino,
     required this.tarifa,
+    this.tipo_actividad,
     this.apoyo_realizado,
     this.calles_declaradas,
     this.medio_transporte,
@@ -32,6 +34,7 @@ class RecorridoModelo {
   });
 
   // Getters para retrocompatibilidad
+  String? get tipoActividad => tipo_actividad;
   String? get apoyoRealizado => apoyo_realizado;
   String? get callesDeclaradas => calles_declaradas;
   String? get medioTransporte => medio_transporte;
@@ -63,6 +66,7 @@ class RecorridoModelo {
       origen: json['origen'] as String,
       destino: json['destino'] as String,
       tarifa: _parsearDouble(json['tarifa']),
+      tipo_actividad: (json['tipo_actividad'] ?? json['tipoActividad']) as String?,
       apoyo_realizado: (json['apoyo_realizado'] ?? json['apoyoRealizado']) as String?,
       calles_declaradas: (json['calles_declaradas'] ?? json['callesDeclaradas']) as String?,
       medio_transporte: (json['medio_transporte'] ?? json['medioTransporte']) as String?,
@@ -82,6 +86,7 @@ class RecorridoModelo {
       'origen': origen,
       'destino': destino,
       'tarifa': tarifa,
+      'tipo_actividad': tipo_actividad,
       'apoyo_realizado': apoyo_realizado,
       'calles_declaradas': calles_declaradas,
       'medio_transporte': medio_transporte,

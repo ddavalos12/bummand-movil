@@ -443,7 +443,6 @@ class _DetalleExtractoAsistenciaPantallaState
     final horas = _extracto.horas_totales;
     const meta = 36.0;
     final cumplio = horas >= meta;
-    final diferencia = horas - meta;
     final porcentaje = _extracto.porcentaje_cumplido;
 
     return Container(
@@ -485,7 +484,7 @@ class _DetalleExtractoAsistenciaPantallaState
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
-                "${horas.toStringAsFixed(2)} hrs",
+                _extracto.horas_totales_hms,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 30,
@@ -532,7 +531,7 @@ class _DetalleExtractoAsistenciaPantallaState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "META MENSUAL PRÁCTICAS (36.00 hrs)",
+                      "META MENSUAL PRÁCTICAS (36:00:00)",
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.88),
                         fontSize: 10.5,
@@ -543,7 +542,7 @@ class _DetalleExtractoAsistenciaPantallaState
                     const SizedBox(height: 5),
                     if (cumplio)
                       Text(
-                        "+${diferencia.toStringAsFixed(2)} hrs · $porcentaje% Cumplido",
+                        "${_extracto.diferencia_hms} · $porcentaje% Cumplido",
                         style: const TextStyle(
                           color: BumandColores.AMARILLO_RADIANTE,
                           fontSize: 14.5,
@@ -577,7 +576,7 @@ class _DetalleExtractoAsistenciaPantallaState
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                "¡Le faltan ${(meta - horas).toStringAsFixed(2)} horas para cumplir las 36 hrs!",
+                                "¡Le faltan ${_extracto.faltante_hms} para cumplir las 36:00:00!",
                                 style: const TextStyle(
                                   color: Color(0xFFDC2626),
                                   fontSize: 16,
@@ -810,17 +809,20 @@ class _DetalleExtractoAsistenciaPantallaState
                       context,
                       titulo:
                           "Jornada ${movimientos[i].fecha_formateada} · ${movimientos[i].dia_semana}",
-                      subtitulo: movimientos[i].actividad,
+                      subtitulo:
+                          "Fecha: ${movimientos[i].fecha_formateada} · ${movimientos[i].actividad}",
                       tipo_registro: movimientos[i].actividad,
                       lugar: movimientos[i].lugar,
                       ingreso: movimientos[i].hora_entrada,
                       salida: movimientos[i].hora_salida,
                       horas_trabajadas: es_lideres
-                          ? "0.00 hrs (No suma horas a prácticas)"
-                          : "${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
+                          ? "00:00:00 (No suma horas a prácticas)"
+                          : movimientos[i].horas_dia_hms,
                       distancia:
-                          "${movimientos[i].distancia_gps.toInt()} m",
+                          "${movimientos[i].distancia_gps.round()} m",
                       dentro_geocerca: movimientos[i].dentro_geocerca,
+                      latitud: movimientos[i].lat_ingreso,
+                      longitud: movimientos[i].lng_ingreso,
                     );
                   },
                   child: Padding(
@@ -996,7 +998,7 @@ class _DetalleExtractoAsistenciaPantallaState
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      puntual ? "Sin multa · 0 hrs" : "Sujeto a multa",
+                                      puntual ? "Sin multa · 00:00:00" : "Sujeto a multa",
                                       style: TextStyle(
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w500,
@@ -1010,16 +1012,20 @@ class _DetalleExtractoAsistenciaPantallaState
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    "+${movimientos[i].horas_dia.toStringAsFixed(2)} hrs",
-                                    style: const TextStyle(
+                                    movimientos[i].horas_dia_hms == "En curso"
+                                        ? "En curso"
+                                        : "+${movimientos[i].horas_dia_hms}",
+                                    style: TextStyle(
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.bold,
-                                      color: BumandColores.AZUL_DIACONIA,
+                                      color: movimientos[i].horas_dia_hms == "En curso"
+                                          ? const Color(0xFFD97706)
+                                          : BumandColores.AZUL_DIACONIA,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    "Acum: ${movimientos[i].horas_acumuladas.toStringAsFixed(2)} h",
+                                    "Acum: ${movimientos[i].horas_acumuladas_hms}",
                                     style: const TextStyle(
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w500,

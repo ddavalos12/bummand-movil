@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../nucleo/constantes/api-constantes.dart';
 import '../../../nucleo/tema/colores.dart';
+import '../../../nucleo/utilidades/formato-horas.dart';
 import '../../../widgets-comunes/barra-superior-bumand.dart';
 import '../../animaciones/animaciones.dart';
 import '../../autenticacion/proveedores/autenticacion-proveedor.dart';
@@ -59,7 +60,46 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       _escanearUbicacion();
       _cargarEventosServicio();
       _cargarLugaresPractica();
+      _cargarMarcacionesHoy();
     });
+  }
+
+  Future<void> _cargarMarcacionesHoy() async {
+    try {
+      final usuario = ref.read(autenticacion_proveedor).usuario;
+      final res = await ref.read(asistencia_repositorio_proveedor).obtenerHistorial(
+            usuario_id: usuario?.id,
+          );
+      if (!mounted || !res.exito || res.datos == null) return;
+      final ahora = DateTime.now();
+      final hoy_iso =
+          '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}-${ahora.day.toString().padLeft(2, '0')}';
+
+      String? ingreso_hoy;
+      String? salida_hoy;
+      for (final mapa in res.datos!) {
+        final fecha_raw = (mapa['fecha'] ?? '').toString().split('T').first;
+        if (fecha_raw != hoy_iso) continue;
+        final tipo_reg = (mapa['tipo'] ?? '').toString().toLowerCase();
+        if (tipo_reg.isNotEmpty && tipo_reg != _tipo) continue;
+        final ing = mapa['hora_ingreso']?.toString();
+        final sal = mapa['hora_salida']?.toString();
+        if (ing != null && ing.trim().isNotEmpty) {
+          ingreso_hoy = normalizarHoraConSegundos(ing);
+        }
+        if (sal != null && sal.trim().isNotEmpty) {
+          salida_hoy = normalizarHoraConSegundos(sal);
+        }
+        break;
+      }
+
+      if (mounted && (ingreso_hoy != null || salida_hoy != null)) {
+        setState(() {
+          if (ingreso_hoy != null) _hora_marcada_ingreso = ingreso_hoy;
+          _hora_marcada_salida = salida_hoy;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _cargarLugaresPractica() async {
@@ -281,7 +321,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
     final es_escuela_lideres_viernes = ahora.weekday == DateTime.friday &&
         tipo_activo == TipoAsistencia.escuelaLideres.valor;
     final hora_texto =
-        '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}';
+        '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}:${ahora.second.toString().padLeft(2, '0')}';
     _hora_marcada_ingreso = hora_texto;
 
     if (es_escuela_lideres_viernes) {
@@ -318,7 +358,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
       setState(() {
         _es_retraso = false;
         _banner_alerta_puntualidad =
-            '✅ Ingreso de prácticas registrado a las $_hora_marcada_ingreso (Meta flexible: 9 h/semana · 36 h/mes)';
+            '✅ Ingreso de prácticas registrado a las $_hora_marcada_ingreso (Meta flexible: 09:00:00/semana · 36:00:00/mes)';
       });
       return;
     } else if (tipo_activo == TipoAsistencia.accionesServicio.valor) {
@@ -420,7 +460,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
 
     if (error == null) {
       final hora_str =
-          '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}';
+          '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}:${ahora.second.toString().padLeft(2, '0')}';
       setState(() {
         _mostrar_celebracion = true;
         if (!ingreso) {
@@ -437,6 +477,7 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
         _mensaje(ingreso ? "Ingreso registrado" : "Salida registrada");
       }
       _escanearUbicacion(lugar_param: lugar);
+      _cargarMarcacionesHoy();
     } else {
       _mensaje(error, es_error: true);
     }

@@ -348,6 +348,15 @@ class _DeclararRecorridoPantallaState
     _id_recorrido_vuelta_hoy = vuelta?.id;
 
     if (ida != null) {
+      if (ida.tipo_actividad != null && ida.tipo_actividad!.trim().isNotEmpty) {
+        final t_raw = ida.tipo_actividad!.toLowerCase();
+        if (t_raw.contains('accion') || t_raw.contains('servicio')) {
+          _tipo_actividad = 'Acciones de Servicio';
+        } else if (t_raw.contains('practica')) {
+          _tipo_actividad = 'Prácticas';
+        }
+      }
+
       if (ida.apoyo_realizado != null && ida.apoyo_realizado!.isNotEmpty) {
         final texto = ida.apoyo_realizado!;
         if (texto.startsWith('[')) {
@@ -360,7 +369,10 @@ class _DeclararRecorridoPantallaState
             final resto = texto.substring(fin_actividad + 1).trim();
             final partes_resto = resto.split('| Calles:');
             if (partes_resto.isNotEmpty) {
-              _apoyo_controlador.text = partes_resto.first.trim();
+              final limpio = partes_resto.first.trim();
+              if (!limpio.startsWith('Calles:')) {
+                _apoyo_controlador.text = limpio;
+              }
             }
           }
         } else {
@@ -1278,9 +1290,10 @@ class _DeclararRecorridoPantallaState
           .toList(),
     });
 
-    final apoyo_ida = texto_apoyo.isNotEmpty
-        ? "[$_tipo_actividad] $texto_apoyo | Calles: $calles_ida | Transporte: $medios_ida"
-        : "[$_tipo_actividad] Calles: $calles_ida | Transporte: $medios_ida";
+    final tipo_actividad_api = _tipo_actividad == 'Acciones de Servicio'
+        ? 'acciones_servicio'
+        : 'practicas';
+    final apoyo_opcional = texto_apoyo.isNotEmpty ? texto_apoyo : null;
 
     final ida = await repositorio.agregarRecorrido(
       fecha: fecha_str,
@@ -1288,7 +1301,8 @@ class _DeclararRecorridoPantallaState
       origen: origen,
       destino: destino,
       tarifa: total_ida,
-      apoyo_realizado: apoyo_ida,
+      tipo_actividad: tipo_actividad_api,
+      apoyo_realizado: apoyo_opcional,
       calles_declaradas: calles_ida,
       medio_transporte: medios_ida,
       detalle_tramos_json: detalle_ida_json,
@@ -1336,17 +1350,14 @@ class _DeclararRecorridoPantallaState
             .toList(),
       });
 
-      final apoyo_vuelta = texto_apoyo.isNotEmpty
-          ? "[$_tipo_actividad] $texto_apoyo | Calles: $calles_vuelta | Transporte: $medios_vuelta"
-          : "[$_tipo_actividad] Calles: $calles_vuelta | Transporte: $medios_vuelta";
-
       final vuelta = await repositorio.agregarRecorrido(
         fecha: fecha_str,
         tramo: "vuelta",
         origen: origen_vuelta.isNotEmpty ? origen_vuelta : destino,
         destino: destino_vuelta.isNotEmpty ? destino_vuelta : origen,
         tarifa: total_vuelta,
-        apoyo_realizado: apoyo_vuelta,
+        tipo_actividad: tipo_actividad_api,
+        apoyo_realizado: apoyo_opcional,
         calles_declaradas: calles_vuelta,
         medio_transporte: medios_vuelta,
         detalle_tramos_json: detalle_vuelta_json,
@@ -1537,14 +1548,27 @@ class _DeclararRecorridoPantallaState
             ),
             const SizedBox(height: 14),
 
-            // Campo de Apoyo Realizado
-            const Text(
-              "Apoyo realizado",
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF334155),
-              ),
+            // Campo de Apoyo Realizado (opcional)
+            Row(
+              children: const [
+                Text(
+                  "Apoyo realizado",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF334155),
+                  ),
+                ),
+                SizedBox(width: 6),
+                Text(
+                  "(opcional)",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 6),
             TextFormField(

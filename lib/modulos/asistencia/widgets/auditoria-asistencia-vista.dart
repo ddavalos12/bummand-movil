@@ -48,7 +48,7 @@ void abrirDetalleRegistroAuditoria(
     tipo_registro: _etiquetaTipo(registro.tipo),
     lugar: registro.sede_nombre,
     ingreso: registro.hora_ingreso,
-    salida: registro.hora_salida ?? '--:--',
+    salida: registro.hora_salida ?? 'En curso',
     horas_trabajadas: registro.horas_texto,
     distancia: registro.distancia_ingreso_m == null
         ? '--'

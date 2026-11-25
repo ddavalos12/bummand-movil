@@ -246,7 +246,8 @@ class PasajesRepositorio {
     required String origen,
     required String destino,
     required double tarifa,
-    required String apoyo_realizado,
+    String? tipo_actividad,
+    String? apoyo_realizado,
     String? calles_declaradas,
     String? medio_transporte,
     String? detalle_tramos_json,
@@ -261,6 +262,7 @@ class PasajesRepositorio {
         origen: origen,
         destino: destino,
         tarifa: tarifa,
+        tipo_actividad: tipo_actividad,
         apoyo_realizado: apoyo_realizado,
         calles_declaradas: calles_declaradas,
         medio_transporte: medio_transporte,
@@ -277,7 +279,8 @@ class PasajesRepositorio {
     required String origen,
     required String destino,
     required double tarifa,
-    required String apoyo_realizado,
+    String? tipo_actividad,
+    String? apoyo_realizado,
     String? calles_declaradas,
     String? medio_transporte,
     String? detalle_tramos_json,
@@ -287,18 +290,26 @@ class PasajesRepositorio {
     double? lng_destino,
   }) async {
     final cliente_http = _obtenerCliente();
-    final apoyo_seguro = apoyo_realizado.length > 250
-        ? apoyo_realizado.substring(0, 250)
-        : apoyo_realizado;
     final cuerpo = <String, dynamic>{
       'fecha': fecha,
       'tramo': tramo,
       'origen': origen,
       'destino': destino,
       'tarifa': tarifa,
-      'apoyoRealizado': apoyo_seguro,
-      'apoyo_realizado': apoyo_seguro,
     };
+    final tipo_limpio = tipo_actividad?.trim();
+    if (tipo_limpio != null && tipo_limpio.isNotEmpty) {
+      cuerpo['tipo_actividad'] = tipo_limpio;
+      cuerpo['tipoActividad'] = tipo_limpio;
+    }
+    final apoyo_limpio = apoyo_realizado?.trim();
+    if (apoyo_limpio != null && apoyo_limpio.isNotEmpty) {
+      final apoyo_seguro = apoyo_limpio.length > 250
+          ? apoyo_limpio.substring(0, 250)
+          : apoyo_limpio;
+      cuerpo['apoyoRealizado'] = apoyo_seguro;
+      cuerpo['apoyo_realizado'] = apoyo_seguro;
+    }
     if (calles_declaradas != null) {
       cuerpo['calles_declaradas'] = calles_declaradas;
       cuerpo['callesDeclaradas'] = calles_declaradas;

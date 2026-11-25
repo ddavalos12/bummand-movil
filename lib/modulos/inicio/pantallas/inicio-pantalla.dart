@@ -395,10 +395,10 @@ class _InicioPantallaState extends ConsumerState<InicioPantalla> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "$pct_cumplimiento% (${extracto.horas_totales.toStringAsFixed(1)}/${extracto.meta_mensual.toStringAsFixed(0)} h)",
+                        "$pct_cumplimiento% (${extracto.horas_totales_hms} / ${extracto.meta_mensual_hms})",
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

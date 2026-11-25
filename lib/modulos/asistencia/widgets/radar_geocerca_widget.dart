@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../../nucleo/utilidades/formato-horas.dart';
+
 class RadarGeocercaWidget extends StatefulWidget {
   final bool escaneando;
   final bool dentro_geocerca;
@@ -16,6 +18,8 @@ class RadarGeocercaWidget extends StatefulWidget {
   final String? direccion_lugar;
   final String? nombre_becario;
   final VoidCallback? alSeleccionarLugar;
+  final bool es_historico;
+  final String? fecha_etiqueta;
 
   const RadarGeocercaWidget({
     super.key,
@@ -32,6 +36,8 @@ class RadarGeocercaWidget extends StatefulWidget {
     this.direccion_lugar,
     this.nombre_becario,
     this.alSeleccionarLugar,
+    this.es_historico = false,
+    this.fecha_etiqueta,
   });
 
   @override
@@ -77,11 +83,13 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
       duration: const Duration(milliseconds: 2400),
     )..repeat();
 
-    _temporizador_reloj = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() => _ahora = DateTime.now());
-      }
-    });
+    if (!widget.es_historico) {
+      _temporizador_reloj = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) {
+          setState(() => _ahora = DateTime.now());
+        }
+      });
+    }
   }
 
   @override
@@ -97,12 +105,38 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
     return "$dia_nombre ${fecha.day} $mes_nombre ${fecha.year}";
   }
 
+  bool _esHoraValida(String? h) {
+    if (h == null) return false;
+    final limpio = h.trim().toLowerCase();
+    return limpio.isNotEmpty &&
+        limpio != '--:--' &&
+        limpio != '--:--:--' &&
+        limpio != 'en curso' &&
+        limpio != 'pendiente';
+  }
+
   @override
   Widget build(BuildContext context) {
     final precision_m = widget.posicion?.accuracy.round();
     final distancia_m = widget.distancia_m?.round();
-    final hora_ingreso_texto = widget.hora_ingreso ?? '--:--';
-    final hora_salida_texto = widget.hora_salida ?? '--:--';
+    final tiene_ingreso = _esHoraValida(widget.hora_ingreso);
+    final tiene_salida = _esHoraValida(widget.hora_salida);
+    final hora_ingreso_texto = tiene_ingreso
+        ? normalizarHoraConSegundos(widget.hora_ingreso)
+        : '--:--:--';
+    final hora_salida_texto = tiene_salida
+        ? normalizarHoraConSegundos(widget.hora_salida)
+        : (widget.es_historico && widget.hora_salida?.isNotEmpty == true
+            ? widget.hora_salida!
+            : '--:--:--');
+    final titulo_reloj_historico = tiene_ingreso && tiene_salida
+        ? formatearDuracionAsistencia(
+            hora_ingreso: hora_ingreso_texto,
+            hora_salida: hora_salida_texto,
+          )
+        : (tiene_ingreso
+            ? hora_ingreso_texto
+            : "${_ahora.hour.toString().padLeft(2, '0')}:${_ahora.minute.toString().padLeft(2, '0')}:${_ahora.second.toString().padLeft(2, '0')}");
 
     return Container(
       width: double.infinity,
@@ -147,7 +181,11 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    widget.escaneando ? 'Detectando satélites...' : 'GPS sincronizado',
+                    widget.es_historico
+                        ? 'Registro histórico'
+                        : (widget.escaneando
+                            ? 'Detectando satélites...'
+                            : 'GPS sincronizado'),
                     style: const TextStyle(
                       color: Color(0xFF94A3B8),
                       fontSize: 11.5,
@@ -165,31 +203,37 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    precision_m != null
-                        ? "GPS · precisión $precision_m m"
-                        : "GPS · esperando señal",
+                    widget.es_historico
+                        ? (distancia_m != null
+                            ? "GPS · $distancia_m m del punto"
+                            : "Auditoría WGS84")
+                        : (precision_m != null
+                            ? "GPS · precisión $precision_m m"
+                            : "GPS · esperando señal"),
                     style: const TextStyle(
                       color: Color(0xFFCBD5E1),
                       fontSize: 11.5,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: widget.alReescanear,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.refresh_rounded,
-                        color: Colors.white,
-                        size: 15,
+                  if (widget.alReescanear != null) ...[
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: widget.alReescanear,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          color: Colors.white,
+                          size: 15,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],
@@ -388,7 +432,9 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
 
           // Reloj Digital Grande y Fecha oficial
           Text(
-            "${_ahora.hour.toString().padLeft(2, '0')}:${_ahora.minute.toString().padLeft(2, '0')}",
+            widget.es_historico
+                ? titulo_reloj_historico
+                : "${_ahora.hour.toString().padLeft(2, '0')}:${_ahora.minute.toString().padLeft(2, '0')}",
             style: const TextStyle(
               color: Colors.white,
               fontSize: 40,
@@ -399,13 +445,18 @@ class _RadarGeocercaWidgetState extends State<RadarGeocercaWidget>
           ),
           const SizedBox(height: 4),
           Text(
-            _formatearFecha(_ahora),
+            widget.es_historico &&
+                    widget.fecha_etiqueta != null &&
+                    widget.fecha_etiqueta!.trim().isNotEmpty
+                ? widget.fecha_etiqueta!.toUpperCase()
+                : _formatearFecha(_ahora),
             style: const TextStyle(
               color: Color(0xFF94A3B8),
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 10),
 

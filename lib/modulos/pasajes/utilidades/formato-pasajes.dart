@@ -95,8 +95,19 @@ class FormatoPasajes {
     return "${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}";
   }
 
-  static String periodoDe(DateTime fecha) =>
-      "${fecha.year.toString().padLeft(4, '0')}-${fecha.month.toString().padLeft(2, '0')}";
+  static String periodoDe(DateTime fecha) {
+    var anio = fecha.year;
+    var mes = fecha.month;
+    if (fecha.day >= DIA_ENVIO_FORMULARIO) {
+      if (mes == 12) {
+        anio += 1;
+        mes = 1;
+      } else {
+        mes += 1;
+      }
+    }
+    return "${anio.toString().padLeft(4, '0')}-${mes.toString().padLeft(2, '0')}";
+  }
 
   static String get periodoActual => periodoDe(DateTime.now());
 
