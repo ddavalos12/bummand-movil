@@ -452,12 +452,29 @@ class _RecorridoGpsPruebaPantallaState extends State<RecorridoGpsPruebaPantalla>
         mensaje_confirmacion: 'Recorrido GPS de prueba subido con éxito.',
       );
     } else {
+      final mensaje_fallo =
+          resultado.error ?? 'Error al subir recorrido. Intenta nuevamente.';
       setState(() {
         _subiendo_sesion = false;
         _error_subida_previo = true;
-        _mensaje_error =
-            resultado.error ?? 'Error al subir recorrido. Intenta nuevamente.';
+        _mensaje_error = mensaje_fallo;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            mensaje_fallo,
+            style: GoogleFonts.montserrat(
+              fontWeight: FontWeight.w500,
+              color: BumandColores.blanco,
+            ),
+          ),
+          backgroundColor: _COLOR_ROJO,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
     }
   }
 

@@ -80,11 +80,15 @@ class PuntoGpsPruebaModelo {
       longitud: _parsearDoubleOpcional(mapa['longitud']) ?? 0.0,
       precision_m: _parsearDoubleOpcional(mapa['precision_m']) ?? 0.0,
       altitud_m: _parsearDoubleOpcional(mapa['altitud_m']),
-      velocidad_mps: _parsearDoubleOpcional(mapa['velocidad_mps']),
+      velocidad_mps: _parsearDoubleOpcional(
+        mapa['velocidad_ms'] ?? mapa['velocidad_mps'],
+      ),
       rumbo_grados: _parsearDoubleOpcional(mapa['rumbo_grados']),
       hora_dispositivo_iso: (mapa['hora_dispositivo_iso'] ?? '') as String,
       hora_gps_iso: mapa['hora_gps_iso'] as String?,
-      desfase_reloj_seg: _parsearEnteroOpcional(mapa['desfase_reloj_seg']),
+      desfase_reloj_seg: _parsearEnteroOpcional(
+        mapa['desfase_reloj_gps_seg'] ?? mapa['desfase_reloj_seg'],
+      ),
       reloj_monotonico_ms:
           _parsearEnteroOpcional(mapa['reloj_monotonico_ms']) ?? 0,
       es_ubicacion_simulada: mapa['es_ubicacion_simulada'] == true,
@@ -111,6 +115,25 @@ class PuntoGpsPruebaModelo {
       'modo_captura': modo_captura,
       'hash_punto': hash_punto,
       'hash_anterior': hash_anterior,
+    };
+  }
+
+  Map<String, dynamic> aPayloadApi() {
+    return {
+      'secuencia': secuencia,
+      'latitud': latitud,
+      'longitud': longitud,
+      'precision_m': precision_m,
+      'altitud_m': altitud_m,
+      'velocidad_ms': velocidad_mps,
+      'rumbo_grados': rumbo_grados,
+      'hora_dispositivo_iso': hora_dispositivo_iso,
+      'hora_gps_iso': hora_gps_iso,
+      'desfase_reloj_gps_seg': desfase_reloj_seg,
+      'reloj_monotonico_ms': reloj_monotonico_ms,
+      'es_ubicacion_simulada': es_ubicacion_simulada,
+      'modo_captura': modo_captura,
+      'hash_punto': hash_punto,
     };
   }
 }
@@ -282,7 +305,7 @@ class SesionRecorridoGpsPrueba {
       'duracion_monotonica_seg': duracion_monotonica_seg,
       'intervalo_minutos': intervalo_minutos,
       'hash_integridad_cliente': hash_integridad_cliente,
-      'puntos': puntos.map((p) => p.aMapa()).toList(),
+      'puntos': puntos.map((p) => p.aPayloadApi()).toList(),
     };
   }
 }
