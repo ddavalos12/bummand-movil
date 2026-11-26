@@ -10,6 +10,7 @@ import '../proveedores/autenticacion-proveedor.dart';
 import '../verificacion_post_login_vista.dart';
 import '../../asistencia/proveedores/asistencia-proveedor.dart';
 import '../../inicio/pantallas/inicio-pantalla.dart';
+import '../../recorridos-gps-prueba/pantallas/recorrido-gps-prueba-pantalla.dart';
 import 'registro-pantalla.dart';
 
 class InicioSesionPantalla extends ConsumerStatefulWidget {
@@ -459,7 +460,80 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 18),
+
+                      // Acceso temporal GPS C++ previo al login
+                      Material(
+                        color: BumandColores.negro,
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: estado_auth.cargando
+                              ? null
+                              : () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const RecorridoGpsPruebaPantalla(),
+                                    ),
+                                  );
+                                },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: BumandColores.azulCieloSuave,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                SvgPicture.asset(
+                                  'assets/logos/logo-gps-cpp.svg',
+                                  height: 28,
+                                  fit: BoxFit.contain,
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Prueba GPS C++',
+                                        style: TextStyle(
+                                          color: BumandColores.blanco,
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'Registro de recorrido sin sesión',
+                                        style: TextStyle(
+                                          color: BumandColores.azulCieloSuave,
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: BumandColores.azulCieloSuave,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
                       // Separador con pez cristiano institucional
                       Row(

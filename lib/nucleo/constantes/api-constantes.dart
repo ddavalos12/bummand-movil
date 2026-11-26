@@ -40,6 +40,7 @@ class ApiConstantes {
   static const String PUNTO_USUARIOS_MI_PERFIL = '/api/usuarios/mi-perfil';
   static const String PUNTO_USUARIOS_MI_PERFIL_CORREOS = '/api/usuarios/mi-perfil/correos';
   static const String PUNTO_USUARIOS_MI_PERFIL_CONTRASENA = '/api/usuarios/mi-perfil/contrasena';
+  static const String PUNTO_RECORRIDOS_GPS_PRUEBA = '/api/recorridos-gps-prueba';
 
   // Alias para retrocompatibilidad
   static String get baseUrl => RUTA_BASE;
