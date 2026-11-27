@@ -520,7 +520,10 @@ class _HistorialAsistenciaPantallaState
           return m.tipo == "practicas" || m.actividad.toLowerCase().contains("práctica");
         }
         if (_filtro_actividad_inline == "liderazgo") {
-          return m.tipo == "liderazgo" || m.actividad.toLowerCase().contains("líder");
+          return m.tipo == "liderazgo" ||
+              m.tipo == "escuela_lideres" ||
+              m.actividad.toLowerCase().contains("líder") ||
+              m.actividad.toLowerCase().contains("lider");
         }
         if (_filtro_actividad_inline == "servicio") {
           return m.tipo == "servicio" || m.actividad.toLowerCase().contains("servicio");
@@ -1386,7 +1389,7 @@ class _HistorialAsistenciaPantallaState
 
   /// Tarjeta mensual de resumen cuando se listan todos los meses
   Widget _construirTarjetaMensualAsistencia(ExtractoMensualAsistencia item) {
-    final previas = item.movimientos.take(2).toList();
+    final previas = item.movimientos.reversed.take(2).toList();
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(

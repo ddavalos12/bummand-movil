@@ -94,6 +94,8 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
       );
       if (res.exito || res.error_bumand?.fueEncolado == true) {
         ref.invalidate(historial_asistencia_proveedor);
+        ref.invalidate(extractos_mensuales_proveedor);
+        ref.invalidate(extracto_mensual_proveedor);
         ref.invalidate(cola_offline_conteo_proveedor);
         state = const AsyncData(null);
         return null;
@@ -132,6 +134,8 @@ class AsistenciaNotificador extends AsyncNotifier<void> {
       );
       if (res.exito || res.error_bumand?.fueEncolado == true) {
         ref.invalidate(historial_asistencia_proveedor);
+        ref.invalidate(extractos_mensuales_proveedor);
+        ref.invalidate(extracto_mensual_proveedor);
         ref.invalidate(cola_offline_conteo_proveedor);
         state = const AsyncData(null);
         return null;

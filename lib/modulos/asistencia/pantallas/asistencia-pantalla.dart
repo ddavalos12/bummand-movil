@@ -1154,7 +1154,10 @@ class _AsistenciaPantallaState extends ConsumerState<AsistenciaPantalla> {
                 setState(() {
                   _tipo = opcion.$1;
                   _banner_alerta_puntualidad = null;
+                  _hora_marcada_ingreso = null;
+                  _hora_marcada_salida = null;
                 });
+                _cargarMarcacionesHoy();
                 if (opcion.$1 == TipoAsistencia.accionesServicio.valor) {
                   if (_eventos_servicio.isEmpty) {
                     _cargarEventosServicio();
