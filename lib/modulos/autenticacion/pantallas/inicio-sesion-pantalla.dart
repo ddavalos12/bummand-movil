@@ -23,6 +23,10 @@ class InicioSesionPantalla extends ConsumerStatefulWidget {
 
 class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
     with SingleTickerProviderStateMixin {
+  static const bool _MOSTRAR_ACCESO_GPS_CPP = bool.fromEnvironment(
+    'MOSTRAR_GPS_CPP',
+    defaultValue: false,
+  );
   final _correo_controlador = TextEditingController();
   final _contrasena_controlador = TextEditingController();
   bool _ocultar_contrasena = true;
@@ -462,78 +466,80 @@ class _InicioSesionPantallaState extends ConsumerState<InicioSesionPantalla>
                       ),
                       const SizedBox(height: 18),
 
-                      // Acceso temporal GPS C++ previo al login
-                      Material(
-                        color: BumandColores.negro,
-                        borderRadius: BorderRadius.circular(16),
-                        child: InkWell(
+                      // Acceso temporal GPS C++ previo al login (oculto por defecto)
+                      if (_MOSTRAR_ACCESO_GPS_CPP) ...[
+                        Material(
+                          color: BumandColores.negro,
                           borderRadius: BorderRadius.circular(16),
-                          onTap: estado_auth.cargando
-                              ? null
-                              : () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          const RecorridoGpsPruebaPantalla(),
-                                    ),
-                                  );
-                                },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: BumandColores.azulCieloSuave,
-                                width: 1.5,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: estado_auth.cargando
+                                ? null
+                                : () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const RecorridoGpsPruebaPantalla(),
+                                      ),
+                                    );
+                                  },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                SvgPicture.asset(
-                                  'assets/logos/logo-gps-cpp.svg',
-                                  height: 28,
-                                  fit: BoxFit.contain,
-                                ),
-                                const SizedBox(width: 12),
-                                const Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Prueba GPS C++',
-                                        style: TextStyle(
-                                          color: BumandColores.blanco,
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      Text(
-                                        'Registro de recorrido sin sesión',
-                                        style: TextStyle(
-                                          color: BumandColores.azulCieloSuave,
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.arrow_forward_rounded,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
                                   color: BumandColores.azulCieloSuave,
-                                  size: 20,
+                                  width: 1.5,
                                 ),
-                              ],
+                              ),
+                              child: Row(
+                                children: [
+                                  SvgPicture.asset(
+                                    'assets/logos/logo-gps-cpp.svg',
+                                    height: 28,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Prueba GPS C++',
+                                          style: TextStyle(
+                                            color: BumandColores.blanco,
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Registro de recorrido sin sesión',
+                                          style: TextStyle(
+                                            color: BumandColores.azulCieloSuave,
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    color: BumandColores.azulCieloSuave,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
+                      ],
 
                       // Separador con pez cristiano institucional
                       Row(
